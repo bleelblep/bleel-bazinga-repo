@@ -5,6 +5,7 @@ import { Stores } from '@valenced/discord/flux'
 import * as modulesFinders from '@valenced/discord/utils/modules/finders'
 import * as finders from '@valenced/modules/finders'
 import * as filters from '@valenced/modules/finders/filters'
+import * as metro from '@valenced/modules/metro'
 import { lookupGeneratedIconComponent } from '@valenced/utils/discord'
 import { Linking } from 'react-native'
 import { reportError } from '../../../../shared/report'
@@ -51,10 +52,71 @@ export function modals(): { pushModal(options: any): void; popModal(key: string)
 	return modalApi
 }
 
+const OAUTH_MODAL_PATH = 'modules/oauth2/native/OAuth2AuthorizeModal.tsx'
+
+/**
+ * Loads Discord's authorize screen when Discord hasn't yet. Discord only loads it the first time
+ * something opens it, so on most sessions the path lookup finds nothing.
+ *
+ * Module ids change with every Discord build, so the screen is found through the dependency graph
+ * instead, starting from the always-loaded `OAuth2Scopes` module. On 352.6 the chain was
+ * OAuth2Scopes (8825) <- scope helpers (9629, 9630 and others) <- `useOAuth2AuthorizeForm` (9627:
+ * unloaded, uses OAuth2Scopes directly and two or more helpers) <- `TwoWayLinkDiscordConsent` (9626)
+ * and `OAuth2AuthorizeModal` (10748). Only those last unloaded screens are loaded, one at a time,
+ * until the screen's path shows up. Loading only defines the screen's code, as Discord does before
+ * opening it; nothing is shown or sent. Gives up (and sign-in says so) if the chain moves.
+ */
+function loadAuthorizeModal(): void {
+	try {
+		const { lookupModule } = finders
+		const { withProps } = filters
+		const scopesId = (lookupModule(withProps('OAuth2Scopes')) as any)?.[1]
+		if (typeof scopesId !== 'number') return
+
+		// Every module's dependency list. Ids are dense; stop after a long gap.
+		const all = new Map<number, number[]>()
+		for (let id = 0, gap = 0; gap < 5000; id++) {
+			const deps = metro.getModuleDependencies(id)
+			if (!deps) {
+				gap++
+				continue
+			}
+			gap = 0
+			all.set(id, [...(deps as any)].filter(dep => typeof dep === 'number'))
+		}
+
+		const unloaded = (id: number) => !metro.isModuleInitialized(id)
+		const dependents = (targets: Set<number>, minimum = 1) =>
+			[...all].filter(([, deps]) => deps.filter(dep => targets.has(dep)).length >= minimum)
+		const helpers = new Set(dependents(new Set([scopesId])).map(([id]) => id))
+		const forms = new Set(
+			dependents(helpers, 2)
+				.filter(([id, deps]) => unloaded(id) && deps.includes(scopesId))
+				.map(([id]) => id),
+		)
+		const screens = dependents(forms)
+			.map(([id]) => id)
+			.filter(unloaded)
+			.slice(0, 4)
+
+		for (const id of screens) {
+			__r(id)
+			if (byPath(OAUTH_MODAL_PATH)) {
+				if (DEBUG) console.log(`${TAG} loaded the authorize screen (module ${id})`)
+				return
+			}
+		}
+		if (DEBUG) console.log(`${TAG} authorize screen not found among ${screens.length} candidates`)
+	} catch (error) {
+		reportError(`${TAG} loading the authorize screen failed:`, error)
+	}
+}
+
 let oauthModal: any
 export function OAuth2AuthorizeModal(): any {
 	if (!oauthModal) {
-		const mod = byPath('modules/oauth2/native/OAuth2AuthorizeModal.tsx')
+		if (!byPath(OAUTH_MODAL_PATH)) loadAuthorizeModal()
+		const mod = byPath(OAUTH_MODAL_PATH)
 		oauthModal = mod?.default ?? mod
 		if (typeof oauthModal !== 'function') {
 			try {

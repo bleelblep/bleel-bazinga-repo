@@ -3,6 +3,12 @@ import type { ChangelogEntry } from '../../../shared/changelog'
 /** Newest first. Every version users got gets an entry; see shared/changelog.tsx. */
 export const CHANGELOG: ChangelogEntry[] = [
 	{
+		version: '0.1.21',
+		date: '2026-10-28',
+		title: 'Sign-in works again',
+		changes: ["Authorize now opens Discord's own sign-in screen even when Discord hasn't loaded it yet."],
+	},
+	{
 		version: '0.1.20',
 		date: '2026-10-28',
 		title: 'Safer sign-in',
