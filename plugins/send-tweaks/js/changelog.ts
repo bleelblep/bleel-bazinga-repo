@@ -3,6 +3,12 @@ import type { ChangelogEntry } from '../../../shared/changelog'
 /** Newest first. Every public version gets an entry; see shared/changelog.tsx. */
 export const CHANGELOG: ChangelogEntry[] = [
 	{
+		version: '1.0.14',
+		date: '2026-10-28',
+		title: 'Bazinga Plugins',
+		changes: ['Now published from the Bazinga Plugins repository.'],
+	},
+	{
 		version: '1.0.13',
 		date: '2026-10-27',
 		title: 'One switch for live replace',

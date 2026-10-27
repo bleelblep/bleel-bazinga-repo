@@ -16,6 +16,16 @@ that aren't ready. So this is the stop gap:
 
 That means plugins here work, but they can be rougher and change more often than community ones.
 
+## Install
+
+In Valenced, add this repository:
+
+```
+https://bleelblep.github.io/bleel-bazinga-repo/index.json
+```
+
+Then install the plugins you want from it.
+
 ## Account safety
 
 Every plugin is checked before it's listed here. No plugin reads your Discord token, sends its own

@@ -5,7 +5,7 @@
 	"description": "Removes the thin lines between rows in settings and other lists.",
 	"author": "bleelblep",
 	"icon": "ListViewIcon",
-	"version": "0.1.14",
+	"version": "0.1.15",
 	"dependencies": {
 		"valenced.api": {
 			"version": ">=1 <2"
