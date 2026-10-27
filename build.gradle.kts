@@ -278,7 +278,7 @@ configure(subprojects.filter { project -> pluginRoots.any { project.path.startsW
 
 // The bundler is @valenced/plugin-cli, so the lockfiles (which pin its revision) are the inputs.
 val jsConfigFiles = files(
-    "package.json", "tsconfig.base.json", "biome.json",
+    "package.json", "tsconfig.base.json",
     "bun.lock", "bun.lockb", "package-lock.json",
 )
 
