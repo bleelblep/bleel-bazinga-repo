@@ -1,0 +1,5 @@
+# CI runs these on Linux. With core.autocrlf on Windows, a CRLF checkout that got committed would
+# break the shebang line ("/usr/bin/env: 'bash\r'").
+*.sh text eol=lf
+gradlew text eol=lf
+*.bat text eol=crlf

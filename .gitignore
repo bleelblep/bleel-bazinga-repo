@@ -1,0 +1,23 @@
+# Gradle / Android
+.gradle/
+build/
+plugins/*/build/
+themes/*/build/
+local.properties
+.kotlin/
+
+# JS
+node_modules/
+package-lock.json
+yarn.lock
+*.tsbuildinfo
+
+# Release planning scratch (the CLI writes these; harmless locally)
+published/
+releases.json
+plan.tsv
+
+# Misc
+.DS_Store
+.idea/
+*.iml
