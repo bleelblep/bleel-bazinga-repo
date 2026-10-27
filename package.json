@@ -8,7 +8,7 @@
 		"generate-index": "valenced-plugin generate-index",
 		"plan-releases": "valenced-plugin plan-releases --plugins-dir plugins --plugins-dir themes",
 		"serve": "valenced-plugin serve",
-		"lint:types": "tsc -b plugins/*/tsconfig.json themes/*/tsconfig.json"
+		"lint:types": "tsc -b plugins/*/tsconfig.json"
 	},
 	"dependencies": {
 		"@revenge-mod/devtools-client": "^1.4.0",

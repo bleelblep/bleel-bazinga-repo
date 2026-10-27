@@ -1,0 +1,19 @@
+{
+	"format": 1,
+	"id": "bleelblep.custom-timestamps",
+	"name": "Custom Timestamps",
+	"description": "Choose how chat timestamps look: calendar, relative, ISO 8601 or your own format.",
+	"author": "bleelblep, Fiery",
+	"version": "1.2.12",
+	"dependencies": {
+		"valenced.api": {
+			"version": ">=1 <2"
+		},
+		"discord": {
+			"version": "*"
+		}
+	},
+	"dist": {
+		"script": "index.js"
+	}
+}

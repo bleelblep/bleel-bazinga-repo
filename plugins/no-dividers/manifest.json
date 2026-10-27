@@ -1,0 +1,20 @@
+{
+	"format": 1,
+	"id": "bleelblep.no-dividers",
+	"name": "No Dividers",
+	"description": "Removes the thin lines between rows in settings and other lists.",
+	"author": "bleelblep",
+	"icon": "ListViewIcon",
+	"version": "0.1.14",
+	"dependencies": {
+		"valenced.api": {
+			"version": ">=1 <2"
+		},
+		"discord": {
+			"version": "*"
+		}
+	},
+	"dist": {
+		"script": "index.js"
+	}
+}

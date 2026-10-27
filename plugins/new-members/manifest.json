@@ -1,0 +1,20 @@
+{
+	"format": 1,
+	"id": "bleelblep.new-members",
+	"name": "New Members",
+	"description": "A sprout next to the names of people who joined the server in the last week, like desktop.",
+	"author": "bleelblep",
+	"icon": "UserCircleIcon",
+	"version": "0.1.14",
+	"dependencies": {
+		"valenced.api": {
+			"version": ">=1 <2"
+		},
+		"discord": {
+			"version": "*"
+		}
+	},
+	"dist": {
+		"script": "index.js"
+	}
+}

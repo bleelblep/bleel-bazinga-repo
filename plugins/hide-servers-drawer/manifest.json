@@ -1,0 +1,20 @@
+{
+	"format": 1,
+	"id": "bleelblep.hide-servers-drawer",
+	"name": "Hide Servers",
+	"description": "Hide servers, folders or channels from your lists, only on your device.",
+	"author": "bleelblep, blerp",
+	"icon": "EyeSlashIcon",
+	"version": "1.7.6",
+	"dependencies": {
+		"valenced.api": {
+			"version": ">=1 <2"
+		},
+		"discord": {
+			"version": "*"
+		}
+	},
+	"dist": {
+		"script": "index.js"
+	}
+}
