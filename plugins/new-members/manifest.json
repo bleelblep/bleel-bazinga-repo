@@ -5,7 +5,7 @@
 	"description": "A sprout next to the names of people who joined the server in the last week, like desktop.",
 	"author": "bleelblep",
 	"icon": "UserCircleIcon",
-	"version": "0.1.15",
+	"version": "0.1.17",
 	"dependencies": {
 		"valenced.api": {
 			"version": ">=1 <2"

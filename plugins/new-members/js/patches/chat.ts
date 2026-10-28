@@ -5,8 +5,9 @@
  * It goes in the row's role icon slot (`message.roleIcon`), which the native renderer draws after
  * the name and hands to Discord's own `handleTapRoleIcon` on tap: that shows `name` as a toast and
  * leaves the name tap (the @mention) alone. Shape seen live on 351.6:
- * `{ source | unicodeEmoji, name, size: 18, alt }`. The slot holds one icon, so someone whose role
- * already has one keeps it and gets the sprout as text after their name instead.
+ * `{ source | unicodeEmoji, name, size: 18, alt }`. The slot holds one icon, so for someone whose role
+ * already has one the badge takes its place, or (if picked in settings) their icon stays and the
+ * sprout goes after their name as text. Text can't hold an image, so that is 🌱 whatever is picked.
  *
  * Chat rows are native data built by `RowManager.generate`; the name the native renderer draws is
  * the string at `row.message.username` in its result (what Screenshot Redactor rewrites, see
@@ -78,14 +79,13 @@ function addSprout(row: any, ret: any) {
 	if (message.roleIcon?.alt === ICON_ALT || message.username.endsWith(` ${SPROUT}`)) return
 	const at = newMemberSince(String(record.channel_id), authorId)
 	if (at === undefined) return
-	if (message.roleIcon) {
+	const { style, color, roleIcon } = settings()
+	if (message.roleIcon && roleIcon === 'keep') {
 		message.username += ` ${SPROUT}`
 		return
 	}
-	const { style, color } = settings()
 	message.roleIcon = {
-		// The settings page picks 🌱, Discord's NewUserIcon as shipped, or that icon recoloured. A text
-		// name can't hold an image, so the fallback above stays 🌱 whatever is picked.
+		// The settings page picks 🌱, Discord's NewUserIcon as shipped, or that icon recoloured.
 		...(style === 'emoji'
 			? { unicodeEmoji: SPROUT }
 			: { source: style === 'icon' ? ORIGINAL_ICON_URL : tintedIconUrl(color) }),

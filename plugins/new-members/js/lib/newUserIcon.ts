@@ -94,6 +94,9 @@ function zlibStored(raw: Uint8Array): Uint8Array {
 	return out
 }
 
+// Only the picked colour is ever in use, but every colour tried while picking would stay forever,
+// so keep the last few.
+const CACHE_MAX = 4
 const cache = new Map<string, string>()
 
 /** The icon painted in [hex] (`#rrggbb`). */
@@ -140,6 +143,7 @@ export function tintedIconUrl(hex: string): string {
 	}
 
 	const url = `data:image/png;base64,${toBase64(png)}`
+	if (cache.size >= CACHE_MAX) cache.delete(cache.keys().next().value as string)
 	cache.set(hex, url)
 	return url
 }

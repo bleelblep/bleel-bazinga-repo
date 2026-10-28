@@ -63,6 +63,8 @@ A sprout next to the names of people who joined the server in the last week, lik
 
 - Choose the badge: an emoji, a recoloured icon, or Discord's own.
 - Pick the icon colour, or reset it to green.
+- If someone's role already has an icon, show the badge in its place (default) or keep the role icon
+  and add 🌱 after the name.
 
 ### No Dividers
 

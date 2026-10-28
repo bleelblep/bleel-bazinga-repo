@@ -1,12 +1,15 @@
+import { useChangelog } from '../../../../shared/changelog'
+import { Credit } from '../../../../shared/ui/credit'
 import { hasColorPicker, openColorPicker } from '../lib/colorPicker'
 import { ORIGINAL_ICON_URL, tintedIconUrl } from '../lib/newUserIcon'
-import { DEFAULT_COLOR, update, useSettings, type BadgeStyle } from '../state'
+import { DEFAULT_COLOR, update, useSettings, type BadgeStyle, type RoleIconMode } from '../state'
 import ColorInput from './ColorInput'
 import * as components from '@valenced/components'
 import { Design } from '@valenced/discord/design'
 import * as ReactNative from 'react-native'
 
 export default function Settings() {
+	useChangelog()
 	// Read per-render, never at module scope -- see docs/coding-rules.md rule 1.
 	const { Page } = components
 	const { ScrollView, Image, View } = ReactNative
@@ -74,6 +77,26 @@ export default function Settings() {
 					) : (
 						<View />
 					)}
+					<TableRadioGroup
+						title="If their role has an icon"
+						description="A name has room for one icon."
+						defaultValue={s.roleIcon}
+						onChange={(roleIcon: RoleIconMode) => update({ roleIcon })}
+					>
+						<TableRadioRow
+							label="Show the badge instead"
+							subLabel="Their role icon comes back after their first week"
+							value="replace"
+							icon={preview(s.style)}
+						/>
+						<TableRadioRow
+							label="Keep their role icon"
+							subLabel="🌱 goes after their name instead, whatever badge is picked"
+							value="keep"
+							icon={<Text variant="text-md/normal">🌱</Text>}
+						/>
+					</TableRadioGroup>
+					<Credit />
 				</Stack>
 			</ScrollView>
 		</Page>

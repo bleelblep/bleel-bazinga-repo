@@ -1,3 +1,5 @@
+import { setupChangelog } from '../../../shared/changelog'
+import { CHANGELOG } from './changelog'
 import patchChat from './patches/chat'
 import { DEFAULTS, setStorage, type NewMembersStorage } from './state'
 import Settings from './ui/Settings'
@@ -15,6 +17,7 @@ export default plugin<{ jsonStorage: NewMembersStorage }>({
 
 		// Before the late-start check, so the settings page works either way.
 		api.cleanup(setStorage(api.jsonStorage))
+		api.cleanup(setupChangelog(api, CHANGELOG))
 
 		// Enabling a plugin mid-session leaves its hooks half-applied (see ghost-log-native-beta).
 		if (api.plugin.startedLate) {

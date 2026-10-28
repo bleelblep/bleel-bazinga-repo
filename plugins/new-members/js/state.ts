@@ -1,10 +1,14 @@
 export type BadgeStyle = 'emoji' | 'icon' | 'recolor'
 
+/** For someone whose role already has an icon: swap it for the badge, or keep it and add 🌱 after the name. */
+export type RoleIconMode = 'replace' | 'keep'
+
 export interface NewMembersStorage {
 	/** 🌱, Discord's NewUserIcon as shipped, or that icon in [color]. */
 	style: BadgeStyle
 	/** `#rrggbb`, for the recoloured icon. */
 	color: string
+	roleIcon: RoleIconMode
 }
 
 export const DEFAULT_COLOR = '#23A55A'
@@ -12,6 +16,7 @@ export const DEFAULT_COLOR = '#23A55A'
 export const DEFAULTS: NewMembersStorage = {
 	style: 'recolor',
 	color: DEFAULT_COLOR,
+	roleIcon: 'replace',
 }
 
 let storage: ValencedJsonStorageApi<NewMembersStorage> | undefined
