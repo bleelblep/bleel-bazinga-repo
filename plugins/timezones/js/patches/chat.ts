@@ -16,6 +16,7 @@
  */
 
 import { zoneFor } from '../lib/resolve'
+import { onEquicord } from '../lib/equicord'
 import { onShared } from '../lib/shared'
 import { onUpdate, settings } from '../lib/state'
 import { redrawMessage } from '../lib/redraw'
@@ -168,10 +169,12 @@ export default function patchChat(): () => void {
 	})
 
 	const unsubShared = onShared(() => refresh())
+	const unsubEquicord = onEquicord(() => refresh())
 	const unsubSettings = onUpdate(() => refresh())
 
 	return () => {
 		unsubShared()
+		unsubEquicord()
 		unsubSettings()
 		unsubscribe()
 		for (const unpatch of unpatches.reverse()) unpatch()

@@ -23,6 +23,8 @@ export interface TimezonesStorage {
 	showInChat: boolean
 	/** Ask the shared timezone list (timezonedb.catvibers.me) about people you haven't set. */
 	sharedLookup: boolean
+	/** Also read Equicord's list (timezone.creations.works). Off by default: it's one big download. */
+	equicordLookup: boolean
 	/** Search towns and cities online (Open-Meteo) in the picker, beyond the offline zone list. */
 	placeSearch: boolean
 	/** 24-hour times. */
@@ -36,6 +38,7 @@ export interface TimezonesStorage {
 export const DEFAULTS: TimezonesStorage = {
 	showInChat: true,
 	sharedLookup: true,
+	equicordLookup: false,
 	placeSearch: true,
 	hour24: false,
 	showDay: true,

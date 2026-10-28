@@ -42,7 +42,12 @@ All of these are JavaScript only, so they work on Android and iOS.
 
 Choose how the time next to each message looks.
 
-- Calendar ("Today at 14:05"), relative ("5 minutes ago"), ISO 8601, or your own format string.
+- Calendar ("Today at 2:05 PM", or a date like 10/28/2026 for older messages), relative
+  ("5 minutes ago"), ISO 8601 (in UTC), or your own format string.
+- Custom formats use moment.js-style letters (`dddd, MMMM Do YYYY, h:mm:ss a`). There is no way to
+  mark text as literal, so letters such as `a`, `d` or `h` inside words get swapped for time parts.
+- Times are worked out when a message row is drawn, so a relative time doesn't count up while you
+  watch.
 - Optionally shows the name, avatar and time on every message instead of grouping them.
 
 Credit: based on Custom Timestamps by Fiery.
@@ -52,7 +57,8 @@ Credit: based on Custom Timestamps by Fiery.
 Hide servers, folders and channels you don't want to see. Hiding only changes what your device shows:
 you stay in the server, and your server order on other devices isn't touched.
 
-- Hide or show servers, whole folders and single channels from their long-press menus.
+- Hide a server from its long-press menu in the server bar ("Hide server"), and a channel or
+  category from its long-press menu ("Hide channel"). Folders are hidden from settings.
 - A list in settings to bring anything back.
 
 Credit: with blerp; one file adapted from kmmiio99o's ServerDrawer.
@@ -86,18 +92,24 @@ Credit: a port of Vencord's ReviewDB by mantikafasi and Vendicated (GPL-3.0).
 
 ### Send Tweaks
 
-Tidies your messages as you send them.
+Tidies your messages as you send them. Link cleaning, polish and your rules never touch code blocks.
 
 - **Clean links:** strips tracking tags from links (YouTube, Spotify, X, Instagram, Amazon and more),
-  plus the ClearURLs community rules.
-- **Polish:** capitalise sentences, add apostrophes, end with a full stop.
-- **Your own rules:** find-and-replace for text or links (for example, X links to fxtwitter),
-  optionally applied as you type.
-- **Templates:** dates, times and snippets inside your replacements.
-- **Silent messages:** send without pinging anyone, always or for one message.
-- **One-off sends:** hold the send button and swipe up to send one message silently, with
-  notifications, or exactly as typed.
-- Also applies to edits if you want, and rules can be imported and exported.
+  plus the ClearURLs community rules, which update about once a week.
+- **Polish (off by default):** capitalise sentences, add apostrophes, and optionally end with a full stop.
+- **Your own rules:** find-and-replace for text or links (for example, X links to fxtwitter). Pick
+  from ready-made rules, or import and export them. A rule can also apply as you type. Anything
+  typing skipped is caught when you send.
+- **Shortcuts in any message:** `{timestamp}` becomes the current time, shown in each reader's own
+  time zone. `{rainbow:text}` becomes rainbow-coloured text. Colour codes written into ` ```ansi `
+  blocks are fixed up so the colours show.
+- **Silent messages (off by default):** send every new message without notifying anyone.
+- **Reply pings (opt-in):** start replies with the @ mention switched off. You can still turn it back on.
+- **Hold and swipe the send button:** let go halfway to preview the finished message before
+  sending, or swipe all the way up to send it exactly as typed. You can also make a plain tap open
+  the preview.
+- **Edits:** cleaning and rules apply to edited messages too (you can turn this off). An old
+  message is tidied as soon as you open it for editing, so you see the result before saving.
 
 Credit: with Rosie and WarFade.
 
@@ -109,6 +121,7 @@ See someone's local time next to their messages.
 - Shows their time (and optionally their day) beside their message timestamps, in 12- or 24-hour time.
 - Reads the shared timezone list other clients use, so people who've added themselves show up
   automatically. You can turn this off.
+- Can also read Equicord's timezone list (off by default, read only).
 
 Credit: a port of Aliucord's Timezones by aniimalz.
 
@@ -122,6 +135,7 @@ A few plugins talk to services other than Discord. None of them sends your Disco
 | Send Tweaks | ClearURLs rules (`rules2.clearurls.xyz`, GitLab) | Nothing: it downloads the rule list at most once a week. On by default; can be turned off |
 | Timezones | Shared timezone list (`timezonedb.catvibers.me`) | The user IDs of people shown in chat whose timezone you haven't set. On by default; can be turned off |
 | Timezones | Open-Meteo place search | The place name you type. On by default; can be turned off |
+| Timezones | Equicord's timezone list (`timezone.creations.works`) | Nothing about you: it downloads the whole list, about once an hour. Off by default |
 
 ## Building
 

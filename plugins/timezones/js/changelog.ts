@@ -3,6 +3,22 @@ import type { ChangelogEntry } from '../../../shared/changelog'
 /** Newest first. Every version users got gets an entry; see shared/changelog.tsx. */
 export const CHANGELOG: ChangelogEntry[] = [
 	{
+		version: '0.2.4',
+		date: '2026-10-28',
+		title: "Equicord's list",
+		changes: [
+			`New switch, "Also use Equicord's list" (off by default): shows the timezones people set in Equicord, for anyone without one from you or the shared list. Read only.`,
+		],
+	},
+	{
+		version: '0.2.3',
+		date: '2026-10-28',
+		title: 'Quieter when offline',
+		changes: [
+			"When the shared timezone list can't be reached, it waits before asking again (30 seconds, up to 10 minutes) instead of asking constantly, and shows one error instead of many.",
+		],
+	},
+	{
 		version: '0.2.2',
 		date: '2026-10-28',
 		title: 'Bazinga Plugins',

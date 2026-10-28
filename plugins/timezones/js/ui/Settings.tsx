@@ -204,6 +204,13 @@ export default function Settings({ api }: { api?: { jsonStorage?: any } }) {
 							onValueChange={(sharedLookup: boolean) => update({ sharedLookup })}
 						/>
 						<TableSwitchRow
+							label="Also use Equicord's list"
+							subLabel="For people still without one, read the timezones people set in Equicord (timezone.creations.works). Downloads the whole list about once an hour; sends nothing about you. Read only: set yours from Equicord on desktop."
+							icon={rowIcon('GlobeEarthIcon', 'ic_link')}
+							value={s.equicordLookup}
+							onValueChange={(equicordLookup: boolean) => update({ equicordLookup })}
+						/>
+						<TableSwitchRow
 							label="Search places online"
 							subLabel="Find any town or city when picking a timezone, through Open-Meteo. Sends only what you type. Countries and big cities work without it."
 							icon={rowIcon('MagnifyingGlassIcon', 'CompassIcon')}

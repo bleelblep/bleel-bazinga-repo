@@ -4,6 +4,7 @@ import { armDump, onDumpDone, probeDmNavigation, probeSortedGuildStore } from ".
 import patchChannelList from "./patches/channelList"
 import patchChannelSheet from "./patches/channelSheet"
 import { patchCreateElement } from "./patches/createElementIntercept"
+import patchGuildMenu from "./patches/guildMenu"
 import patchGuildsBar from "./patches/guildsBar"
 import patchSaveGuildFolders from "./patches/saveGuildFolders"
 import patchSortedGuilds, { refresh } from "./patches/sortedGuilds"
@@ -106,6 +107,7 @@ export default plugin<{ jsonStorage: HideServersDrawerStorage }>({
 			apply("guildsBar", patchGuildsBar)
 			apply("channelList", patchChannelList)
 			apply("channelSheet", patchChannelSheet)
+			apply("guildMenu", () => patchGuildMenu(() => plugin.requireReload()))
 			refresh()
 		}, 0)
 		cleanup(() => clearTimeout(installTimer))

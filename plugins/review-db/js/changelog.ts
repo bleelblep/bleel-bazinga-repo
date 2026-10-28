@@ -3,6 +3,15 @@ import type { ChangelogEntry } from '../../../shared/changelog'
 /** Newest first. Every version users got gets an entry; see shared/changelog.tsx. */
 export const CHANGELOG: ChangelogEntry[] = [
 	{
+		version: '0.1.23',
+		date: '2026-10-28',
+		title: 'Fixes',
+		changes: [
+			"When reviews can't load (offline, or too many requests), the profile card says so and lets you tap to try again, instead of \"No reviews yet\".",
+			'Settings changed right after turning the plugin on are saved.',
+		],
+	},
+	{
 		version: '0.1.22',
 		date: '2026-10-28',
 		title: 'Bazinga Plugins',

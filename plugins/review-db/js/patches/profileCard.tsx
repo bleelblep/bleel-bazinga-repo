@@ -38,9 +38,19 @@ const CARD_PATH = 'modules/user_profile/native/UserProfileCard.tsx'
 const TARGET = 'UserProfileApplicationRoleConnectionsCard'
 const BOT_PATH = 'modules/user_profile/native/BotUserProfileContent.tsx'
 
-/** Short cache so scrolling a profile, or reopening it, doesn't refetch every time. */
+/**
+ * Short cache so scrolling a profile, or reopening it, doesn't refetch every time. Only answers
+ * are kept, never a failed lookup, and only the last few profiles.
+ */
 const cache = new Map<string, { at: number; data: UserReviewsData }>()
 const CACHE_MS = 60_000
+const CACHE_MAX = 20
+
+function remember(userId: string, data: UserReviewsData) {
+	cache.delete(userId)
+	if (cache.size >= CACHE_MAX) cache.delete(cache.keys().next().value as string)
+	cache.set(userId, { at: Date.now(), data })
+}
 
 let profileCard: any
 function ProfileCardComponent(): any {
@@ -114,8 +124,12 @@ function Reviewers({ data }: { data: UserReviewsData }) {
 function ReviewsCard({ userId }: { userId: string }) {
 	const { TableRowGroup, TableRow, Card, Text } = Design as any
 	const [data, setData] = React.useState<UserReviewsData | null>(() => cache.get(userId)?.data ?? null)
+	const [failed, setFailed] = React.useState(false)
+	// Bumped by "tap to try again" to run the lookup once more.
+	const [attempt, setAttempt] = React.useState(0)
 
 	React.useEffect(() => {
+		setFailed(false)
 		const hit = cache.get(userId)
 		if (hit && Date.now() - hit.at < CACHE_MS) {
 			setData(hit.data)
@@ -124,28 +138,45 @@ function ReviewsCard({ userId }: { userId: string }) {
 		let alive = true
 		getReviews(userId, { limit: 4 })
 			.then(res => {
-				cache.set(userId, { at: Date.now(), data: res })
+				// getReviews answers a failed lookup (offline, 429) with no reviews; showing that as
+				// "No reviews yet" was wrong.
+				if (res.failed) {
+					if (alive) setFailed(true)
+					return
+				}
+				remember(userId, res)
 				if (alive) setData(res)
 			})
-			.catch(error => reportError(`${TAG} profile card fetch failed:`, error))
+			.catch(error => {
+				if (alive) setFailed(true)
+				reportError(`${TAG} profile card fetch failed:`, error)
+			})
 		return () => {
 			alive = false
 		}
-	}, [userId])
+	}, [userId, attempt])
 
 	const optedOut = !!data?.hasOptedOut
 	const count = data?.reviewCount ?? 0
-	const label = !data ? 'Loading…' : optedOut ? 'User opted out' : count ? `${count} ${count === 1 ? 'review' : 'reviews'}` : 'No reviews yet'
+	const label = failed && !data ? "Couldn't load reviews" : !data ? 'Loading…' : optedOut ? 'User opted out' : count ? `${count} ${count === 1 ? 'review' : 'reviews'}` : 'No reviews yet'
 
 	const row = (
 		<TableRowGroup hasIcons={false}>
 			<TableRow
 				label={label}
-				subLabel={!optedOut && data ? 'Tap to read or write reviews' : undefined}
+				subLabel={
+					failed && !data ? 'Tap to try again' : !optedOut && data ? 'Tap to read or write reviews' : undefined
+				}
 				trailing={data && count ? <Reviewers data={data} /> : undefined}
-				arrow={!optedOut}
+				arrow={!optedOut && !(failed && !data)}
 				disabled={optedOut}
-				onPress={optedOut ? undefined : () => openReviews(userId, usernameOf(userId), ReviewType.User)}
+				onPress={
+					failed && !data
+						? () => setAttempt(n => n + 1)
+						: optedOut
+							? undefined
+							: () => openReviews(userId, usernameOf(userId), ReviewType.User)
+				}
 			/>
 		</TableRowGroup>
 	)

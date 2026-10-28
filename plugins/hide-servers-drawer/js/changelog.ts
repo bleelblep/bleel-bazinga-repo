@@ -3,6 +3,20 @@ import type { ChangelogEntry } from '../../../shared/changelog'
 /** Newest first. Every version users got gets an entry; see shared/changelog.tsx. */
 export const CHANGELOG: ChangelogEntry[] = [
 	{
+		version: '1.7.9',
+		date: '2026-10-28',
+		title: 'Reload after hiding',
+		changes: ["Hiding a server from its long-press menu asks to reload Discord, so it's gone from the server bar straight away."],
+	},
+	{
+		version: '1.7.8',
+		date: '2026-10-28',
+		title: 'Hide from the server menu',
+		changes: [
+			'Long-press a server in the server bar and pick "Hide server". If you are in that server, you go to Home first.',
+		],
+	},
+	{
 		version: '1.7.7',
 		date: '2026-10-28',
 		title: 'Bazinga Plugins',

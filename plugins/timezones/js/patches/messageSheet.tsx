@@ -72,7 +72,7 @@ function buildRow(message: any) {
 	const time = found && timeIn(found.zone, Date.now(), settings().hour24)
 	const label = time ? `Their time: ${time.time}${time.otherDay ? ` ${time.otherDay}` : ''}` : 'Set their timezone…'
 	const subLabel = found
-		? `${found.place ?? zoneName(found.zone)} · ${found.source === 'you' ? 'set by you, tap to change' : 'from the shared list, tap to set your own'}`
+		? `${found.place ?? zoneName(found.zone)} · ${found.source === 'you' ? 'set by you, tap to change' : found.source === 'equicord' ? "from Equicord's list, tap to set your own" : 'from the shared list, tap to set your own'}`
 		: 'Show their local time next to their messages'
 
 	const { getAssetIdByName } = assets

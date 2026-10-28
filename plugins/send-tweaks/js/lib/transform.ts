@@ -89,12 +89,15 @@ export function transform(text: string): TransformResult {
 		}
 	}
 
-	// Send replace rules: if Replace text as you send is on, remaining enabled rules apply
-	if (s.textReplace && s.rules?.length) {
+	// Send replace rules: if Replace text as you send is on, remaining enabled rules apply. The
+	// live ones already ran just above; running them again doubled any that aren't idempotent
+	// ("lol" -> "lol 😂" sent "lol 😂 😂").
+	const sendRules = (s.rules ?? []).filter(r => !r.live)
+	if (s.textReplace && sendRules.length) {
 		const beforeSend = out
 		let applied = 0
 		const whole = transformAroundProtected(out, masked => {
-			const result = applyRules(masked, s.rules)
+			const result = applyRules(masked, sendRules)
 			applied = result.applied
 			return result.text
 		})
@@ -103,8 +106,8 @@ export function transform(text: string): TransformResult {
 			if (out !== beforeSend) sendReplaced = applied
 		} else {
 			out = mapOutsideProtected(out, words => {
-				const result = applyRules(words, s.rules)
-				if (out !== beforeSend) sendReplaced += result.applied
+				const result = applyRules(words, sendRules)
+				sendReplaced += result.applied
 				return result.text
 			})
 		}

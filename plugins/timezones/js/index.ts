@@ -1,6 +1,7 @@
 import { setupChangelog } from '../../../shared/changelog'
 import { CHANGELOG } from './changelog'
 import { watchChannelMessages } from './lib/redraw'
+import { startEquicord, stopEquicord } from './lib/equicord'
 import { startShared, stopShared } from './lib/shared'
 import { DEFAULTS, setStorage, type TimezonesStorage } from './lib/state'
 import patchChat from './patches/chat'
@@ -40,6 +41,8 @@ export default plugin<{ jsonStorage: TimezonesStorage }>({
 		cleanup(() => setStorage(undefined))
 		startShared()
 		cleanup(stopShared)
+		startEquicord()
+		cleanup(stopEquicord)
 
 		attempt(cleanup, 'changelog', () => setupChangelog(api, CHANGELOG))
 		attempt(cleanup, 'message cache', watchChannelMessages)
@@ -49,6 +52,7 @@ export default plugin<{ jsonStorage: TimezonesStorage }>({
 
 	stop(api) {
 		stopShared()
+		stopEquicord()
 		api.plugin.requireReload()
 	},
 

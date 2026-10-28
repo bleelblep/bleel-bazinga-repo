@@ -85,6 +85,7 @@ export async function getReviews(
 			hasNextPage: false,
 			reviewCount: 0,
 			hasOptedOut: false,
+			failed: true,
 		}
 	}
 

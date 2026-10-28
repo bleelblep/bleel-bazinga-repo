@@ -91,4 +91,6 @@ export interface UserReviewsData {
 	hasNextPage: boolean
 	reviewCount: number
 	hasOptedOut: boolean
+	/** Set by getReviews when the lookup itself failed (offline, 429); not from the API. */
+	failed?: boolean
 }

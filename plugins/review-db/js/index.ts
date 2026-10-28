@@ -29,6 +29,11 @@ export default plugin<{ jsonStorage: ReviewDBStorage }>({
 		setReporter(plugin)
 		cleanup(() => setReporter(undefined))
 
+		// Before the late-start check, so the settings page saves either way. After it, a plugin
+		// turned on mid-session showed settings that reverted on reload.
+		setStorage(jsonStorage)
+		cleanup(() => setStorage(undefined))
+
 		// Hooks on modules Discord already rendered with can't be verified mid-session.
 		if (plugin.startedLate) {
 			plugin.requireReload()
@@ -37,9 +42,6 @@ export default plugin<{ jsonStorage: ReviewDBStorage }>({
 
 		// The changelog: clock icon on the settings page, "What's new" after an update.
 		cleanup(setupChangelog({ plugin, jsonStorage }, CHANGELOG))
-
-		setStorage(jsonStorage)
-		cleanup(() => setStorage(undefined))
 
 		for (const [name, install] of [
 			['profile card', patchProfileCard],

@@ -3,6 +3,12 @@ import type { ChangelogEntry } from '../../../shared/changelog'
 /** Newest first. Every public version gets an entry; see shared/changelog.tsx. */
 export const CHANGELOG: ChangelogEntry[] = [
 	{
+		version: '1.0.15',
+		date: '2026-10-28',
+		title: 'Live rules apply once',
+		changes: ['A rule set to apply while typing no longer runs twice on send ("lol" to "lol 😂" sent "lol 😂 😂").'],
+	},
+	{
 		version: '1.0.14',
 		date: '2026-10-28',
 		title: 'Bazinga Plugins',
