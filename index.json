@@ -8,13 +8,26 @@
       "description": "Choose how chat timestamps look: calendar, relative, ISO 8601 or your own format.",
       "author": "bleelblep, Fiery",
       "channels": {
-        "latest": "1.2.13"
+        "latest": "1.2.14"
       },
       "versions": {
         "1.2.13": {
           "url": "https://bleelblep.github.io/bleel-bazinga-repo/pool/bleelblep.custom-timestamps@1.2.13.zip",
           "sha256": "2a58ecde0e7c632485db912756153a16c5883ee37b1fa7e4ccfbc765411dedd2",
           "size": 6220,
+          "dependencies": {
+            "valenced.api": {
+              "version": ">=1 <2"
+            },
+            "discord": {
+              "version": "*"
+            }
+          }
+        },
+        "1.2.14": {
+          "url": "https://bleelblep.github.io/bleel-bazinga-repo/pool/bleelblep.custom-timestamps@1.2.14.zip",
+          "sha256": "68c27bcaca1a0a5b23749b097a2e36e033ec9cade65254b44df6c64bd1f264e8",
+          "size": 6387,
           "dependencies": {
             "valenced.api": {
               "version": ">=1 <2"
@@ -212,7 +225,7 @@
       "author": "bleelblep, aniimalz",
       "icon": "ClockIcon",
       "channels": {
-        "latest": "0.2.4"
+        "latest": "0.2.5"
       },
       "versions": {
         "0.2.2": {
@@ -232,6 +245,19 @@
           "url": "https://bleelblep.github.io/bleel-bazinga-repo/pool/bleelblep.timezones@0.2.4.zip",
           "sha256": "df7bfefe57689eeaf8bf14c7d48d3fdd7296505a1fec7bfc83c39618c5d99798",
           "size": 23412,
+          "dependencies": {
+            "valenced.api": {
+              "version": ">=1 <2"
+            },
+            "discord": {
+              "version": "*"
+            }
+          }
+        },
+        "0.2.5": {
+          "url": "https://bleelblep.github.io/bleel-bazinga-repo/pool/bleelblep.timezones@0.2.5.zip",
+          "sha256": "02dbadc8096fa8428d431af4e1744380f9f32a49180b2194730c90793aec8579",
+          "size": 23515,
           "dependencies": {
             "valenced.api": {
               "version": ">=1 <2"
