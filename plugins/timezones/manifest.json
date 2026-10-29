@@ -5,7 +5,7 @@
 	"description": "Set someone's timezone and see their local time next to their messages.",
 	"author": "bleelblep, aniimalz",
 	"icon": "ClockIcon",
-	"version": "0.2.4",
+	"version": "0.2.5",
 	"dependencies": {
 		"valenced.api": {
 			"version": ">=1 <2"

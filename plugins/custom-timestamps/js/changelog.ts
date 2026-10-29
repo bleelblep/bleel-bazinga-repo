@@ -3,6 +3,14 @@ import type { ChangelogEntry } from '../../../shared/changelog'
 /** Newest first. Every version users got gets an entry; see shared/changelog.tsx. */
 export const CHANGELOG: ChangelogEntry[] = [
 	{
+		version: '1.2.14',
+		date: '2026-10-30',
+		title: '24-hour time',
+		changes: [
+			'New "24-hour time" switch: Calendar shows "Today at 14:05" instead of "Today at 2:05 PM". Custom keeps following its own format (H or HH for 24-hour).',
+		],
+	},
+	{
 		version: '1.2.13',
 		date: '2026-10-28',
 		title: 'Bazinga Plugins',

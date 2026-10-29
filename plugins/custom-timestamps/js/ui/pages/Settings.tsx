@@ -26,7 +26,7 @@ export default function Settings({
 	const { ScrollView } = ReactNative
 	const { Stack, TableRowGroup, TableSwitchRow } = Design
 
-	const { selected, customFormat, separateMessages } = api.jsonStorage.use() ?? DEFAULTS
+	const { selected, customFormat, separateMessages, hour24 } = api.jsonStorage.use() ?? DEFAULTS
 
 	const modes: ModeOption[] = [
 		{ label: "Calendar", key: "calendar" },
@@ -56,13 +56,21 @@ export default function Settings({
 								<SelectableRow
 									key={key}
 									label={label}
-									subLabel={renderTimestamp(new Date(), key, customFormat)}
+									subLabel={renderTimestamp(new Date(), key, customFormat, !!hour24)}
 									selected={selected === key}
 									onPress={() => api.jsonStorage.set({ selected: key })}
 								/>
 								{renderExtra?.(selected === key)}
 							</>
 						))}
+					</TableRowGroup>
+					<TableRowGroup>
+						<TableSwitchRow
+							label="24-hour time"
+							subLabel="For Calendar. Custom follows its own format: use H or HH for 24-hour"
+							value={!!hour24}
+							onValueChange={value => api.jsonStorage.set({ hour24: value })}
+						/>
 					</TableRowGroup>
 					<TableRowGroup>
 						<TableSwitchRow

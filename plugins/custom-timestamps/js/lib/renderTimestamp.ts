@@ -4,6 +4,7 @@ export interface TimestampStorage {
 	selected: Mode
 	customFormat: string
 	separateMessages?: boolean
+	hour24?: boolean
 }
 
 /** Also the fallback for every read -- see the note in hide-call-buttons' DEFAULTS. */
@@ -11,6 +12,7 @@ export const DEFAULTS: TimestampStorage = {
 	selected: "calendar",
 	customFormat: "dddd, MMMM Do YYYY, h:mm:ss a",
 	separateMessages: false,
+	hour24: false,
 }
 
 // `revenge.discord.common.moment` doesn't exist -- confirmed from revenge-bundle-next's own
@@ -55,7 +57,8 @@ function ordinal(n: number): string {
 	return `${n}${suffixes[(v - 20) % 10] ?? suffixes[v] ?? suffixes[0]}`
 }
 
-function time12(d: Date): string {
+function clock(d: Date, hour24: boolean): string {
+	if (hour24) return `${pad(d.getHours())}:${pad(d.getMinutes())}`
 	const h = d.getHours() % 12 || 12
 	return `${h}:${pad(d.getMinutes())} ${d.getHours() >= 12 ? "PM" : "AM"}`
 }
@@ -65,14 +68,15 @@ function startOfDay(d: Date): number {
 }
 
 /** Mirrors moment's default `calendar()` output closely enough for a chat timestamp. */
-function calendar(d: Date, now: Date): string {
+function calendar(d: Date, now: Date, hour24: boolean): string {
+	const time = (date: Date) => clock(date, hour24)
 	const diffDays = Math.round((startOfDay(now) - startOfDay(d)) / 86_400_000)
 
-	if (diffDays === 0) return `Today at ${time12(d)}`
-	if (diffDays === 1) return `Yesterday at ${time12(d)}`
-	if (diffDays === -1) return `Tomorrow at ${time12(d)}`
-	if (diffDays > 1 && diffDays < 7) return `Last ${WEEKDAYS[d.getDay()]} at ${time12(d)}`
-	if (diffDays < -1 && diffDays > -7) return `${WEEKDAYS[d.getDay()]} at ${time12(d)}`
+	if (diffDays === 0) return `Today at ${time(d)}`
+	if (diffDays === 1) return `Yesterday at ${time(d)}`
+	if (diffDays === -1) return `Tomorrow at ${time(d)}`
+	if (diffDays > 1 && diffDays < 7) return `Last ${WEEKDAYS[d.getDay()]} at ${time(d)}`
+	if (diffDays < -1 && diffDays > -7) return `${WEEKDAYS[d.getDay()]} at ${time(d)}`
 	return `${pad(d.getMonth() + 1)}/${pad(d.getDate())}/${d.getFullYear()}`
 }
 
@@ -147,7 +151,12 @@ function applyCustomFormat(d: Date, fmt: string): string {
 
 /** Format a message timestamp. Never throws -- an unparseable timestamp falls back to the
  *  raw string rather than taking down the whole chat view render. */
-export default function renderTimestamp(timestamp: unknown, mode: Mode, customFormat?: string): string {
+export default function renderTimestamp(
+	timestamp: unknown,
+	mode: Mode,
+	customFormat?: string,
+	hour24 = false,
+): string {
 	const date = toDate(timestamp)
 	if (!date) return typeof timestamp === "string" ? timestamp : ""
 
@@ -162,7 +171,7 @@ export default function renderTimestamp(timestamp: unknown, mode: Mode, customFo
 				return applyCustomFormat(date, customFormat ?? "dddd, MMMM Do YYYY, h:mm:ss a")
 			case "calendar":
 			default:
-				return calendar(date, now)
+				return calendar(date, now, hour24)
 		}
 	} catch {
 		return typeof timestamp === "string" ? timestamp : ""

@@ -4,7 +4,7 @@
  * Native rows are generated once from the message records; nothing re-runs `RowManager.generate`
  * when a shared lookup lands or you set a zone. The technique is Message Tweaks' and Ghost Log
  * Native Beta's (`plugins/ghost-log-native-beta/js/lib/deleted.ts`): swap the record for a copy
- * whose text ends in a zero-width space, commit the collection, and emit a MessageStore change.
+ * whose text ends in a space and a zero-width space, commit the collection, and emit a MessageStore change.
  * The row diff (`determineChangeType`) compares records by value, so an identical copy is a no-op
  * — the invisible character is what makes it a change. It is toggled, not appended: a second
  * redraw of a row that already ends in one would otherwise be identical and do nothing (Pronouns
@@ -19,6 +19,9 @@ import { reportError } from '../../../../shared/report'
 
 const TAG = '[Timezones]'
 const ZWSP = '​'
+// The space keeps a trailing link a link: a zero-width space straight after a URL stops
+// Discord recognising it, so a link-only message lost its blue underline
+const REDRAW_MARK = ` ${ZWSP}`
 
 // Discord's per-channel message cache (`lib/ChannelMessages.tsx`). Path first: Discord 349.5
 // minifies names, and module paths survived it.
@@ -66,7 +69,7 @@ export function redrawMessage(channelId: string, messageId: string): boolean {
 				const copy = Object.create(Object.getPrototypeOf(message))
 				Object.defineProperties(copy, Object.getOwnPropertyDescriptors(message))
 				if (typeof copy.content === 'string') {
-					copy.content = copy.content.endsWith(ZWSP) ? copy.content.slice(0, -ZWSP.length) : copy.content + ZWSP
+					copy.content = copy.content.endsWith(REDRAW_MARK) ? copy.content.slice(0, -REDRAW_MARK.length) : copy.content + REDRAW_MARK
 				}
 				return copy
 			} catch {

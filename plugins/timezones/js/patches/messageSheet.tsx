@@ -105,8 +105,9 @@ function inject(rendered: any, message: any): boolean {
 	const parent = findMessageSheetGroupParent(rendered, ActionSheet, ActionSheetRowComponent()?.Group)
 	if (!parent) return false
 	const children = parent.props.children
-	if (Array.isArray(children)) children.unshift(row)
-	else parent.props.children = [row, children]
+	// Last, below Discord's own rows
+	if (Array.isArray(children)) children.push(row)
+	else parent.props.children = [children, row]
 	return true
 }
 

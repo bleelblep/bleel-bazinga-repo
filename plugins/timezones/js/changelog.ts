@@ -3,6 +3,15 @@ import type { ChangelogEntry } from '../../../shared/changelog'
 /** Newest first. Every version users got gets an entry; see shared/changelog.tsx. */
 export const CHANGELOG: ChangelogEntry[] = [
 	{
+		version: '0.2.5',
+		date: '2026-10-30',
+		title: 'Links stay links',
+		changes: [
+			"A message that is only a link keeps its blue, tappable link after you set that person's timezone.",
+			'The timezone row is now at the bottom of the long-press menu instead of the top.',
+		],
+	},
+	{
 		version: '0.2.4',
 		date: '2026-10-28',
 		title: "Equicord's list",

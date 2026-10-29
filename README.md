@@ -48,6 +48,7 @@ Choose how the time next to each message looks.
   mark text as literal, so letters such as `a`, `d` or `h` inside words get swapped for time parts.
 - Times are worked out when a message row is drawn, so a relative time doesn't count up while you
   watch.
+- A 24-hour switch for Calendar ("Today at 14:05"). Custom formats pick their own with `H` or `HH`.
 - Optionally shows the name, avatar and time on every message instead of grouping them.
 
 Credit: based on Custom Timestamps by Fiery.
@@ -122,6 +123,7 @@ See someone's local time next to their messages.
 - Reads the shared timezone list other clients use, so people who've added themselves show up
   automatically. You can turn this off.
 - Can also read Equicord's timezone list (off by default, read only).
+- "Their time" is in the message long-press menu, at the bottom: tap it to set or change their zone.
 
 Credit: a port of Aliucord's Timezones by aniimalz.
 
