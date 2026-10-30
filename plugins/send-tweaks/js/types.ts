@@ -50,6 +50,12 @@ export interface ClearUrlsData {
 	providers: ClearUrlsProvider[]
 }
 
+/** Someone on the "Don't ping when replying" list. The name is only for showing the list. */
+export interface ReplyPerson {
+	id: string
+	name: string
+}
+
 export interface SendTweaksStorage {
 	/** Strip tracking parameters from links before a message goes out. */
 	cleanUrls: boolean
@@ -62,6 +68,10 @@ export interface SendTweaksStorage {
 	clearUrlsData: ClearUrlsData | null
 	/** Start every reply with the mention switched off. Discord's own @ toggle still works. */
 	noReplyMention: boolean
+	/** `except`: no reply pings except to `replyPingPeople`. `only`: reply pings except to them. */
+	replyPingMode?: 'except' | 'only'
+	/** Stored whole, like `rules`, so removing someone sticks. */
+	replyPingPeople?: ReplyPerson[]
 	/** Run your find-and-replace rules on outgoing messages. */
 	textReplace: boolean
 	/**

@@ -3,6 +3,14 @@ import type { ChangelogEntry } from '../../../shared/changelog'
 /** Newest first. Every version users got gets an entry; see shared/changelog.tsx. */
 export const CHANGELOG: ChangelogEntry[] = [
 	{
+		version: '0.1.24',
+		date: '2026-10-30',
+		title: 'Clear of the navigation bar',
+		changes: [
+			'The button and review box at the bottom of the reviews screen sit above the navigation bar instead of under the back, home and recents buttons.',
+		],
+	},
+	{
 		version: '0.1.23',
 		date: '2026-10-28',
 		title: 'Fixes',

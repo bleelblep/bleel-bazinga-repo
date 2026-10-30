@@ -24,6 +24,7 @@
 import { before } from '@valenced/patcher'
 import { reportError } from '../../../../shared/report'
 import { whenModule } from '../lib/finder'
+import { shouldSilence } from '../lib/replyPeople'
 import { debug, settings, TAG } from '../lib/state'
 
 const DEBUG: boolean = false
@@ -31,7 +32,7 @@ const DEBUG: boolean = false
 /** The object a reply starts from. Only `shouldMention` is changed. */
 interface PendingReply {
 	shouldMention?: boolean
-	message?: unknown
+	message?: { author?: { id?: unknown } }
 	channel?: unknown
 }
 
@@ -77,7 +78,8 @@ export default function patchReplyMention(): () => void {
 							if (
 								settings().noReplyMention &&
 								isPendingReply(reply) &&
-								reply.shouldMention !== false
+								reply.shouldMention !== false &&
+								shouldSilence(reply.message?.author?.id != null ? String(reply.message.author.id) : undefined)
 							) {
 								reply.shouldMention = false
 								if (DEBUG) status.silenced++

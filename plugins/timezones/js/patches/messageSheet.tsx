@@ -57,6 +57,7 @@ function findMessage(rendered: any): any {
 }
 
 function buildRow(message: any) {
+	if (!settings().messageMenu) return null
 	const ActionSheetRow = ActionSheetRowComponent()
 	if (!ActionSheetRow) return null
 	const authorId = message?.author?.id != null ? String(message.author.id) : ''

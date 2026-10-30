@@ -194,6 +194,13 @@ export default function Settings({ api }: { api?: { jsonStorage?: any } }) {
 							value={s.showDay}
 							onValueChange={(showDay: boolean) => update({ showDay })}
 						/>
+						<TableSwitchRow
+							label="Show in message menu"
+							subLabel="The timezone row when you long-press a message. The ⋯ menu on their profile always has it."
+							icon={rowIcon('ChatIcon', 'ClockIcon')}
+							value={s.messageMenu}
+							onValueChange={(messageMenu: boolean) => update({ messageMenu })}
+						/>
 					</TableRowGroup>
 					<TableRowGroup title="Lookups" hasIcons>
 						<TableSwitchRow

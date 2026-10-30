@@ -1,6 +1,7 @@
 import type { ReactElement } from "react"
 import renderTimestamp, { DEFAULTS, type Mode, type TimestampStorage } from "../../lib/renderTimestamp"
 import { CustomTimeInputRow } from "../components/CustomTimeInputRow"
+import { FormatHelp } from "../components/FormatHelp"
 import { SelectableRow } from "../components/SelectableRow"
 import { useChangelog } from "../../../../../shared/changelog"
 import * as components from "@valenced/components"
@@ -24,9 +25,10 @@ export default function Settings({
 	// section in the README.
 	const { Page } = components
 	const { ScrollView } = ReactNative
-	const { Stack, TableRowGroup, TableSwitchRow } = Design
+	const { Stack, TableRow, TableRowGroup, TableSwitchRow } = Design
 
-	const { selected, customFormat, separateMessages, hour24 } = api.jsonStorage.use() ?? DEFAULTS
+	const { selected, customFormat, todayFormat, separateMessages, hour24 } =
+		api.jsonStorage.use() ?? DEFAULTS
 
 	const modes: ModeOption[] = [
 		{ label: "Calendar", key: "calendar" },
@@ -36,12 +38,29 @@ export default function Settings({
 			label: "Custom",
 			key: "custom",
 			renderExtra: selectedNow => (
-				<CustomTimeInputRow
-					value={customFormat}
-					onChangeText={text => api.jsonStorage.set({ customFormat: text })}
-					placeholder="dddd, MMMM Do YYYY, h:mm:ss a"
-					disabled={!selectedNow}
-				/>
+				<>
+					<CustomTimeInputRow
+						value={customFormat}
+						onChangeText={text => api.jsonStorage.set({ customFormat: text })}
+						placeholder="dddd, MMMM Do YYYY, h:mm:ss a"
+						disabled={!selectedNow}
+					/>
+					<TableRow
+						label="Today's messages"
+						subLabel={
+							todayFormat?.trim()
+								? renderTimestamp(new Date(), "custom", customFormat, !!hour24, todayFormat)
+								: "Leave empty to use the format above. Try h:mm A for just the time, or {day} [at] h:mm A to also cover yesterday"
+						}
+						disabled={!selectedNow}
+					/>
+					<CustomTimeInputRow
+						value={todayFormat ?? ""}
+						onChangeText={text => api.jsonStorage.set({ todayFormat: text })}
+						placeholder="h:mm a"
+						disabled={!selectedNow}
+					/>
+				</>
 			),
 		},
 	]
@@ -64,6 +83,9 @@ export default function Settings({
 							</>
 						))}
 					</TableRowGroup>
+					{selected === "custom" ? (
+						<FormatHelp onPick={preset => api.jsonStorage.set(preset)} />
+					) : null}
 					<TableRowGroup>
 						<TableSwitchRow
 							label="24-hour time"

@@ -115,8 +115,9 @@ const PER_HOST: Array<[RegExp, Set<string>]> = [
 	],
 	[/(^|\.)spotify\.com$/, new Set(['si', 'context', 'nd', 'dlsi'])],
 	[
-		/(^|\.)(twitter\.com|x\.com|fxtwitter\.com|vxtwitter\.com)$/,
-		new Set(['s', 't', 'ref_src', 'src', 'cn', 'ref_url']),
+		/(^|\.)(twitter\.com|x\.com|fxtwitter\.com|vxtwitter\.com|fixupx\.com|fixvx\.com)$/,
+		// `a` is the share token on links from X's share sheet.
+		new Set(['s', 't', 'a', 'ref_src', 'src', 'cn', 'ref_url']),
 	],
 	[
 		/(^|\.)instagram\.com$/,

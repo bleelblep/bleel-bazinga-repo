@@ -3,6 +3,15 @@ import type { ChangelogEntry } from '../../../shared/changelog'
 /** Newest first. Every version users got gets an entry; see shared/changelog.tsx. */
 export const CHANGELOG: ChangelogEntry[] = [
 	{
+		version: '0.2.6',
+		date: '2026-10-30',
+		title: 'In the profile menu',
+		changes: [
+			"Set timezone (or their time, once set) is in the ⋯ menu on someone's profile.",
+			'New switch, "Show in message menu" (on by default): turn it off to take the row out of the message long-press menu.',
+		],
+	},
+	{
 		version: '0.2.5',
 		date: '2026-10-30',
 		title: 'Links stay links',

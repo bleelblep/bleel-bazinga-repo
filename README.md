@@ -44,8 +44,13 @@ Choose how the time next to each message looks.
 
 - Calendar ("Today at 2:05 PM", or a date like 10/28/2026 for older messages), relative
   ("5 minutes ago"), ISO 8601 (in UTC), or your own format string.
-- Custom formats use moment.js-style letters (`dddd, MMMM Do YYYY, h:mm:ss a`). There is no way to
-  mark text as literal, so letters such as `a`, `d` or `h` inside words get swapped for time parts.
+- Custom formats use moment.js-style letters (`dddd, MMMM Do YYYY, h:mm:ss a`). Put words in
+  `[brackets]` to keep them as written, or letters such as `a`, `d` or `h` get swapped for time parts.
+- Custom can use a second format for messages sent today, such as `h:mm A` for just the time.
+  `{day}` says "Today" or "Yesterday" (the weekday on other days); with it, `{day} [at] h:mm A` covers
+  yesterday too.
+- With Custom picked, settings list every format letter with an example, and ready-made formats
+  you can tap to use.
 - Times are worked out when a message row is drawn, so a relative time doesn't count up while you
   watch.
 - A 24-hour switch for Calendar ("Today at 14:05"). Custom formats pick their own with `H` or `HH`.
@@ -123,7 +128,8 @@ See someone's local time next to their messages.
 - Reads the shared timezone list other clients use, so people who've added themselves show up
   automatically. You can turn this off.
 - Can also read Equicord's timezone list (off by default, read only).
-- "Their time" is in the message long-press menu, at the bottom: tap it to set or change their zone.
+- Set or change someone's zone from the ⋯ menu on their profile, or from the bottom of the message
+  long-press menu (that one can be switched off).
 
 Credit: a port of Aliucord's Timezones by aniimalz.
 

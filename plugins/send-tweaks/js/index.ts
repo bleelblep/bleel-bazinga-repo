@@ -23,6 +23,7 @@ import { patchComposer } from './lib/composer'
 import { setAi, setRequireReload, setStorage } from './lib/state'
 import patchOutgoing from './patches/outgoing'
 import patchReplyMention from './patches/replyMention'
+import patchReplyPeopleSheet from './patches/replyPeopleSheet'
 import patchSendButton from './patches/sendButton'
 import Settings from './ui/pages/Settings'
 import { AI_ROUTE, registerPages } from './ui/routes'
@@ -80,6 +81,7 @@ export default plugin<{ jsonStorage: SendTweaksStorage }>({
 		apply('changelog', () => setupChangelog(api, CHANGELOG))
 		apply('outgoing messages', patchOutgoing)
 		apply('reply mentions', patchReplyMention)
+		apply('reply ping menu', patchReplyPeopleSheet)
 		apply('live composer', patchComposer)
 		apply('send button', patchSendButton)
 

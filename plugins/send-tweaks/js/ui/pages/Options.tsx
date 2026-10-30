@@ -1,4 +1,5 @@
 import { updateClearUrls } from '../../lib/clearurls'
+import { removeListed } from '../../lib/replyPeople'
 import { getStorage, requireReload, useSettings } from '../../lib/state'
 import { showToast } from '../../lib/toast'
 import type { DiscordModules } from '@valenced/discord/types'
@@ -51,6 +52,7 @@ export default function Options() {
 	const { Page } = components
 	const { ScrollView } = ReactNative
 	const { Stack, TableRowGroup, TableRow, TableSwitchRow } = Design
+	const { TableRadioGroup, TableRadioRow } = Design as any
 
 	const storage = getStorage()
 	const s = useSettings()
@@ -239,6 +241,29 @@ export default function Options() {
 							onValueChange={value => set({ noReplyMention: value })}
 						/>
 					</TableRowGroup>
+
+					{s.noReplyMention ? (
+						<TableRadioGroup
+							title="Who gets pinged"
+							defaultValue={s.replyPingMode ?? 'except'}
+							onChange={(replyPingMode: 'except' | 'only') => set({ replyPingMode })}
+						>
+							<TableRadioRow label="Nobody, except the people below" value="except" />
+							<TableRadioRow label="Everyone, except the people below" value="only" />
+						</TableRadioGroup>
+					) : null}
+
+					{s.noReplyMention ? (
+						<TableRowGroup title={`People (${(s.replyPingPeople ?? []).length})`}>
+							{(s.replyPingPeople ?? []).length ? (
+								(s.replyPingPeople ?? []).map(person => (
+									<TableRow key={person.id} label={person.name} subLabel="Tap to remove" onPress={() => removeListed(person.id)} />
+								))
+							) : (
+								<TableRow label="Nobody yet" subLabel="Long-press someone's message to add them." />
+							)}
+						</TableRowGroup>
+					) : null}
 				</Stack>
 			</ScrollView>
 		</Page>

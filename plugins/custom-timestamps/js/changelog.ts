@@ -3,6 +3,17 @@ import type { ChangelogEntry } from '../../../shared/changelog'
 /** Newest first. Every version users got gets an entry; see shared/changelog.tsx. */
 export const CHANGELOG: ChangelogEntry[] = [
 	{
+		version: '1.2.15',
+		date: '2026-10-30',
+		title: "Today's messages",
+		changes: [
+			'Custom has a second format for messages sent today. Leave it empty to keep one format for everything, or try h:mm A to show just the time.',
+			'{day} says "Today" or "Yesterday", and the weekday on other days. Put it in the second format, like {day} [at] h:mm A, and that format covers yesterday too.',
+			'With Custom picked, settings list every format letter with an example, plus ready-made formats you can tap to use.',
+			'Text in [brackets] is shown as written, so "[Today at] h:mm A" gives "Today at 2:05 PM".',
+		],
+	},
+	{
 		version: '1.2.14',
 		date: '2026-10-30',
 		title: '24-hour time',

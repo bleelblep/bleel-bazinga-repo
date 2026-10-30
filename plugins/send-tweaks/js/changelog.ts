@@ -3,6 +3,15 @@ import type { ChangelogEntry } from '../../../shared/changelog'
 /** Newest first. Every public version gets an entry; see shared/changelog.tsx. */
 export const CHANGELOG: ChangelogEntry[] = [
 	{
+		version: '1.0.16',
+		date: '2026-10-30',
+		title: 'Reply ping list, cleaner X links',
+		changes: [
+			"Don't ping when replying has a list of people. Choose Nobody except them (always ping your friends) or Everyone except them (never ping just a few). Long-press someone's message to add or remove them; the list is in Options.",
+			'X links lose the ?a= share code too, and links that are already fixupx.com or fixvx.com get cleaned like x.com ones.',
+		],
+	},
+	{
 		version: '1.0.15',
 		date: '2026-10-28',
 		title: 'Live rules apply once',

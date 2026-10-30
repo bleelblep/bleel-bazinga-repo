@@ -44,11 +44,17 @@ export default function patchRowManager(jsonStorage: ValencedJsonStorageApi<Time
 			const [row] = args
 			try {
 				const settings = jsonStorage.cache ?? DEFAULTS
-				const { selected, customFormat, hour24 } = settings
+				const { selected, customFormat, hour24, todayFormat } = settings
 				if (row?.rowType === 1) {
 					if (settings.separateMessages) row.isFirst = true
 					if (row.message?.timestamp) {
-						row.message.__customTimestamp = renderTimestamp(row.message.timestamp, selected, customFormat, !!hour24)
+						row.message.__customTimestamp = renderTimestamp(
+							row.message.timestamp,
+							selected,
+							customFormat,
+							!!hour24,
+							todayFormat,
+						)
 					}
 				}
 				// "day" separator rows (row.text, e.g. "Today"/"Yesterday"/a date) aren't

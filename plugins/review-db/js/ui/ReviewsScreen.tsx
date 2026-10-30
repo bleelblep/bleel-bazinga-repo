@@ -19,7 +19,7 @@ import ReviewItem from './ReviewItem'
 import { useTarget } from './routes'
 import { token } from './theme'
 import { Design } from '@valenced/discord/design'
-import * as ReactNativeSafeAreaContext from '@valenced/externals/react-native-safe-area-context'
+import { ReactNativeSafeAreaContext } from '@valenced/externals/react-native-safe-area-context'
 import * as React from 'react'
 import * as ReactNative from 'react-native'
 import { reportError } from '../../../../shared/report'
@@ -182,7 +182,7 @@ function useComposerBottom(base: number): { bottom: number; rootRef: any; onRoot
 	let windowBottom = 0
 	try {
 		windowBottom =
-			(ReactNativeSafeAreaContext as any)?.initialWindowMetrics?.insets?.bottom ?? 0
+			ReactNativeSafeAreaContext.initialWindowMetrics?.insets?.bottom ?? 0
 	} catch {
 		/* none */
 	}

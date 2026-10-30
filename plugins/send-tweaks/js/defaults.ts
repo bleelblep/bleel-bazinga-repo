@@ -13,6 +13,9 @@ export const DEFAULTS: SendTweaksStorage = {
 	// Off: pinging on reply is Discord's default and plenty of people rely on it. This is a
 	// preference to opt into, not a fix.
 	noReplyMention: false,
+	// The list is empty, so `except` behaves exactly like the switch did before the list existed.
+	replyPingMode: 'except',
+	replyPingPeople: [],
 	// On, with no rules: harmless until you add one, and adding one should just work.
 	textReplace: true,
 	rules: [],

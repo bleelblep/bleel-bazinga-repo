@@ -3,6 +3,9 @@ export type Mode = "calendar" | "relative" | "custom" | "iso"
 export interface TimestampStorage {
 	selected: Mode
 	customFormat: string
+	/** Custom only: used instead of customFormat for messages sent today, and yesterday too
+	 *  when it contains {day}. Empty means off. */
+	todayFormat?: string
 	separateMessages?: boolean
 	hour24?: boolean
 }
@@ -11,6 +14,7 @@ export interface TimestampStorage {
 export const DEFAULTS: TimestampStorage = {
 	selected: "calendar",
 	customFormat: "dddd, MMMM Do YYYY, h:mm:ss a",
+	todayFormat: "",
 	separateMessages: false,
 	hour24: false,
 }
@@ -109,18 +113,22 @@ function relative(d: Date, now: Date): string {
 
 // Longest tokens first so e.g. "dddd" matches before "ddd" -- a single regex pass means the
 // replacement text is never re-scanned for further token matches (unlike sequential global
-// replaces, which can cascade into already-substituted text).
-const TOKEN_RE = /dddd|ddd|dd|d|MMMM|MMM|MM|M|YYYY|YY|Do|DD|D|HH|H|hh|h|mm|m|ss|s|A|a/g
+// replaces, which can cascade into already-substituted text). Text in [brackets] is kept as
+// written, as in moment.js, so "[Today at] h:mm a" doesn't turn the "d" and "a" into time parts.
+// {day} isn't moment's: it says "Today" or "Yesterday", and the weekday name on other days.
+const TOKEN_RE = /\[[^\]]*\]|\{day\}|dddd|ddd|dd|d|MMMM|MMM|MM|M|YYYY|YY|Do|DD|D|HH|H|hh|h|mm|m|ss|s|A|a/g
 
 /** Supports the common moment.js tokens; not the full moment format-string language. */
-function applyCustomFormat(d: Date, fmt: string): string {
+function applyCustomFormat(d: Date, fmt: string, now = new Date()): string {
 	const weekday = WEEKDAYS[d.getDay()]
 	const month = MONTHS[d.getMonth()]
 	const day = d.getDate()
 	const h24 = d.getHours()
 	const h12 = h24 % 12 || 12
 
+	const daysAgo = Math.round((startOfDay(now) - startOfDay(d)) / 86_400_000)
 	const replacements: Record<string, string> = {
+		"{day}": daysAgo === 0 ? "Today" : daysAgo === 1 ? "Yesterday" : weekday,
 		dddd: weekday,
 		ddd: weekday.slice(0, 3),
 		dd: weekday.slice(0, 2),
@@ -146,7 +154,9 @@ function applyCustomFormat(d: Date, fmt: string): string {
 		a: h24 >= 12 ? "pm" : "am",
 	}
 
-	return fmt.replace(TOKEN_RE, token => replacements[token] ?? token)
+	return fmt.replace(TOKEN_RE, token =>
+		token.startsWith("[") ? token.slice(1, -1) : (replacements[token] ?? token),
+	)
 }
 
 /** Format a message timestamp. Never throws -- an unparseable timestamp falls back to the
@@ -156,6 +166,7 @@ export default function renderTimestamp(
 	mode: Mode,
 	customFormat?: string,
 	hour24 = false,
+	todayFormat?: string,
 ): string {
 	const date = toDate(timestamp)
 	if (!date) return typeof timestamp === "string" ? timestamp : ""
@@ -168,7 +179,14 @@ export default function renderTimestamp(
 			case "iso":
 				return date.toISOString()
 			case "custom":
-				return applyCustomFormat(date, customFormat ?? "dddd, MMMM Do YYYY, h:mm:ss a")
+			{
+				// Yesterday only with {day}: a time-only format would make it look like today
+				const recent = todayFormat?.trim() ? todayFormat : undefined
+				const daysAgo = Math.round((startOfDay(now) - startOfDay(date)) / 86_400_000)
+				if (recent && (daysAgo === 0 || (daysAgo === 1 && recent.includes("{day}"))))
+					return applyCustomFormat(date, recent, now)
+				return applyCustomFormat(date, customFormat ?? "dddd, MMMM Do YYYY, h:mm:ss a", now)
+			}
 			case "calendar":
 			default:
 				return calendar(date, now, hour24)

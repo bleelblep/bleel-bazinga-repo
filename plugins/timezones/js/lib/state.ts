@@ -31,6 +31,8 @@ export interface TimezonesStorage {
 	hour24: boolean
 	/** Add their weekday when it isn't the same day for them ("3:02 AM Tue"). */
 	showDay: boolean
+	/** The row in the message long-press menu. The profile's ⋯ menu always has one. */
+	messageMenu: boolean
 	/** Timezones you set, per user id; null clears (older writes may still carry one). */
 	people: Record<string, PersonZone | null>
 }
@@ -42,6 +44,7 @@ export const DEFAULTS: TimezonesStorage = {
 	placeSearch: true,
 	hour24: false,
 	showDay: true,
+	messageMenu: true,
 	people: {},
 }
 
