@@ -10,6 +10,10 @@ export interface TextAnimationStorage {
 	blur: boolean
 	pop: boolean
 	tilt: boolean
+	/** Percent, 25-200. */
+	popAmount: number
+	/** Percent, 25-200. */
+	tiltAmount: number
 	deleteFx: 'off' | 'drop' | 'dust'
 	cursor: boolean
 	cursorTrail: boolean
@@ -31,6 +35,8 @@ export const DEFAULTS: TextAnimationStorage = {
 	blur: true,
 	pop: false,
 	tilt: false,
+	popAmount: 100,
+	tiltAmount: 100,
 	deleteFx: 'drop',
 	cursor: true,
 	cursorTrail: true,

@@ -226,7 +226,7 @@ Credit: a port of Staff Tags for Revenge by Fiery and シグマ siguma.
 
 Animates letters as you type and delete, with a smooth gliding cursor. Android only.
 
-- Typing: letters fade in, slide up, tilt or unblur, with the speed and distance you choose.
+- Typing: letters fade in, slide up, unblur, pop or tilt, with the speed, slide distance and pop and tilt strength you choose.
 - Deleting: letters fall away or turn to dust, or nothing.
 - The cursor glides between positions, optionally with a stretchy trail.
 - The message box only, or every text field (never password fields). Try it out in settings.

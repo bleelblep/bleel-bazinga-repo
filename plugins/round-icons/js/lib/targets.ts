@@ -12,6 +12,8 @@
  * still has its pre-redesign `circle` prop; patches/selectionFrame.ts sets it.
  */
 
+import { createElement } from 'react'
+import { View } from 'react-native'
 import { hookRender } from './hook'
 import { type Rule, rules } from './rounder'
 import { overrideToken, roundCorners, stockCorners } from './tokens'
@@ -79,7 +81,13 @@ export const TARGETS: Target[] = [
 			// YouBarBackground still drew its own shape beside the avatar on 352.6 (2026-10-28): a square
 			// top-left corner and a faint circle cut-out, out of line with the pill. With it not drawn the
 			// bar looked right on the phone (found by accident: a DevTools capture hook returned nothing).
-			const background = hookRender(`${YOU_BAR}YouBarBackground.tsx`, 'default', tree => (settings().youBar ? null : tree))
+			// Hidden, not removed: it has to keep rendering. Discord loads its MaskedView and
+			// LinearGradient modules only when something first draws them (YouBarMaskedBackground does),
+			// and other plugins look those up at startup. Returning null left them unloaded and Server
+			// Drawer threw "native carousel mask is unavailable" (1.3.6 and 1.3.7).
+			const background = hookRender(`${YOU_BAR}YouBarBackground.tsx`, 'default', tree =>
+				settings().youBar && tree ? createElement(View, { style: { display: 'none' } }, tree) : tree,
+			)
 			return () => {
 				background()
 				token()
@@ -94,7 +102,8 @@ export const TARGETS: Target[] = [
 		components: [
 			{ path: `${CHAT}action_buttons/ChatInputActionButton.tsx` },
 			{ path: `${CHAT}accessories/ChatInputExpressionButton.tsx` },
-			{ path: `${CHAT}EmojiSuggestionChatButton.tsx` },
+			// A named export, not default (352.2 / 352.6 bundles).
+			{ path: `${CHAT}EmojiSuggestionChatButton.tsx`, export: 'EmojiSuggestionChatButton' },
 		],
 		rule: rules.circleIfSquare(44),
 	},

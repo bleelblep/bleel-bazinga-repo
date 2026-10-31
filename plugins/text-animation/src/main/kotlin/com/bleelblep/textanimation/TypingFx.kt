@@ -348,8 +348,14 @@ internal object TypingFx {
 				runCatching { span.updateDrawState(paint) }
 			}
 			val e = 1f - (1f - p).pow(3)
-			paint.alpha = (paint.alpha * e).toInt().coerceIn(0, 255)
-			paint.maskFilter = if (Settings.blur) blur((8f * dp * (1f - e)).toInt()) else null
+			// Pop and tilt are shape changes: they only read once the letter is solid. With the plain
+			// fade they played out while it was still faint and blurred and looked like nothing
+			// happened (reported 2026-10-31), so with either on the fade and blur finish in the
+			// first ~40% and the motion carries the rest.
+			val moves = Settings.pop || Settings.tilt
+			val f = if (moves) 1f - (1f - min(1f, p * 2.5f)).pow(3) else e
+			paint.alpha = (paint.alpha * f).toInt().coerceIn(0, 255)
+			paint.maskFilter = if (Settings.blur) blur((8f * dp * (1f - f)).toInt()) else null
 
 			val line = layout.getLineForOffset(g.start)
 			val x = ox + layout.getPrimaryHorizontal(g.start)
@@ -360,9 +366,20 @@ internal object TypingFx {
 			val cy = baseline - paint.textSize * 0.33f
 
 			canvas.save()
-			if (Settings.tilt) canvas.rotate(-22f * (1f - e), cx, cy)
+			// Pop grows from a tenth to ~34% past full size and settles. Tilt is a damped wobble: an
+			// overshoot curve was straight again by the time the letter was solid (0.1.9 on the
+			// phone), so it rocks across the whole duration instead (about 26°, 13°, then 5° while
+			// visible), pivoting on the baseline so it reads as a tilt, not a spin. Both made
+			// stronger at the user's request (2026-10-31).
+			if (Settings.tilt) {
+				val angle = -40f * (Settings.tiltAmount / 100f) * (1f - p).pow(1.2f) * cos(p * 3.5f * PI.toFloat())
+				canvas.rotate(angle, cx, baseline)
+			}
 			if (Settings.pop) {
-				val s = 0.35f + 0.65f * backOut(p)
+				// Intensity moves both ends: how small it starts and how far it overshoots.
+				val k = Settings.popAmount / 100f
+				val from = max(0.02f, 1f - 0.9f * k)
+				val s = from + (1f - from) * backOut(p, 4f * k)
 				canvas.scale(s, s, cx, cy)
 			}
 			val dy = if (Settings.slide) Settings.slideDp * dp * (1f - e) else 0f
@@ -512,9 +529,8 @@ internal object TypingFx {
 	private fun blur(radius: Int): BlurMaskFilter? =
 		if (radius < 1) null else blurs.getOrPut(radius) { BlurMaskFilter(radius.toFloat(), BlurMaskFilter.Blur.NORMAL) }
 
-	/** Ease-out with a small overshoot, for the pop. */
-	private fun backOut(t: Float): Float {
-		val c = 1.7f
+	/** Ease-out that overshoots and settles; bigger [c] = bigger overshoot (1.7 ≈ 10%, 2.8 ≈ 22%, 4 ≈ 38%). */
+	private fun backOut(t: Float, c: Float): Float {
 		val u = t - 1f
 		return 1f + (c + 1f) * u * u * u + c * u * u
 	}

@@ -3,6 +3,12 @@ import type { ChangelogEntry } from '../../../shared/changelog'
 /** Newest first. Every version users got gets an entry; see shared/changelog.tsx. */
 export const CHANGELOG: ChangelogEntry[] = [
 	{
+		version: '1.3.8',
+		date: '2026-10-31',
+		title: 'Two fixes',
+		changes: ["Fixed the error about the chat bar's emoji suggestion button on Discord 352. That button can now be rounded too.", "Fixed a crash on startup when Round Corners and Server Drawer were both on with the You bar rounded."],
+	},
+	{
 		version: '1.3.7',
 		date: '2026-10-31',
 		title: 'Renamed',

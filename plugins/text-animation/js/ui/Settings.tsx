@@ -78,6 +78,34 @@ export default function Settings() {
 						/>
 					</TableRowGroup>
 
+					{s.pop && s.typing ? (
+						<TableRowGroup>
+							<FieldRow label={`Pop strength — ${s.popAmount}%`}>
+								<Slider
+									step={5}
+									value={s.popAmount}
+									minimumValue={25}
+									maximumValue={200}
+									onValueChange={(v: number) => update({ popAmount: Math.round(v / 5) * 5 })}
+								/>
+							</FieldRow>
+						</TableRowGroup>
+					) : null}
+
+					{s.tilt && s.typing ? (
+						<TableRowGroup>
+							<FieldRow label={`Tilt strength — ${s.tiltAmount}%`}>
+								<Slider
+									step={5}
+									value={s.tiltAmount}
+									minimumValue={25}
+									maximumValue={200}
+									onValueChange={(v: number) => update({ tiltAmount: Math.round(v / 5) * 5 })}
+								/>
+							</FieldRow>
+						</TableRowGroup>
+					) : null}
+
 					<TableRowGroup>
 						<FieldRow label={`Speed — ${s.duration} ms per letter`}>
 							<Slider

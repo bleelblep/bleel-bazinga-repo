@@ -3,6 +3,24 @@ import type { ChangelogEntry } from '../../../shared/changelog'
 /** Newest first. Every version users got gets an entry; see shared/changelog.tsx. */
 export const CHANGELOG: ChangelogEntry[] = [
 	{
+		version: '0.1.11',
+		date: '2026-10-31',
+		title: 'Strength sliders',
+		changes: ['New Pop strength and Tilt strength sliders, from 25% to 200%. They show while their switch is on.'],
+	},
+	{
+		version: '0.1.10',
+		date: '2026-10-31',
+		title: 'Bigger Pop and Tilt',
+		changes: ['Tilt now rocks each letter back and forth as it lands, so you can see it. In 0.1.9 it was over before the letter showed.', 'Pop is bigger: letters start smaller and bounce further past full size.'],
+	},
+	{
+		version: '0.1.9',
+		date: '2026-10-31',
+		title: 'Pop and Tilt you can see',
+		changes: ['Pop and Tilt now play out over the whole animation, and letters fade in sooner while either is on. Before, both finished while the letter was still faint and blurred, so they looked like they did nothing.'],
+	},
+	{
 		version: '0.1.8',
 		date: '2026-10-26',
 		title: 'Valenced',

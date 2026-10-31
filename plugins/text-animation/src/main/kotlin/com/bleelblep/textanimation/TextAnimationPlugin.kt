@@ -30,6 +30,9 @@ internal object Settings {
 	@Volatile var blur = true
 	@Volatile var pop = false
 	@Volatile var tilt = false
+	/** Pop and tilt strength, percent, 25-200 (100 = the 0.1.10 look). */
+	@Volatile var popAmount = 100
+	@Volatile var tiltAmount = 100
 	/** "off", "drop" (letters fall away) or "dust". */
 	@Volatile var deleteFx = "drop"
 	@Volatile var cursor = true
@@ -57,6 +60,8 @@ private fun settingsMap() = mapOf(
 	"blur" to Settings.blur,
 	"pop" to Settings.pop,
 	"tilt" to Settings.tilt,
+	"popAmount" to Settings.popAmount,
+	"tiltAmount" to Settings.tiltAmount,
 	"deleteFx" to Settings.deleteFx,
 	"cursor" to Settings.cursor,
 	"cursorTrail" to Settings.cursorTrail,
@@ -73,6 +78,8 @@ private fun applySettings(get: (String) -> Any?) {
 	(get("blur") as? Boolean)?.let { Settings.blur = it }
 	(get("pop") as? Boolean)?.let { Settings.pop = it }
 	(get("tilt") as? Boolean)?.let { Settings.tilt = it }
+	(get("popAmount") as? Number)?.let { Settings.popAmount = it.toInt().coerceIn(25, 200) }
+	(get("tiltAmount") as? Number)?.let { Settings.tiltAmount = it.toInt().coerceIn(25, 200) }
 	(get("deleteFx") as? String)?.takeIf { it in DELETE_FX }?.let { Settings.deleteFx = it }
 	(get("cursor") as? Boolean)?.let { Settings.cursor = it }
 	(get("cursorTrail") as? Boolean)?.let { Settings.cursorTrail = it }
