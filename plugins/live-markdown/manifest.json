@@ -1,0 +1,24 @@
+{
+	"format": 1,
+	"id": "bleelblep.live-markdown",
+	"name": "Live Markdown",
+	"description": "Shows bold, italics, code, spoilers and more styled as you type a message.",
+	"author": "bleelblep",
+	"icon": "TextIcon",
+	"version": "0.3.0",
+	"dependencies": {
+		"valenced.api": {
+			"version": ">=1 <2"
+		},
+		"discord": {
+			"version": ">=350.2"
+		}
+	},
+	"dist": {
+		"script": "index.js",
+		"android": {
+			"path": "plugin.jar",
+			"class": "com.bleelblep.livemarkdown.LiveMarkdownPlugin"
+		}
+	}
+}

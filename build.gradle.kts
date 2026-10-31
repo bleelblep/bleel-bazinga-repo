@@ -193,6 +193,9 @@ configure(subprojects.filter { project -> pluginRoots.any { project.path.startsW
         add("compileOnly", valencedApiDep)
         add("compileOnly", xposedApiDep)
         add("compileOnly", coroutinesDep)
+        // Third-party jars a plugin ships itself (its `libs/` folder): compiled against here and
+        // DEXed into plugin.jar by dexJar below, since nothing else puts them on the device.
+        add("compileOnly", fileTree(projectDir.resolve("libs")) { include("*.jar") })
     }
 
     val androidExt = extensions.getByType<LibraryExtension>()
@@ -205,7 +208,10 @@ configure(subprojects.filter { project -> pluginRoots.any { project.path.startsW
         dependsOn("compileReleaseKotlin", "compileReleaseJavaWithJavac")
         mustRunAfter(cleanTasks)
 
-        // Only this module's own classes are DEXed. Dependencies compileOnly.
+        // This module's own classes are DEXed, plus any jars in its `libs/` folder. Everything
+        // else is compileOnly: the host provides it.
+        val libJars = fileTree(projectDir.resolve("libs")) { include("*.jar") }
+        inputs.files(libJars).withPropertyName("libJars").optional()
         val classDirs = files(
             // AGP 9 built-in Kotlin output, then the pre-AGP 9 location
             layout.buildDirectory.dir("intermediates/built_in_kotlinc/release/compileReleaseKotlin/classes"),
@@ -246,7 +252,7 @@ configure(subprojects.filter { project -> pluginRoots.any { project.path.startsW
             // fails with exit 255 and no message. d8 reads `@file` on every platform.
             val argFile = File(temporaryDir, "d8-inputs.txt")
             // One path per line, unquoted: d8 takes each line as a whole argument, spaces included.
-            argFile.writeText(classFiles.joinToString(System.lineSeparator()) { it.absolutePath })
+            argFile.writeText((classFiles + libJars.files).joinToString(System.lineSeparator()) { it.absolutePath })
             execOps.exec {
                 commandLine(
                     d8.absolutePath,

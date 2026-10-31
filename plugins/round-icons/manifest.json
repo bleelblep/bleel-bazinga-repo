@@ -1,0 +1,20 @@
+{
+	"format": 1,
+	"id": "bleelblep.round-icons",
+	"name": "Round Corners",
+	"description": "Undoes the redesign's squares: round servers, round buttons, a pill You bar.",
+	"author": "bleelblep",
+	"icon": "AppsIcon",
+	"version": "1.3.7",
+	"dependencies": {
+		"valenced.api": {
+			"version": ">=1 <2"
+		},
+		"discord": {
+			"version": "*"
+		}
+	},
+	"dist": {
+		"script": "index.js"
+	}
+}

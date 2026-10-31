@@ -1,0 +1,24 @@
+{
+	"format": 1,
+	"id": "bleelblep.sharp-corners",
+	"name": "Sharp Corners",
+	"description": "Every corner in Discord sharp: square avatars, buttons, bubbles and bars.",
+	"author": "bleelblep",
+	"icon": "AppsIcon",
+	"version": "0.1.7",
+	"dependencies": {
+		"valenced.api": {
+			"version": ">=1 <2"
+		},
+		"discord": {
+			"version": "*"
+		}
+	},
+	"dist": {
+		"script": "index.js",
+		"android": {
+			"path": "plugin.jar",
+			"class": "com.bleelblep.sharpcorners.SharpCornersPlugin"
+		}
+	}
+}

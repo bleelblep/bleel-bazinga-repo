@@ -1,0 +1,24 @@
+{
+	"format": 1,
+	"id": "bleelblep.staff-tags",
+	"name": "Staff Tags",
+	"description": "Shows extra tags for staff members — OWNER, ADMIN, STAFF, MOD, VC Mod, Chat Mod, WEBHOOK.",
+	"author": "bleelblep",
+	"contributors": [
+		"Fiery",
+		"シグマ siguma"
+	],
+	"icon": "ShieldIcon",
+	"version": "1.3.13",
+	"dependencies": {
+		"valenced.api": {
+			"version": ">=1 <2"
+		},
+		"discord": {
+			"version": ">=350.2"
+		}
+	},
+	"dist": {
+		"script": "index.js"
+	}
+}

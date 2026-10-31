@@ -36,7 +36,20 @@ account, but these remove the known risky behaviour.
 
 ## Plugins
 
-All of these are JavaScript only, so they work on Android and iOS.
+Most are JavaScript only, so they work on Android and iOS. Live Markdown, Pocket Browser, Sharp
+Corners and Text Animation have native Android code, so they are Android only.
+
+### Character Counter
+
+Counts your message's characters in a small square above the message box, and sends long ones as
+several messages.
+
+- Characters typed, characters left, or typed out of the limit; always or only near the limit.
+- Past the limit it turns red and says how far over you are.
+- Past the limit, Send sends the message as several, cut at a blank line, a line break or the end
+  of a sentence, one after another, each after Discord confirms the one before. A sheet shows the
+  progress with a Stop button; a setting can show the parts first instead. The square is a button
+  that shows the parts too.
 
 ### Custom Timestamps
 
@@ -58,6 +71,18 @@ Choose how the time next to each message looks.
 
 Credit: based on Custom Timestamps by Fiery.
 
+### Hide Call Buttons
+
+Hides the call and video buttons you never use. Each switch hides one button in one place; calls
+still work from everywhere else.
+
+- The call button on someone's profile.
+- The call and video buttons at the top of a DM or group DM.
+- The call button at the end of each row in the friends list.
+- The camera button in the voice channel controls.
+
+Credit: a port of John's (janisslsm) Hide call buttons for Vendetta (BSD-3-Clause, see `NOTICE.md`).
+
 ### Hide Servers
 
 Hide servers, folders and channels you don't want to see. Hiding only changes what your device shows:
@@ -71,6 +96,17 @@ you stay in the server, and your server order on other devices isn't touched.
 - A list in settings to bring anything back.
 
 Credit: with blerp; one file adapted from kmmiio99o's ServerDrawer.
+
+### Live Markdown
+
+Shows bold, italics, code, spoilers and more styled as you type a message, instead of the raw
+`**symbols**`. Android only.
+
+- Headings grow and `-#` subtext shrinks like in chat (can be turned off).
+- Fades the markdown symbols so the text reads clean while you type.
+- Code in a monospace font.
+- Select text in the message box to get Bold, Italic and the rest next to Copy and Paste; tap one
+  again to undo it.
 
 ### New Members
 
@@ -86,6 +122,30 @@ A sprout next to the names of people who joined the server in the last week, lik
 Removes the thin lines between rows in settings and other lists. Nothing to set up: turn it off to
 bring the lines back.
 
+### Pocket Browser
+
+A web browser inside Discord, in a new tab of the emoji picker. Android only.
+
+- Tabs, history, bookmarks and a speed dial. Tabs can survive closing Discord.
+- Search with DuckDuckGo (default), Google, Bing, Brave or Startpage.
+- Open links from chat in it instead of leaving Discord, and pop videos out into a floating or
+  picture-in-picture player that keeps playing when closed.
+- Dark pages, desktop sites, text size, JavaScript and third-party cookies, each with a switch;
+  clear history or site data any time.
+
+### Pronouns
+
+People's pronouns as a small tag next to their name in chat.
+
+- Read from their Discord profile (the server profile first), and optionally from
+  [PronounDB](https://pronoundb.org).
+- "Only real pronouns" keeps just the pronoun sets from a profile field (“he/him 🌈 | 19” shows
+  “he/him”) and hides fields with none. Neopronouns included; any/all can be counted or not, and
+  you can add words of your own.
+- Choose who gets a badge: everyone, everyone except people you hide, or only people you pick.
+- Set someone's pronouns yourself from the long-press menu on their message, or by user ID.
+- One badge colour for everyone, each person's role colour, or a colour per person.
+
 ### ReviewDB
 
 Read and write reviews on people's profiles and on servers, from [ReviewDB](https://reviewdb.mantikafasi.dev).
@@ -98,6 +158,17 @@ Read and write reviews on people's profiles and on servers, from [ReviewDB](http
   username and avatar, not your messages or servers).
 
 Credit: a port of Vencord's ReviewDB by mantikafasi and Vendicated (GPL-3.0).
+
+### Round Corners
+
+Undoes the redesign's squares.
+
+- Servers, Home, Create and Discover round again; the selected server can stay round or use the
+  classic selection shape.
+- Send, emoji, media, gift and apps buttons as circles; the message box as a pill.
+- The bottom bar and the You tab's floating bar as pills.
+- Small things fully round: folders, channel rows, search bars, segmented controls.
+- Each group of shapes has its own switch.
 
 ### Send Tweaks
 
@@ -121,6 +192,41 @@ Tidies your messages as you send them. Link cleaning, polish and your rules neve
   message is tidied as soon as you open it for editing, so you see the result before saving.
 
 Credit: with Rosie and WarFade.
+
+### Sharp Corners
+
+Every corner in Discord sharp: buttons, the message box, the You bar, menus, cards, sheets, server
+icons and pictures. Android only, because chat messages are drawn natively.
+
+- "Circles too" also squares avatars, status dots and round buttons.
+- Can't run together with Round Corners; it says so if both are on.
+
+### Show Tag
+
+Shows usernames next to display names in chat, including in replies. `Display Name (@username)`,
+or just the username with a switch.
+
+Credit: a port of Cynosphere's Show Tag for Vendetta.
+
+### Staff Tags
+
+Extra tags next to staff in chat, the member list and on profiles: OWNER, ADMIN, STAFF, MOD,
+VC Mod, Chat Mod and WEBHOOK, worked out from the person's permissions in that server.
+
+- Tap a tag in settings to hide it, rename it, give it a colour or a two-colour gradient, add an
+  icon (Discord's own or your own SVG) or show the icon alone, and reset it.
+- Optionally use the person's top role colour as the tag background.
+
+Credit: a port of Staff Tags for Revenge by Fiery and シグマ siguma.
+
+### Text Animation
+
+Animates letters as you type and delete, with a smooth gliding cursor. Android only.
+
+- Typing: letters fade in, slide up, tilt or unblur, with the speed and distance you choose.
+- Deleting: letters fall away or turn to dust, or nothing.
+- The cursor glides between positions, optionally with a stretchy trail.
+- The message box only, or every text field (never password fields). Try it out in settings.
 
 ### Timezones
 
@@ -147,6 +253,8 @@ A few plugins talk to services other than Discord. None of them sends your Disco
 | Timezones | Shared timezone list (`timezonedb.catvibers.me`) | The user IDs of people shown in chat whose timezone you haven't set. On by default; can be turned off |
 | Timezones | Open-Meteo place search | The place name you type. On by default; can be turned off |
 | Timezones | Equicord's timezone list (`timezone.creations.works`) | Nothing about you: it downloads the whole list, about once an hour. Off by default |
+| Pronouns | PronounDB (`pronoundb.org`) | The user IDs of people shown in chat, in batches, to look up their pronouns. On by default; can be turned off |
+| Pocket Browser | Whatever sites you open, and your chosen search engine (DuckDuckGo by default) | What any browser sends: the page you ask for and what you type into it. Nothing from Discord |
 
 ## Building
 

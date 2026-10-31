@@ -1,0 +1,20 @@
+{
+	"format": 1,
+	"id": "bleelblep.char-counter",
+	"name": "Character Counter",
+	"description": "Counts your message's characters in a square above the message box, and offers to split long ones into several you review and send.",
+	"author": "bleelblep",
+	"icon": "TextIcon",
+	"version": "0.5.1",
+	"dependencies": {
+		"valenced.api": {
+			"version": ">=1 <2"
+		},
+		"discord": {
+			"version": ">=350.4"
+		}
+	},
+	"dist": {
+		"script": "index.js"
+	}
+}

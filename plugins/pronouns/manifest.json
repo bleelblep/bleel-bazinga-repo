@@ -1,0 +1,20 @@
+{
+	"format": 1,
+	"id": "bleelblep.pronouns",
+	"name": "Pronouns",
+	"description": "People's pronouns as a small tag next to their name in chat, from Discord profiles and PronounDB.",
+	"author": "bleelblep",
+	"icon": "UserCircleIcon",
+	"version": "0.5.2",
+	"dependencies": {
+		"valenced.api": {
+			"version": ">=1 <2"
+		},
+		"discord": {
+			"version": ">=350.4"
+		}
+	},
+	"dist": {
+		"script": "index.js"
+	}
+}

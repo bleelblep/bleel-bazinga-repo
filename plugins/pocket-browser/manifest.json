@@ -1,0 +1,24 @@
+{
+	"format": 1,
+	"id": "bleelblep.pocket-browser",
+	"name": "Pocket Browser",
+	"description": "A web browser with tabs and history in a new tab of the emoji picker.",
+	"author": "bleelblep",
+	"icon": "GlobeEarthIcon",
+	"version": "0.4.13",
+	"dependencies": {
+		"valenced.api": {
+			"version": ">=1 <2"
+		},
+		"discord": {
+			"version": "*"
+		}
+	},
+	"dist": {
+		"script": "index.js",
+		"android": {
+			"path": "plugin.jar",
+			"class": "com.bleelblep.pocketbrowser.PocketBrowserPlugin"
+		}
+	}
+}
