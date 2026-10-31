@@ -26,6 +26,9 @@ https://bleelblep.github.io/bleel-bazinga-repo/index.json
 
 Then install the plugins you want from it.
 
+What each plugin does, what's coming next, and a place to ask for features:
+https://bleelblep.github.io/bazinga/
+
 ## Account safety
 
 Every plugin is checked before it's listed here. No plugin reads your Discord token, sends its own
