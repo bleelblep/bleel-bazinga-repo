@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bazinga Plugins</title>
+<meta name="description" content="An unofficial Valenced plugin repo by bleelblep.">
+<style>
+  code { word-break: break-all; }
+</style>
+</head>
+<body>
+
+<nav><b>Home</b> · <a href="plugins.html">Current plugins</a> · <a href="coming.html">Coming next</a> · <a href="requests.html">Request a feature</a></nav>
+
+<h1>Bazinga Plugins</h1>
+<p>An unofficial <a href="https://valenced.app">Valenced</a> plugin repo by bleelblep. Not affiliated with or reviewed by the Valenced team.</p>
+
+<p><b>Add in Valenced:</b><br>
+<code id="url">https://bleelblep.github.io/bleel-bazinga-repo/index.json</code>
+<button id="copy" type="button">Copy</button></p>
+
+<p><b>Source:</b> <a href="https://github.com/bleelblep/bleel-bazinga-repo">github.com/bleelblep/bleel-bazinga-repo</a></p>
+
+<h2>What's here</h2>
+<p>Two batches so far, all public.<br>
+<b>Batch one:</b> Custom Timestamps, Hide Servers, New Members, No Dividers, ReviewDB, Send Tweaks and Timezones.<br>
+<b>Batch two:</b> Round Corners, Sharp Corners, Text Animation, Pocket Browser and Character Counter. Details on <a href="plugins.html">Current plugins</a>.</p>
+<p>Votes on <a href="coming.html">Coming next</a> decide what goes in batch three. Want something changed in a plugin that's out? <a href="requests.html">Request a feature</a>.</p>
+
+<h2>In community review</h2>
+<p>Five more plugins have had pull requests open on the community repo since October 27: Show Tag, Pronouns, Hide Call Buttons, Staff Tags and Live Markdown. Since I'm not sure when they'll be reviewed, I've decided to share them here in the meantime. Details on <a href="plugins.html#review">Current plugins</a>.</p>
+
+<h2>Why it exists</h2>
+<p>I've got a lot of plugins and don't want to flood the community repo with ones that aren't ready. They land here first once they work and are safe to use, and I keep polishing them. Plugins here work, but expect rough edges and frequent updates.</p>
+<p>Most plugins here are ones I plan to contribute to the community repo once it meets their standard. Plugins that will stay unofficial, like AI Core and Pocket Browser, will be listed separately.</p>
+
+<h2>Account safety</h2>
+<p>No plugin reads your token, sends its own requests to Discord, retries after Discord says no, or does anything on your account without you asking.</p>
+
+<script>
+  const copy = document.getElementById("copy");
+  copy.onclick = async () => {
+    try {
+      await navigator.clipboard.writeText(document.getElementById("url").textContent);
+      copy.textContent = "Copied";
+    } catch {
+      copy.textContent = "Select and copy it";
+    }
+    setTimeout(() => (copy.textContent = "Copy"), 2000);
+  };
+</script>
+</body>
+</html>

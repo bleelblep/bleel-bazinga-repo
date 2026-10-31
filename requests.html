@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Request a Feature · Bazinga</title>
+<meta name="description" content="Ask for something in one of the Bazinga plugins.">
+<style>
+  label { display: block; margin-top: 1em; }
+  select, textarea, input { display: block; width: 100%; max-width: 32em; margin-top: .3em; font: inherit; }
+  textarea { min-height: 8em; }
+  button { margin-top: 1em; font: inherit; }
+  #done, #error { margin-top: 1em; }
+  #error { color: #b00020; }
+</style>
+</head>
+<body>
+
+<nav><a href="./">Home</a> · <a href="plugins.html">Current plugins</a> · <a href="coming.html">Coming next</a> · <b>Request a feature</b></nav>
+
+<h1>Request a feature</h1>
+<p>Something one of the plugins should do, or do differently. Pick the plugin, say what you want, and it lands with me. No sign-in; up to five requests a day.</p>
+
+<form id="form">
+  <label>Plugin
+    <select id="plugin" required>
+      <option value="" disabled selected>Pick one</option>
+      <optgroup label="Batch one">
+        <option value="custom-timestamps">Custom Timestamps</option>
+        <option value="hide-servers-drawer">Hide Servers</option>
+        <option value="new-members">New Members</option>
+        <option value="no-dividers">No Dividers</option>
+        <option value="review-db">ReviewDB</option>
+        <option value="send-tweaks">Send Tweaks</option>
+        <option value="timezones">Timezones</option>
+      </optgroup>
+      <optgroup label="Batch two">
+        <option value="round-icons">Round Corners</option>
+        <option value="sharp-corners">Sharp Corners</option>
+        <option value="text-animation">Text Animation</option>
+        <option value="pocket-browser">Pocket Browser</option>
+        <option value="char-counter">Character Counter</option>
+      </optgroup>
+    </select>
+  </label>
+  <small id="count"></small>
+
+  <label>What should it do?
+    <textarea id="text" required minlength="10" maxlength="1000" placeholder="What you want, and when you'd use it. A sentence or two is plenty."></textarea>
+  </label>
+
+  <label>Discord username <small>(optional, so I can ask a question back)</small>
+    <input id="contact" type="text" maxlength="64" autocomplete="off">
+  </label>
+
+  <button id="send" type="submit">Send request</button>
+  <p id="done" hidden></p>
+  <p id="error" hidden></p>
+</form>
+
+<p><small>Plugins not out yet can't take requests here: vote for them on <a href="coming.html">Coming next</a> instead.</small></p>
+
+<script>
+  const API = "https://votes.bleel.workers.dev";
+  const form = document.getElementById("form");
+  const plugin = document.getElementById("plugin");
+  const text = document.getElementById("text");
+  const contact = document.getElementById("contact");
+  const send = document.getElementById("send");
+  const done = document.getElementById("done");
+  const error = document.getElementById("error");
+  const count = document.getElementById("count");
+  let counts = {};
+
+  const name = () => plugin.options[plugin.selectedIndex]?.text ?? "it";
+
+  function showCount() {
+    const n = counts[plugin.value];
+    count.textContent = plugin.value && n ? `${n} request${n === 1 ? "" : "s"} for ${name()} so far` : "";
+  }
+  plugin.onchange = showCount;
+
+  fetch(`${API}/request-counts`)
+    .then(r => r.json())
+    .then(c => { counts = c; showCount(); })
+    .catch(() => {});
+
+  form.onsubmit = async e => {
+    e.preventDefault();
+    done.hidden = true;
+    error.hidden = true;
+    send.disabled = true;
+    try {
+      const r = await fetch(`${API}/request`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ plugin: plugin.value, text: text.value, contact: contact.value }),
+      });
+      const body = await r.json();
+      if (!r.ok) {
+        error.textContent = body.error === "too many today" ? "That's five today already. Try again tomorrow."
+          : body.error === "too short" ? "Say a little more: at least ten characters."
+          : "That didn't go through. Try again in a moment.";
+        error.hidden = false;
+        return;
+      }
+      counts[plugin.value] = body.count;
+      done.textContent = `Sent. Thanks! That's request ${body.count} for ${name()}.`;
+      done.hidden = false;
+      text.value = "";
+      showCount();
+    } catch {
+      error.textContent = "That didn't go through. Try again in a moment.";
+      error.hidden = false;
+    } finally {
+      send.disabled = false;
+    }
+  };
+</script>
+</body>
+</html>
