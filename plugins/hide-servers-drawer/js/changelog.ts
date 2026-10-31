@@ -3,6 +3,22 @@ import type { ChangelogEntry } from '../../../shared/changelog'
 /** Newest first. Every version users got gets an entry; see shared/changelog.tsx. */
 export const CHANGELOG: ChangelogEntry[] = [
 	{
+		version: '1.8.2',
+		date: '2026-10-30',
+		title: 'Hide whole folders',
+		changes: ['While hiding servers from the bar, tap the small eye on a folder’s corner to hide the whole folder.'],
+	},
+	{
+		version: '1.8.1',
+		date: '2026-10-30',
+		title: 'Hide and show from the server bar',
+		changes: [
+			`Tap the eye at the bottom of the server bar (or pick "Hide or show servers" from a server's long-press menu). Every server shows, hidden ones darkened with a crossed-out eye.`,
+			'Tap a server to hide or show it. Open a folder to pick servers inside it; a hidden folder shows again with a tap.',
+			"Tap the tick when you're done. The eye button can be turned off in settings.",
+		],
+	},
+	{
 		version: '1.7.9',
 		date: '2026-10-28',
 		title: 'Reload after hiding',

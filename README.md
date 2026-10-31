@@ -64,7 +64,10 @@ Hide servers, folders and channels you don't want to see. Hiding only changes wh
 you stay in the server, and your server order on other devices isn't touched.
 
 - Hide a server from its long-press menu in the server bar ("Hide server"), and a channel or
-  category from its long-press menu ("Hide channel"). Folders are hidden from settings.
+  category from its long-press menu ("Hide channel").
+- Or tap the eye at the bottom of the server bar: every server shows, hidden ones darkened, and a
+  tap hides or shows one; the small eye on a folder's corner hides the whole folder. Tap the tick to finish. Also in a server's long-press menu.
+  The eye button can be turned off in settings.
 - A list in settings to bring anything back.
 
 Credit: with blerp; one file adapted from kmmiio99o's ServerDrawer.

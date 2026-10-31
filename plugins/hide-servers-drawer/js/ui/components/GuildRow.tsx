@@ -6,6 +6,7 @@ import { useGuildIndicator } from "../useGuildIndicator"
 import Badge from "./Badge"
 import ContextMenu from "./ContextMenu"
 import GuildIcon from "./GuildIcon"
+import HiddenMark from "./HiddenMark"
 import MorphIcon from "./MorphIcon"
 import Pill from "./Pill"
 import { showToast as sharedToast } from "../../../../../shared/toast"
@@ -87,7 +88,17 @@ export function useSelectedGuildId(): string | null {
  * switches. Rows still update themselves on their own state, since useGuildIndicator
  * subscribes internally.
  */
-function GuildRow({ id, selected, onNavigated }: { id: string; selected: boolean; onNavigated?: () => void }) {
+interface GuildRowProps {
+	id: string
+	selected: boolean
+	onNavigated?: () => void
+	/** Edit mode: a tap hides or shows the server instead of opening it. */
+	editing?: boolean
+	/** Passed in rather than read here, so the memoised row redraws when it changes. */
+	hidden?: boolean
+}
+
+function GuildRow({ id, selected, onNavigated, editing = false, hidden = false }: GuildRowProps) {
 	const { React } = react
 	const { Pressable, View } = ReactNative
 
@@ -142,6 +153,24 @@ function GuildRow({ id, selected, onNavigated }: { id: string; selected: boolean
 
 	if (!guild) return null
 
+	if (editing) {
+		return (
+			<Pressable
+				onPress={() => setHidden(id, !hidden)}
+				accessibilityRole="switch"
+				accessibilityState={{ checked: !hidden }}
+				accessibilityLabel={`${guild.name ?? "Server"}, ${hidden ? "hidden" : "shown"}`}
+			>
+				<View style={{ width: BAR_WIDTH, height: SIZE, alignItems: "center", justifyContent: "center" }}>
+					<View style={{ width: SIZE, height: SIZE }}>
+						<GuildIcon guild={guild} size={SIZE} />
+						{hidden ? <HiddenMark size={SIZE} radius={SIZE / 2} /> : null}
+					</View>
+				</View>
+			</Pressable>
+		)
+	}
+
 	return (
 		<>
 			<Pressable onPress={navigate} onLongPress={openMenu} delayLongPress={450}>
@@ -168,7 +197,7 @@ function GuildRow({ id, selected, onNavigated }: { id: string; selected: boolean
 // React.memo can't run at module scope -- see the note in UnreadDmRow.tsx.
 let Memoized: any
 
-export default function GuildRowMemo(props: { id: string; selected: boolean; onNavigated?: () => void }) {
+export default function GuildRowMemo(props: GuildRowProps) {
 	const { React } = react
 	Memoized ??= React.memo(GuildRow)
 	return <Memoized {...props} />

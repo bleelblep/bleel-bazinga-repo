@@ -5,6 +5,7 @@ import patchChannelList from "./patches/channelList"
 import patchChannelSheet from "./patches/channelSheet"
 import { patchCreateElement } from "./patches/createElementIntercept"
 import patchGuildMenu from "./patches/guildMenu"
+import patchEditMode from "./patches/editMode"
 import patchGuildsBar from "./patches/guildsBar"
 import patchSaveGuildFolders from "./patches/saveGuildFolders"
 import patchSortedGuilds, { refresh } from "./patches/sortedGuilds"
@@ -27,6 +28,8 @@ export interface HideServersDrawerStorage {
 	hidden?: Record<string, boolean>
 	instant?: boolean
 	staticIcons?: boolean
+	/** The eye button in the server bar that opens edit mode; on when unset. */
+	barButton?: boolean
 	/**
 	 * Dev-only crash-guard for the auto-probe: persisted before arming a stock-bar dump,
 	 * cleared when the dump fires. If a launch finds this set, the armed stock render never
@@ -105,6 +108,7 @@ export default plugin<{ jsonStorage: HideServersDrawerStorage }>({
 			apply("sortedGuilds", patchSortedGuilds)
 			apply("saveGuildFolders", patchSaveGuildFolders)
 			apply("guildsBar", patchGuildsBar)
+			apply("editMode", patchEditMode)
 			apply("channelList", patchChannelList)
 			apply("channelSheet", patchChannelSheet)
 			apply("guildMenu", () => patchGuildMenu(() => plugin.requireReload()))

@@ -27,6 +27,23 @@ export function setStaticIcons(value: boolean) {
 	}
 }
 
+/** The eye button in the server bar's footer that opens edit mode. On by default. */
+export function barButton(): boolean {
+	try {
+		return js?.cache?.barButton ?? true
+	} catch {
+		return true
+	}
+}
+
+export function setBarButton(value: boolean) {
+	try {
+		js?.set({ barButton: value })
+	} catch {
+		/* session-only, still works until restart */
+	}
+}
+
 /** Defaults to false: stock shows a static Home icon, not the latest DM's avatar. */
 export function dmAvatarHome(): boolean {
 	try {

@@ -104,6 +104,7 @@ export function setFolderHidden(folderId: string | number, hidden: boolean) {
 		ids.delete(key)
 		persist([key])
 	}
+	notifyBar()
 }
 
 export function hiddenFolderIds(): string[] {
@@ -188,6 +189,7 @@ export function setHidden(guildId: string, hidden: boolean) {
 		ids.delete(guildId)
 		persist([guildId])
 	}
+	notifyBar()
 }
 
 /** Shows every hidden server and folder again. Hidden channels stay hidden (they have their own list). */
@@ -196,6 +198,7 @@ export function clearHidden() {
 	const removed = [...ids].filter(id => !id.startsWith(CHANNEL_PREFIX))
 	for (const id of removed) ids.delete(id)
 	persist(removed)
+	notifyBar()
 }
 
 /** True when no server or folder is hidden, so the server bar patches can skip work entirely. */
@@ -203,4 +206,31 @@ export function isEmpty(): boolean {
 	load()
 	for (const id of ids) if (!id.startsWith(CHANNEL_PREFIX)) return false
 	return true
+}
+
+// Edit mode: the server bar shows every server, hidden ones marked, and a tap hides or shows one.
+// Session-only on purpose -- reopening Discord always starts with the normal bar.
+let editing = false
+const barListeners = new Set<() => void>()
+
+function notifyBar() {
+	for (const listener of barListeners) listener()
+}
+
+export function isEditing(): boolean {
+	return editing
+}
+
+export function setEditing(value: boolean) {
+	if (editing === value) return
+	editing = value
+	notifyBar()
+}
+
+/** Called when edit mode turns on or off, or any server or folder is hidden or shown again. */
+export function onBarChange(listener: () => void): () => void {
+	barListeners.add(listener)
+	return () => {
+		barListeners.delete(listener)
+	}
 }

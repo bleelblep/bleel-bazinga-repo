@@ -1,8 +1,11 @@
 import { subscribeDmChanges, unreadDmChannels } from "../../lib/dms"
+import { isFolderHidden, isHidden, onBarChange } from "../../lib/hidden"
+import { goHome } from "../../patches/guildMenu"
 import { store as sortedGuildStore } from "../../patches/sortedGuilds"
 import { BAR_WIDTH } from "../layout"
 import { barBackground, separator } from "../theme"
 import DmIcon from "./DmIcon"
+import DoneButton from "./DoneButton"
 import FolderRow from "./FolderRow"
 import GuildRow, { useSelectedGuildId } from "./GuildRow"
 import UnreadDmRow from "./UnreadDmRow"
@@ -114,7 +117,7 @@ function openDms() {
  * id to leave a slot in. That absence is the fix: a virtualized list reserves geometry for
  * every item in its data array including ones that render null, a plain array map does not.
  */
-export default function CustomGuildsBar() {
+export default function CustomGuildsBar({ editing = false }: { editing?: boolean }) {
 	// Read per-render, never at module scope -- see docs/coding-rules.md rule 1.
 	const { React } = react
 	const { ScrollView, View } = ReactNative
@@ -132,6 +135,10 @@ export default function CustomGuildsBar() {
 	const [, bumpDms] = React.useReducer((n: number) => n + 1, 0)
 	React.useEffect(() => subscribeDmChanges(bumpDms), [])
 
+	// Edit mode redraws on every tap that hides or shows a server.
+	const [, bumpHidden] = React.useReducer((n: number) => n + 1, 0)
+	React.useEffect(() => onBarChange(bumpHidden), [])
+
 	const selectedId = useSelectedGuildId()
 	const selectedChannelId = useSelectedChannelId()
 	const inDms = selectedId == null || selectedId === (routes?.ME ?? "/channels/@me")
@@ -144,11 +151,17 @@ export default function CustomGuildsBar() {
 		/* ignore */
 	}
 
-	const unread = unreadDmChannels()
+	const unread = editing ? [] : unreadDmChannels()
+
+	// Leaving edit mode while sitting in a server that's now hidden: go Home first, so the bar
+	// never has a selected server it no longer lists.
+	const finish = () => {
+		if (selectedId != null && isHidden(selectedId)) goHome()
+	}
 
 	return (
 		<View style={{ width: BAR_WIDTH, backgroundColor: barBackground(), paddingTop: topInset() }}>
-			<DmIcon selected={inDms} onPress={openDms} />
+			{editing ? <DoneButton onDone={finish} /> : <DmIcon selected={inDms} onPress={openDms} />}
 
 			{/* Rows are each a full BAR_WIDTH with their icon centred, so nothing needs to paint
 			    outside its own bounds and no overflow handling is required here. */}
@@ -169,9 +182,14 @@ export default function CustomGuildsBar() {
 					return (
 						<View key={key} style={{ marginBottom: 10 }}>
 							{node.type === "folder" ? (
-								<FolderRow node={node} />
+								<FolderRow node={node} editing={editing} hidden={editing && isFolderHidden(node.id)} />
 							) : node.id != null ? (
-								<GuildRow id={String(node.id)} selected={String(node.id) === selectedId} />
+								<GuildRow
+									id={String(node.id)}
+									selected={String(node.id) === selectedId}
+									editing={editing}
+									hidden={editing && isHidden(String(node.id))}
+								/>
 							) : null}
 						</View>
 					)

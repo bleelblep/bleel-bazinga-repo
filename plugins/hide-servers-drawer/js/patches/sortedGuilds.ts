@@ -1,4 +1,4 @@
-import { isEmpty, isFolderHidden, isHidden } from "../lib/hidden"
+import { isEditing, isEmpty, isFolderHidden, isHidden } from "../lib/hidden"
 import { Stores } from "@valenced/discord/flux"
 import { after } from "@valenced/patcher"
 
@@ -294,8 +294,9 @@ function install(method: string, filter: (value: unknown) => unknown): (() => vo
 		// own patcher source) -- this patch only ever needed the result anyway, so no
 		// conversion to instead is needed here (unlike the other .after( fixes elsewhere).
 		return after(sortedGuildStore(), method, (ret: unknown) => {
-			// Skip the work entirely when nothing is hidden.
-			if (disabled || isEmpty()) return ret
+			// Skip the work entirely when nothing is hidden. Edit mode shows everything, so the
+			// edit bar can mark hidden servers instead of leaving them out.
+			if (disabled || isEmpty() || isEditing()) return ret
 
 			try {
 				return filter(ret)

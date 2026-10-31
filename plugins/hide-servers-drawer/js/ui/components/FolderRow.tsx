@@ -1,9 +1,10 @@
-import { setFolderHidden } from "../../lib/hidden"
+import { isHidden, setFolderHidden } from "../../lib/hidden"
 import { refresh as refreshSortedGuilds } from "../../patches/sortedGuilds"
 import { folderTint } from "../theme"
 import ContextMenu from "./ContextMenu"
 import GuildRow, { useSelectedGuildId } from "./GuildRow"
 import GuildIcon from "./GuildIcon"
+import HiddenMark from "./HiddenMark"
 import { showToast as sharedToast } from "../../../../../shared/toast"
 import * as assets from "@valenced/assets"
 import { Stores } from "@valenced/discord/flux"
@@ -87,8 +88,13 @@ function useFolderExpanded(folderId: string | number): boolean {
 	return open
 }
 
-/** node: { type: "folder", id, name, color, children: [{ id, ... }] } from SortedGuildStore.getGuildsTree(). */
-export default function FolderRow({ node }: { node: any }) {
+/**
+ * node: { type: "folder", id, name, color, children: [{ id, ... }] } from SortedGuildStore.getGuildsTree().
+ *
+ * In edit mode a tap still opens the folder, so the servers inside can be hidden one by one, and
+ * the long-press menu hides or shows the whole folder.
+ */
+export default function FolderRow({ node, editing = false, hidden = false }: { node: any; editing?: boolean; hidden?: boolean }) {
 	const { React } = react
 	const { Pressable, View, Image } = ReactNative
 
@@ -117,14 +123,20 @@ export default function FolderRow({ node }: { node: any }) {
 	const hideFolder = () => {
 		setFolderHidden(node.id, true)
 		refreshSortedGuilds()
-		showToast(`Hid folder "${node.name ?? "Folder"}"`)
+		// The edit bar marks it instead, so no toast there.
+		if (!editing) showToast(`Hid folder "${node.name ?? "Folder"}"`)
+	}
+
+	const showFolder = () => {
+		setFolderHidden(node.id, false)
+		refreshSortedGuilds()
 	}
 
 	const menu = (
 		<ContextMenu
 			visible={menuOpen}
 			title={node.name || "Folder"}
-			items={[{ label: "Hide folder", danger: true, action: hideFolder }]}
+			items={[hidden ? { label: "Show folder", action: showFolder } : { label: "Hide folder", danger: true, action: hideFolder }]}
 			onClose={() => setMenuOpen(false)}
 		/>
 	)
@@ -158,11 +170,17 @@ export default function FolderRow({ node }: { node: any }) {
 						}}
 					>
 						<Image source={folderAssetId() as any} style={{ width: 24, height: 24, tintColor: "#fff" }} />
+						{hidden ? <HiddenMark size={ICON} radius={16} /> : null}
 					</View>
 				</Pressable>
 				{children.map((child, i) => (
 					<View key={child.id} style={{ marginBottom: i === children.length - 1 ? 0 : 10 }}>
-						<GuildRow id={String(child.id)} selected={String(child.id) === selectedId} />
+						<GuildRow
+							id={String(child.id)}
+							selected={String(child.id) === selectedId}
+							editing={editing}
+							hidden={editing && isHidden(String(child.id))}
+						/>
 					</View>
 				))}
 				{menu}
@@ -201,6 +219,7 @@ export default function FolderRow({ node }: { node: any }) {
 							)
 						})}
 					</View>
+					{hidden ? <HiddenMark size={ICON} radius={16} /> : null}
 				</View>
 			</Pressable>
 			{menu}

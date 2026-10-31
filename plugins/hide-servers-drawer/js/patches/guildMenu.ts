@@ -1,5 +1,6 @@
 /**
- * "Hide server" in the stock server bar's long-press menu.
+ * "Hide server" and "Hide or show servers" (edit mode, see lib/hidden.ts) in the stock server
+ * bar's long-press menu.
  *
  * The menu's items come from `getGuildsBarGuildMenuItems(guildId)`, each
  * `{ IconComponent, label, action }`. A before-hook keeps the guild id and an after-hook appends
@@ -9,7 +10,7 @@
  * Folders have no equivalent hook yet: the folder long-press menu hasn't been traced on device.
  */
 
-import { setHidden } from "../lib/hidden"
+import { setEditing, setHidden } from "../lib/hidden"
 import { refresh } from "./sortedGuilds"
 import { getModuleByPath } from "../../../../shared/modules"
 import { reportError } from "../../../../shared/report"
@@ -24,6 +25,7 @@ const TAG = "[HideServersDrawer:guildMenu]"
 const PATH = "modules/guilds_bar/native/utils/getGuildsBarGuildMenuItems.tsx"
 const NAME = "getGuildsBarGuildMenuItems"
 const KEY = "hide-servers-drawer-hide"
+const EDIT_KEY = "hide-servers-drawer-edit"
 /** Let the menu finish closing before the bar changes and the toast shows. */
 const ACTION_DELAY = 300
 
@@ -40,7 +42,7 @@ function selectedGuildId(): string | undefined {
  * Leaves a server for Home (the DM list) before it is hidden, so the bar never has a selected
  * server it no longer lists. "@me" is Discord's Home id. Returns false if routing wasn't found.
  */
-function goHome(): boolean {
+export function goHome(): boolean {
 	try {
 		const { lookupModule } = finders
 		const { withProps } = filters
@@ -118,10 +120,12 @@ export default function patchGuildMenu(onHidden?: () => void): () => void {
 						guildId = undefined
 						if (typeof id !== "string" || !Array.isArray(items) || items.some(item => item?.key === KEY)) return items
 						let IconComponent: any
+						let EditIcon: any
 						try {
 							IconComponent = lookupGeneratedIconComponent("EyeSlashIcon")
+							EditIcon = lookupGeneratedIconComponent("EyeIcon")
 						} catch {
-							/* the item still works without an icon */
+							/* the items still work without icons */
 						}
 						return [
 							...items,
@@ -130,6 +134,13 @@ export default function patchGuildMenu(onHidden?: () => void): () => void {
 								IconComponent,
 								label: "Hide server",
 								action: () => hideServer(id),
+							},
+							{
+								key: EDIT_KEY,
+								IconComponent: EditIcon,
+								label: "Hide or show servers",
+								// After the menu has closed, like hideServer.
+								action: () => setTimeout(() => setEditing(true), ACTION_DELAY),
 							},
 						]
 					} catch (error) {

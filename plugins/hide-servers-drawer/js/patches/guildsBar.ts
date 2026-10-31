@@ -1,12 +1,12 @@
 import { getModuleByPath } from "../../../../shared/modules"
-import { isEmpty, instant } from "../lib/hidden"
+import { isEditing, isEmpty, instant, onBarChange } from "../lib/hidden"
 import { consumeDumpArmed, dumpElementTree, dumpIncomingProps, noteBranch, notifyDumpDone, stockBar } from "../lib/probe"
 import CustomGuildsBar from "../ui/components/CustomGuildsBar"
 import { registerIntercept, unregisterIntercept } from "./createElementIntercept"
 import { getModules } from "@valenced/modules/finders"
 import { withName } from "@valenced/modules/finders/filters"
 import { instead } from "@valenced/patcher"
-import { createElement } from "react"
+import { createElement, useEffect, useReducer } from "react"
 
 const DEBUG: boolean = false
 
@@ -58,6 +58,54 @@ function withMemoName(name: string) {
 	return filter
 }
 
+interface BarProps {
+	args: any[]
+	render: (...args: any[]) => any
+}
+
+/**
+ * Picks which bar to draw: the stock bar or the legacy custom bar. Edit mode works in both
+ * (stock rows get their overlay from patches/editMode.tsx).
+ *
+ * Each is its own component rather than a branch inside the patched render, so switching
+ * between them mounts and unmounts cleanly instead of changing the bar's hook order (the stock
+ * body and CustomGuildsBar call different hooks).
+ */
+function BarSwitch({ args, render }: BarProps) {
+	const [, bump] = useReducer((n: number) => n + 1, 0)
+	useEffect(() => onBarChange(bump), [])
+
+	// Dev probes (lib/probe.ts): stockBar() leaves the stock bar alone even while servers are
+	// hidden, and an armed dump renders stock once while capturing its props and element tree.
+	const dump = consumeDumpArmed()
+	const useStock = isEmpty() || !instant() || stockBar() || dump
+	noteBranch(dump ? "dump" : useStock ? `stock (empty=${isEmpty()} instant=${instant()} probe=${stockBar()})` : "custom")
+	const editing = isEditing()
+	if (!useStock) return createElement(CustomGuildsBar, { editing })
+	// Keyed by mode, so entering or leaving edit mode remounts the stock bar and it reads the
+	// server list fresh: everything in edit mode, without the hidden ones after.
+	return createElement(StockBar, { key: editing ? "edit" : "view", args, render, dump })
+}
+
+/** Discord's own bar body, rendered as a child so BarSwitch can swap it out. */
+function StockBar({ args, render, dump }: BarProps & { dump: boolean }) {
+	const out = render(...args)
+	if (dump) {
+		try {
+			dumpIncomingProps(args?.[0])
+		} catch {
+			/* ignore */
+		}
+		try {
+			dumpElementTree(out)
+		} catch {
+			/* ignore */
+		}
+		notifyDumpDone()
+	}
+	return out
+}
+
 export default function patchGuildsBar(): () => void {
 	const patches: Array<() => void> = []
 	const patchedAlready = new Set<any>()
@@ -71,34 +119,11 @@ export default function patchGuildsBar(): () => void {
 		try {
 			patches.push(
 				instead(bar, "type", (args: any[], callOriginal: any) => {
-					// Dev probes (lib/probe.ts): stockBar() leaves the stock bar alone even
-					// while servers are hidden, and an armed dump renders stock once while
-					// capturing its props and element tree.
-					const dump = consumeDumpArmed()
-					const useStock = isEmpty() || !instant() || stockBar() || dump
-					noteBranch(dump ? "dump" : useStock ? `stock (empty=${isEmpty()} instant=${instant()} probe=${stockBar()})` : "custom")
-					if (useStock) {
-						// Confirmed on-device crash elsewhere (staff-tags): "undefined is not
-						// a function" when a captured original wasn't actually a function yet
-						// at patch time. Never assume it's callable.
-						if (typeof callOriginal !== "function") return null
-						const out = callOriginal.apply(bar, args)
-						if (dump) {
-							try {
-								dumpIncomingProps(args?.[0])
-							} catch {
-								/* ignore */
-							}
-							try {
-								dumpElementTree(out)
-							} catch {
-								/* ignore */
-							}
-							notifyDumpDone()
-						}
-						return out
-					}
-					return createElement(CustomGuildsBar, null)
+					// Confirmed on-device crash elsewhere (staff-tags): "undefined is not a
+					// function" when a captured original wasn't actually a function yet at patch
+					// time. Never assume it's callable.
+					if (typeof callOriginal !== "function") return null
+					return createElement(BarSwitch, { args, render: callOriginal })
 				}),
 			)
 		} catch {
@@ -110,10 +135,7 @@ export default function patchGuildsBar(): () => void {
 		// createElementIntercept.ts for why `instead` alone isn't guaranteed to cover that.
 		if (typeof original === "function") {
 			try {
-				const fallback = (props: any) =>
-					isEmpty() || !instant() || stockBar()
-						? createElement(original, props)
-						: createElement(CustomGuildsBar, null)
+				const fallback = (props: any) => createElement(BarSwitch, { args: [props], render: original })
 
 				registerIntercept(original, fallback)
 				patches.push(() => unregisterIntercept(original))
