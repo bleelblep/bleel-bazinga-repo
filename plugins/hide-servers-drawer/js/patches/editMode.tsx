@@ -14,11 +14,10 @@
  */
 
 import { isEditing, isFolderHidden, isHidden, onBarChange, setEditing, setFolderHidden, setHidden } from "../lib/hidden"
-import { barButton } from "../lib/prefs"
-import { goHome } from "./guildMenu"
+import { goHome, selectedGuildId } from "../lib/home"
+import { keepBarScroll } from "./guildsBar"
 import { getModuleByPath } from "../../../../shared/modules"
 import { reportError } from "../../../../shared/report"
-import { Stores } from "@valenced/discord/flux"
 import * as assets from "@valenced/assets"
 import { instead } from "@valenced/patcher"
 import { createElement, useEffect, useReducer } from "react"
@@ -119,20 +118,10 @@ function EditOverlay({ guildId, folderId, children }: { guildId?: string; folder
 	)
 }
 
-function selectedGuildId(): string | undefined {
-	try {
-		const id = (Stores as any).SelectedGuildStore?.getGuildId?.()
-		return typeof id === "string" ? id : undefined
-	} catch {
-		return undefined
-	}
-}
-
 /** The eye in the footer: opens edit mode, and becomes Done while it's on. */
 function EditButton() {
 	useBarChanges()
 	const editing = isEditing()
-	if (!editing && !barButton()) return null
 
 	const { Pressable, View, Image } = ReactNative
 	const { getAssetIdByName } = assets
@@ -144,7 +133,7 @@ function EditButton() {
 			const id = selectedGuildId()
 			if (id && isHidden(id)) goHome()
 		}
-		setEditing(!editing)
+		keepBarScroll(() => setEditing(!editing))
 	}
 
 	const icon = editing

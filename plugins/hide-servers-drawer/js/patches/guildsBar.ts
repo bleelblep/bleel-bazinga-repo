@@ -1,4 +1,5 @@
 import { getModuleByPath } from "../../../../shared/modules"
+import { reportError } from "../../../../shared/report"
 import { isEditing, isEmpty, instant, onBarChange } from "../lib/hidden"
 import { consumeDumpArmed, dumpElementTree, dumpIncomingProps, noteBranch, notifyDumpDone, stockBar } from "../lib/probe"
 import CustomGuildsBar from "../ui/components/CustomGuildsBar"
@@ -82,14 +83,167 @@ function BarSwitch({ args, render }: BarProps) {
 	noteBranch(dump ? "dump" : useStock ? `stock (empty=${isEmpty()} instant=${instant()} probe=${stockBar()})` : "custom")
 	const editing = isEditing()
 	if (!useStock) return createElement(CustomGuildsBar, { editing })
-	// Keyed by mode, so entering or leaving edit mode remounts the stock bar and it reads the
-	// server list fresh: everything in edit mode, without the hidden ones after.
-	return createElement(StockBar, { key: editing ? "edit" : "view", args, render, dump })
+	// Not remounted on edit-mode changes: that reset the scroll to the top. The stock bar picks
+	// up the new list itself through the tree version (withBarVersion in sortedGuilds.ts).
+	return createElement(StockBar, { args, render, dump })
+}
+
+/**
+ * The stock bar's FastList ref (a useRef object, stable for the bar's life), taken from the
+ * element GuildsBar renders with `nativeID: "guilds-bar-fast-list"` (352.6 bundle).
+ */
+let listRef: { current?: any } | undefined
+/** The bar's `scrollPosValue` (a Reanimated shared value), in case `scrollPos` is stale. */
+let scrollValue: any
+
+function sharedValue(value: any): number | undefined {
+	try {
+		const v = typeof value?.get === "function" ? value.get() : value?.value
+		return typeof v === "number" ? v : undefined
+	} catch {
+		return undefined
+	}
+}
+
+function findListRef(node: any, depth: number): { current?: any } | undefined {
+	if (!node || typeof node !== "object" || depth > 8) return undefined
+	if (Array.isArray(node)) {
+		for (const child of node) {
+			const found = findListRef(child, depth + 1)
+			if (found) return found
+		}
+		return undefined
+	}
+	const props = node.props
+	if (!props) return undefined
+	if (props.nativeID === "guilds-bar-fast-list") {
+		if (props.scrollPosValue) scrollValue = props.scrollPosValue
+		const ref = node.ref ?? props.ref
+		return ref && typeof ref === "object" ? ref : undefined
+	}
+	return findListRef(props.children, depth + 1)
+}
+
+interface Anchor {
+	id: unknown
+	/** How far the saved scroll position was below this row's top. */
+	offset: number
+}
+
+/**
+ * The rows at or below the top of the view, as anchor ids from the bar's own
+ * `getAnchorIdFromIndex(section, item)` (each server or folder is its own section, "GUILDS:<id>";
+ * servers in an open folder are items). Several, so leaving edit mode still finds one when the
+ * top row was just hidden.
+ */
+function anchorsAt(list: any, y: number): Anchor[] {
+	const toId = list?.props?.getAnchorIdFromIndex
+	const entries = list?.state?.fastListComputer?.items
+	if (typeof toId !== "function" || !entries) return []
+	const out: Anchor[] = []
+	for (const entry of Array.from(entries as Iterable<any>)) {
+		if (out.length >= 12) break
+		if (typeof entry?.section !== "number" || typeof entry.layoutStart !== "number") continue
+		if (entry.layoutStart + (entry.layoutSize ?? 0) <= y) continue
+		const id = toId(entry.section, typeof entry.item === "number" ? entry.item : undefined)
+		if (id != null) out.push({ id, offset: y - entry.layoutStart })
+	}
+	return out
+}
+
+/** Where `anchors[0]` (or the first one still listed) now puts the saved position. */
+function targetFor(list: any, anchors: Anchor[]): number | undefined {
+	const toIndex = list?.props?.getAnchorIndexFromId
+	if (typeof toIndex !== "function" || typeof list.computeScrollPosition !== "function") return undefined
+	for (const anchor of anchors) {
+		const index = toIndex(anchor.id)
+		if (typeof index?.section !== "number") continue
+		const pos = list.computeScrollPosition(index.section, index.item)
+		if (typeof pos?.scrollPosition === "number") return pos.scrollPosition + anchor.offset
+	}
+	return undefined
+}
+
+let reportedNoList = false
+
+/** Within about a row of the end counts as "at the end". */
+const NEAR_END = 64
+
+/** The furthest the bar can scroll: content size minus the visible height. */
+function maxScroll(list: any): number | undefined {
+	const size = list?.state?.fastListComputer?.getSize?.()
+	if (typeof size !== "number" || typeof list.containerSize !== "number") return undefined
+	return Math.max(0, size - list.containerSize)
+}
+
+/**
+ * Runs `change` and keeps the server bar on the same servers.
+ *
+ * Turning edit mode on or off changes the list the bar draws (hidden servers come and go), and
+ * FastList's own anchoring doesn't hold: it only anchors on items, and here every server and
+ * folder is a section (352.6 bundle, FastList findOrUpdateAnchor). Restoring the pixel offset
+ * isn't enough either, since rows above it appear or vanish. So this notes which servers are at
+ * the top, then scrolls so the first one still listed sits where it did.
+ *
+ * Near the end of the bar it keeps the end in place instead: the eye and tick live in the footer
+ * there, and hidden servers usually show up just above it, so anchoring on the top rows pushed
+ * the button you'd just tapped a long way off screen. Run over a few frames,
+ * since the list recomputes after the next render; `scrollTo(y, animated)` only moves if `y`
+ * fits the content, so the target is clamped.
+ */
+export function keepBarScroll(change: () => void) {
+	let y: number | undefined
+	let anchors: Anchor[] = []
+	/** Set when the bar was scrolled to (near) its end: how far above the end it was. */
+	let fromEnd: number | undefined
+	try {
+		const list = listRef?.current
+		const own = list?.scrollPos
+		const pos = typeof own === "number" ? own : sharedValue(scrollValue)
+		if (typeof pos === "number" && pos > 0) {
+			y = pos
+			anchors = anchorsAt(list, pos)
+			const max = maxScroll(list)
+			if (max !== undefined && max - pos <= NEAR_END) fromEnd = Math.max(0, max - pos)
+		}
+	} catch {
+		/* no saved position, just make the change */
+	}
+	change()
+	if (!listRef && !reportedNoList) {
+		reportedNoList = true
+		reportError("[HideServersDrawer] couldn't find the server bar's list, so its scroll can't be kept")
+	}
+	if (y === undefined) return
+
+	const restore = () => {
+		try {
+			const list = listRef?.current
+			if (!list || typeof list.scrollTo !== "function") return
+			const max = maxScroll(list)
+			let target = (fromEnd !== undefined && max !== undefined ? max - fromEnd : undefined) ?? targetFor(list, anchors) ?? (y as number)
+			if (max !== undefined) target = Math.max(0, Math.min(target, max))
+			const now = typeof list.scrollPos === "number" ? list.scrollPos : sharedValue(scrollValue)
+			if (now !== undefined && Math.abs(now - target) < 1) return
+			list.scrollTo(target, false)
+		} catch (error) {
+			if (DEBUG) console.warn("[HideServersDrawer] restoring the bar scroll failed:", error)
+		}
+	}
+	requestAnimationFrame(() => requestAnimationFrame(restore))
+	setTimeout(restore, 120)
+	setTimeout(restore, 300)
 }
 
 /** Discord's own bar body, rendered as a child so BarSwitch can swap it out. */
 function StockBar({ args, render, dump }: BarProps & { dump: boolean }) {
 	const out = render(...args)
+	try {
+		const ref = findListRef(out, 0)
+		if (ref) listRef = ref
+	} catch {
+		/* scroll keeping just won't work */
+	}
 	if (dump) {
 		try {
 			dumpIncomingProps(args?.[0])
@@ -181,6 +335,8 @@ export default function patchGuildsBar(): () => void {
 	}
 
 	return () => {
+		listRef = undefined
+		scrollValue = undefined
 		unsubscribePath()
 		unsubscribeNamed()
 		unsubscribeMemo()

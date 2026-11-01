@@ -1,5 +1,5 @@
+import { Credit } from "../../../../../shared/ui/credit"
 import { hiddenChannelIds, hiddenFolderIds, hiddenIds } from "../../lib/hidden"
-import { barButton, setBarButton } from "../../lib/prefs"
 import { rowIcon } from "../icon"
 import { useBottomPadding } from "../safeArea"
 import { CHANNELS_ROUTE, DEBUG_ROUTE, SERVERS_ROUTE } from "../routes"
@@ -40,7 +40,7 @@ export default function Settings({
 	// Read per-render, never at module scope -- see docs/coding-rules.md rule 1.
 	const { Page } = components
 	const { ScrollView, View } = ReactNative
-	const { Stack, Text, Card, TableRowGroup, TableRow, TableSwitchRow } = Design as any
+	const { Stack, Text, Card, TableRowGroup, TableRow } = Design as any
 	const { useNavigation } = ReactNavigationNative
 
 	const navigation = useNavigation() as { navigate: (route: string) => void }
@@ -96,16 +96,6 @@ export default function Settings({
 						/>
 					</TableRowGroup>
 
-					<TableRowGroup hasIcons>
-						<TableSwitchRow
-							label="Eye button in the server bar"
-							subLabel="Tap it to see every server and hide or show them with a tap. Also in a server's long-press menu."
-							icon={rowIcon("EyeIcon", "ic_eye")}
-							value={barButton()}
-							onValueChange={(v: boolean) => setBarButton(v)}
-						/>
-					</TableRowGroup>
-
 					<TableRowGroup title="Developer" hasIcons>
 						{DEBUG && (<TableRow
 							label="Debug"
@@ -128,6 +118,7 @@ export default function Settings({
 							}}
 						/>
 					</TableRowGroup>
+					<Credit />
 				</Stack>
 			</ScrollView>
 		</Page>

@@ -1,4 +1,4 @@
-import { isEditing, isEmpty, isFolderHidden, isHidden } from "../lib/hidden"
+import { isEditing, isEmpty, isFolderHidden, isHidden, onBarChange } from "../lib/hidden"
 import { Stores } from "@valenced/discord/flux"
 import { after } from "@valenced/patcher"
 
@@ -280,6 +280,29 @@ export function store() {
 }
 
 /**
+ * Bumped on every hide, show, and edit-mode change (lib/hidden.ts onBarChange).
+ *
+ * The stock bar reads its list through useStateFromStores with areGuildsBarFastListStatesEqual
+ * as the equality check, and that compares only `getGuildsTree().version` (352.2 bundle,
+ * useGuildsBarProps). Discord's own version doesn't move when we hide something, so without
+ * this the bar keeps drawing the old list. Adding our counter makes it redraw in place,
+ * keeping its scroll position, instead of the plugin remounting it (which jumped to the top).
+ */
+let barRev = 0
+
+function withBarVersion(tree: any): any {
+	if (!barRev || !tree || typeof tree !== "object") return tree
+	try {
+		const out = clone(tree)
+		// A fraction keeps it a number that can never equal one of Discord's whole versions.
+		out.version = typeof tree.version === "number" ? tree.version + barRev / 1e6 : `${tree.version}#${barRev}`
+		return out
+	} catch {
+		return tree
+	}
+}
+
+/**
  * Install one patch.
  *
  * Must stay a standalone function rather than a loop body: some downlevel transforms turn
@@ -296,14 +319,17 @@ function install(method: string, filter: (value: unknown) => unknown): (() => vo
 		return after(sortedGuildStore(), method, (ret: unknown) => {
 			// Skip the work entirely when nothing is hidden. Edit mode shows everything, so the
 			// edit bar can mark hidden servers instead of leaving them out.
-			if (disabled || isEmpty() || isEditing()) return ret
-
-			try {
-				return filter(ret)
-			} catch {
-				disabled = true
-				return ret
+			if (disabled) return ret
+			let out = ret
+			if (!isEmpty() && !isEditing()) {
+				try {
+					out = filter(ret)
+				} catch {
+					disabled = true
+					return ret
+				}
 			}
+			return method === "getGuildsTree" ? withBarVersion(out) : out
 		})
 	} catch {
 		return undefined
@@ -319,6 +345,23 @@ export default function patchSortedGuilds() {
 		const unpatch = install(target[0], target[1])
 		if (unpatch) patches.push(unpatch)
 	}
+
+	// After the hidden set or edit mode changes: new tree version, then tell the bar. Not for a
+	// tap inside edit mode, where the bar already lists everything: redrawing the list there
+	// for nothing could move it.
+	let wasEditing = isEditing()
+	patches.push(
+		onBarChange(() => {
+			const editing = isEditing()
+			if (editing && wasEditing) return
+			wasEditing = editing
+			barRev++
+			refresh()
+		}),
+	)
+	patches.push(() => {
+		barRev = 0
+	})
 
 	return () => patches.forEach(unpatch => { try { unpatch() } catch { /* already gone */ } })
 }

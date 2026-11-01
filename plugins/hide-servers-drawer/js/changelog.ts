@@ -3,6 +3,42 @@ import type { ChangelogEntry } from '../../../shared/changelog'
 /** Newest first. Every version users got gets an entry; see shared/changelog.tsx. */
 export const CHANGELOG: ChangelogEntry[] = [
 	{
+		version: '1.8.7',
+		date: '2026-11-01',
+		title: 'The tick stays under your finger',
+		changes: ['Tapping the eye at the bottom of the server bar keeps the bottom in place, so the hidden servers show just above the tick instead of pushing it off screen.'],
+	},
+	{
+		version: '1.8.6',
+		date: '2026-11-01',
+		title: 'Same servers in view',
+		changes: ['Tapping the eye or the tick keeps the same servers in view, instead of landing a bit off.'],
+	},
+	{
+		version: '1.8.5',
+		date: '2026-11-01',
+		title: 'Server bar keeps its place, again',
+		changes: ['Tapping the eye or the tick keeps the server bar where you had it scrolled (1.8.4 missed this on Discord 352.6).'],
+	},
+	{
+		version: '1.8.4',
+		date: '2026-11-01',
+		title: 'Server bar keeps its place',
+		changes: [
+			'Tapping the eye or the tick no longer jumps the server bar back to the top.',
+			'The eye button is always there now, so its on/off switch is gone from settings.',
+		],
+	},
+	{
+		version: '1.8.3',
+		date: '2026-11-01',
+		title: 'One way to hide from the bar',
+		changes: [
+			'"Hide server" and "Hide or show servers" are gone from the server long-press menu. Use the eye at the bottom of the server bar instead: no reload needed.',
+			'A small "Made by bleelblep" line at the foot of the settings page.',
+		],
+	},
+	{
 		version: '1.8.2',
 		date: '2026-10-30',
 		title: 'Hide whole folders',

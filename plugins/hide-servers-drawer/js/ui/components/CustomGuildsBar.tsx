@@ -1,6 +1,6 @@
 import { subscribeDmChanges, unreadDmChannels } from "../../lib/dms"
 import { isFolderHidden, isHidden, onBarChange } from "../../lib/hidden"
-import { goHome } from "../../patches/guildMenu"
+import { goHome } from "../../lib/home"
 import { store as sortedGuildStore } from "../../patches/sortedGuilds"
 import { BAR_WIDTH } from "../layout"
 import { barBackground, separator } from "../theme"
