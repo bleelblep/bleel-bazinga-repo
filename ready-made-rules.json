@@ -1,0 +1,221 @@
+{
+	"format": 1,
+	"presets": [
+		{
+			"id": "twitter-fxtwitter",
+			"version": 1,
+			"kind": "links",
+			"source": "updated",
+			"note": "Also catches www. and mobile. links. Pick this or vxtwitter, not both.",
+			"rule": {
+				"name": "Twitter to fxtwitter",
+				"find": "https?:\\/\\/(?:www\\.|mobile\\.)?twitter\\.com(?=\\/\\w+?\\/status\\/)",
+				"replace": "https://fxtwitter.com",
+				"regex": true,
+				"caseSensitive": false,
+				"wholeWord": false
+			}
+		},
+		{
+			"id": "twitter-vxtwitter",
+			"version": 1,
+			"kind": "links",
+			"source": "updated",
+			"note": "Another embed fixer for the same links; pick this or fxtwitter, not both. The original also stripped ?s= and ?t=, which Send Tweaks already removes.",
+			"rule": {
+				"name": "Twitter to vxtwitter",
+				"find": "https?:\\/\\/(?:www\\.|mobile\\.)?twitter\\.com(?=\\/\\w+?\\/status\\/)",
+				"replace": "https://vxtwitter.com",
+				"regex": true,
+				"caseSensitive": false,
+				"wholeWord": false
+			}
+		},
+		{
+			"id": "x-fixupx",
+			"version": 1,
+			"kind": "links",
+			"source": "added",
+			"note": "Not from the thread, which predates x.com links. Same service as fxtwitter.",
+			"rule": {
+				"name": "X to fixupx",
+				"find": "https?:\\/\\/(?:www\\.|mobile\\.)?x\\.com(?=\\/\\w+?\\/status\\/)",
+				"replace": "https://fixupx.com",
+				"regex": true,
+				"caseSensitive": false,
+				"wholeWord": false
+			}
+		},
+		{
+			"id": "twitter-x-fxtwitter",
+			"version": 1,
+			"kind": "links",
+			"source": "added",
+			"note": "One rule for twitter.com and x.com links, and ones already on vxtwitter, fixupx or fixvx. Use this instead of the Twitter and X rules above, not as well.",
+			"rule": {
+				"name": "Twitter and X to fxtwitter",
+				"find": "https?:\\/\\/(?:www\\.|mobile\\.)?(?:twitter|x|vxtwitter|fixupx|fixvx)\\.com(?=\\/\\w+\\/status\\/\\d)",
+				"replace": "https://fxtwitter.com",
+				"regex": true,
+				"caseSensitive": false,
+				"wholeWord": false
+			}
+		},
+		{
+			"id": "reddit-vxreddit",
+			"version": 1,
+			"kind": "links",
+			"source": "updated",
+			"note": "The thread used rxyddit.com, which has shut down. vxreddit.com embeds posts properly.",
+			"rule": {
+				"name": "Reddit to vxreddit",
+				"find": "https?:\\/\\/(?:www\\.|old\\.|new\\.)?reddit\\.com(?=\\/r\\/\\w+?\\/comments\\/)",
+				"replace": "https://vxreddit.com",
+				"regex": true,
+				"caseSensitive": false,
+				"wholeWord": false
+			}
+		},
+		{
+			"id": "tiktok-tiktxk",
+			"version": 2,
+			"legacyFinds": [
+				"https?:\\/\\/(?:(?:www\\.|m\\.)?tiktok\\.com\\/(@[\\w.-]+\\/video\\/\\d+|t\\/\\w+)|vm\\.tiktok\\.com\\/(\\w+))"
+			],
+			"kind": "links",
+			"source": "updated",
+			"note": "Also catches links without www., vt.tiktok.com share links and usernames with dots or underscores, which the original missed.",
+			"rule": {
+				"name": "TikTok to tiktxk",
+				"find": "https?:\\/\\/(?:(?:www\\.|m\\.)?tiktok\\.com\\/(@[\\w.-]+\\/video\\/\\d+|t\\/\\w+)|(?:vm|vt)\\.tiktok\\.com\\/(\\w+))",
+				"replace": "https://tiktxk.com/$1$2",
+				"regex": true,
+				"caseSensitive": false,
+				"wholeWord": false
+			}
+		},
+		{
+			"id": "tiktok-tnktok",
+			"version": 2,
+			"legacyFinds": [
+				"https?:\\/\\/(?:(?:www\\.|m\\.)?tiktok\\.com\\/(@[\\w.-]+\\/video\\/\\d+|t\\/\\w+)|vm\\.tiktok\\.com\\/(\\w+))"
+			],
+			"kind": "links",
+			"source": "added",
+			"note": "fxTikTok, the most used TikTok fixer in 2026. Also does photo posts and vt.tiktok.com share links. Pick this or tiktxk, not both.",
+			"rule": {
+				"name": "TikTok to tnktok",
+				"find": "https?:\\/\\/(?:(?:www\\.|m\\.)?tiktok\\.com\\/(@[\\w.-]+\\/(?:video|photo)\\/\\d+|t\\/\\w+)|(?:vm|vt)\\.tiktok\\.com\\/(\\w+))",
+				"replace": "https://tnktok.com/$1$2",
+				"regex": true,
+				"caseSensitive": false,
+				"wholeWord": false
+			}
+		},
+		{
+			"id": "instagram-oginstagram",
+			"version": 1,
+			"kind": "links",
+			"source": "added",
+			"note": "Posts and reels. Instagram previews in Discord often show nothing; this fills them in.",
+			"rule": {
+				"name": "Instagram to oginstagram",
+				"find": "https?:\\/\\/(?:www\\.)?instagram\\.com(?=\\/(?:p|reels?|tv)\\/)",
+				"replace": "https://oginstagram.com",
+				"regex": true,
+				"caseSensitive": false,
+				"wholeWord": false
+			}
+		},
+		{
+			"id": "bluesky-bskx",
+			"version": 1,
+			"kind": "links",
+			"source": "added",
+			"note": "Bluesky posts with their pictures and videos.",
+			"rule": {
+				"name": "Bluesky to bskx",
+				"find": "https?:\\/\\/(?:www\\.)?bsky\\.app(?=\\/profile\\/[\\w.:-]+\\/post\\/)",
+				"replace": "https://bskx.app",
+				"regex": true,
+				"caseSensitive": false,
+				"wholeWord": false
+			}
+		},
+		{
+			"id": "pixiv-phixiv",
+			"version": 1,
+			"kind": "links",
+			"source": "added",
+			"note": "pixiv artworks with the picture, including age-restricted ones.",
+			"rule": {
+				"name": "pixiv to phixiv",
+				"find": "https?:\\/\\/(?:www\\.)?pixiv\\.net(?=(?:\\/\\w+)?\\/artworks\\/\\d+)",
+				"replace": "https://phixiv.net",
+				"regex": true,
+				"caseSensitive": false,
+				"wholeWord": false
+			}
+		},
+		{
+			"id": "youtube-shorts-watch",
+			"version": 1,
+			"kind": "links",
+			"source": "thread",
+			"note": "Opens Shorts in the normal YouTube player.",
+			"rule": {
+				"name": "YouTube Shorts to watch",
+				"find": "youtube.com/shorts/",
+				"replace": "youtube.com/watch?v=",
+				"regex": true,
+				"caseSensitive": true,
+				"wholeWord": false
+			}
+		},
+		{
+			"id": "shrug",
+			"version": 1,
+			"kind": "text",
+			"source": "thread",
+			"note": "Anywhere in a message, not only at the start like Discord’s own /shrug.",
+			"rule": {
+				"name": "/shrug",
+				"find": "/shrug",
+				"replace": "¯\\_(ツ)_/¯",
+				"regex": false,
+				"caseSensitive": false,
+				"wholeWord": false
+			}
+		},
+		{
+			"id": "disable-markdown",
+			"version": 1,
+			"kind": "text",
+			"source": "thread",
+			"note": "Escapes every markdown character in every message while it is on — switch it off to format again.",
+			"rule": {
+				"name": "Disable Discord's message markdown",
+				"find": "([`\"*_<>~|#.-])",
+				"replace": "\\$1",
+				"regex": true,
+				"caseSensitive": false,
+				"wholeWord": false
+			}
+		},
+		{
+			"id": "rainbow",
+			"version": 1,
+			"kind": "text",
+			"source": "added",
+			"note": "Turns `/rainbow <text>` into an ANSI rainbow codeblock of any length.",
+			"rule": {
+				"name": "/rainbow",
+				"find": "^\\/rainbow\\s+([\\s\\S]+)$",
+				"replace": "{rainbow:$1}",
+				"regex": true,
+				"caseSensitive": false,
+				"wholeWord": false
+			}
+		}
+	]
+}
