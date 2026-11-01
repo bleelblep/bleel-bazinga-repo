@@ -109,7 +109,7 @@
       "author": "bleelblep, blerp",
       "icon": "EyeSlashIcon",
       "channels": {
-        "latest": "1.8.2"
+        "latest": "1.8.7"
       },
       "versions": {
         "1.7.7": {
@@ -142,6 +142,19 @@
           "url": "https://bleelblep.github.io/bleel-bazinga-repo/pool/bleelblep.hide-servers-drawer@1.8.2.zip",
           "sha256": "bbee67865795c5ce332720a18794ec12a3c69337330dad1aa9e00f947b82533e",
           "size": 19435,
+          "dependencies": {
+            "valenced.api": {
+              "version": ">=1 <2"
+            },
+            "discord": {
+              "version": "*"
+            }
+          }
+        },
+        "1.8.7": {
+          "url": "https://bleelblep.github.io/bleel-bazinga-repo/pool/bleelblep.hide-servers-drawer@1.8.7.zip",
+          "sha256": "2806ac33861cf75345c9a78e6a21e5e7097be5b999ae83276a96c5912d55b258",
+          "size": 20126,
           "dependencies": {
             "valenced.api": {
               "version": ">=1 <2"
