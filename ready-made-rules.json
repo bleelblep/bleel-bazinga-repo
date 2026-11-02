@@ -4,6 +4,11 @@
 		{
 			"id": "twitter-fxtwitter",
 			"version": 1,
+			"hidden": true,
+			"shows": {
+				"from": "twitter.com",
+				"to": "fxtwitter.com"
+			},
 			"kind": "links",
 			"source": "updated",
 			"note": "Also catches www. and mobile. links. Pick this or vxtwitter, not both.",
@@ -19,6 +24,11 @@
 		{
 			"id": "twitter-vxtwitter",
 			"version": 1,
+			"hidden": true,
+			"shows": {
+				"from": "twitter.com",
+				"to": "vxtwitter.com"
+			},
 			"kind": "links",
 			"source": "updated",
 			"note": "Another embed fixer for the same links; pick this or fxtwitter, not both. The original also stripped ?s= and ?t=, which Send Tweaks already removes.",
@@ -33,13 +43,20 @@
 		},
 		{
 			"id": "x-fixupx",
-			"version": 1,
+			"version": 2,
+			"legacyFinds": [
+				"https?:\\/\\/(?:www\\.|mobile\\.)?x\\.com(?=\\/\\w+?\\/status\\/)"
+			],
+			"shows": {
+				"from": "twitter.com, x.com",
+				"to": "fixupx.com"
+			},
 			"kind": "links",
 			"source": "added",
-			"note": "Not from the thread, which predates x.com links. Same service as fxtwitter.",
+			"note": "One rule for twitter.com and x.com links, and ones already on vxtwitter or fixvx. Same service as fxtwitter.",
 			"rule": {
-				"name": "X to fixupx",
-				"find": "https?:\\/\\/(?:www\\.|mobile\\.)?x\\.com(?=\\/\\w+?\\/status\\/)",
+				"name": "Twitter and X to fixupx",
+				"find": "https?:\\/\\/(?:www\\.|mobile\\.)?(?:twitter|x|vxtwitter|fixvx)\\.com(?=\\/\\w+\\/status\\/\\d)",
 				"replace": "https://fixupx.com",
 				"regex": true,
 				"caseSensitive": false,
@@ -49,6 +66,11 @@
 		{
 			"id": "twitter-x-fxtwitter",
 			"version": 1,
+			"hidden": true,
+			"shows": {
+				"from": "twitter.com, x.com",
+				"to": "fxtwitter.com"
+			},
 			"kind": "links",
 			"source": "added",
 			"note": "One rule for twitter.com and x.com links, and ones already on vxtwitter, fixupx or fixvx. Use this instead of the Twitter and X rules above, not as well.",
@@ -64,6 +86,10 @@
 		{
 			"id": "reddit-vxreddit",
 			"version": 1,
+			"shows": {
+				"from": "reddit.com",
+				"to": "vxreddit.com"
+			},
 			"kind": "links",
 			"source": "updated",
 			"note": "The thread used rxyddit.com, which has shut down. vxreddit.com embeds posts properly.",
@@ -82,6 +108,11 @@
 			"legacyFinds": [
 				"https?:\\/\\/(?:(?:www\\.|m\\.)?tiktok\\.com\\/(@[\\w.-]+\\/video\\/\\d+|t\\/\\w+)|vm\\.tiktok\\.com\\/(\\w+))"
 			],
+			"hidden": true,
+			"shows": {
+				"from": "tiktok.com",
+				"to": "tiktxk.com"
+			},
 			"kind": "links",
 			"source": "updated",
 			"note": "Also catches links without www., vt.tiktok.com share links and usernames with dots or underscores, which the original missed.",
@@ -100,9 +131,13 @@
 			"legacyFinds": [
 				"https?:\\/\\/(?:(?:www\\.|m\\.)?tiktok\\.com\\/(@[\\w.-]+\\/video\\/\\d+|t\\/\\w+)|vm\\.tiktok\\.com\\/(\\w+))"
 			],
+			"shows": {
+				"from": "tiktok.com",
+				"to": "tnktok.com"
+			},
 			"kind": "links",
 			"source": "added",
-			"note": "fxTikTok, the most used TikTok fixer in 2026. Also does photo posts and vt.tiktok.com share links. Pick this or tiktxk, not both.",
+			"note": "fxTikTok, the most used TikTok fixer in 2026. Also does photo posts and vt.tiktok.com share links.",
 			"rule": {
 				"name": "TikTok to tnktok",
 				"find": "https?:\\/\\/(?:(?:www\\.|m\\.)?tiktok\\.com\\/(@[\\w.-]+\\/(?:video|photo)\\/\\d+|t\\/\\w+)|(?:vm|vt)\\.tiktok\\.com\\/(\\w+))",
@@ -115,6 +150,10 @@
 		{
 			"id": "instagram-oginstagram",
 			"version": 1,
+			"shows": {
+				"from": "instagram.com",
+				"to": "oginstagram.com"
+			},
 			"kind": "links",
 			"source": "added",
 			"note": "Posts and reels. Instagram previews in Discord often show nothing; this fills them in.",
@@ -130,6 +169,10 @@
 		{
 			"id": "bluesky-bskx",
 			"version": 1,
+			"shows": {
+				"from": "bsky.app",
+				"to": "bskx.app"
+			},
 			"kind": "links",
 			"source": "added",
 			"note": "Bluesky posts with their pictures and videos.",
@@ -145,6 +188,10 @@
 		{
 			"id": "pixiv-phixiv",
 			"version": 1,
+			"shows": {
+				"from": "pixiv.net",
+				"to": "phixiv.net"
+			},
 			"kind": "links",
 			"source": "added",
 			"note": "pixiv artworks with the picture, including age-restricted ones.",
@@ -160,6 +207,10 @@
 		{
 			"id": "youtube-shorts-watch",
 			"version": 1,
+			"shows": {
+				"from": "youtube.com/shorts/",
+				"to": "youtube.com/watch?v="
+			},
 			"kind": "links",
 			"source": "thread",
 			"note": "Opens Shorts in the normal YouTube player.",
@@ -175,6 +226,10 @@
 		{
 			"id": "shrug",
 			"version": 1,
+			"shows": {
+				"from": "/shrug",
+				"to": "¯\\_(ツ)_/¯"
+			},
 			"kind": "text",
 			"source": "thread",
 			"note": "Anywhere in a message, not only at the start like Discord’s own /shrug.",
@@ -190,6 +245,10 @@
 		{
 			"id": "disable-markdown",
 			"version": 1,
+			"shows": {
+				"from": "*bold*",
+				"to": "\\*bold\\*"
+			},
 			"kind": "text",
 			"source": "thread",
 			"note": "Escapes every markdown character in every message while it is on — switch it off to format again.",
@@ -205,6 +264,10 @@
 		{
 			"id": "rainbow",
 			"version": 1,
+			"shows": {
+				"from": "/rainbow hello",
+				"to": "hello in rainbow colours"
+			},
 			"kind": "text",
 			"source": "added",
 			"note": "Turns `/rainbow <text>` into an ANSI rainbow codeblock of any length.",
