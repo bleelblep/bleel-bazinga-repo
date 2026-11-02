@@ -1,3 +1,4 @@
+import type { Preset } from './lib/importRules'
 import type { Rule } from './lib/textReplace'
 
 export type { Rule }
@@ -44,6 +45,18 @@ export interface ClearUrlsProvider {
 	redirections: string[]
 }
 
+/** The ready-made rules last downloaded from the Bazinga repo (`lib/readyMade.ts`). */
+export interface ReadyMadeData {
+	/** When it was downloaded (ms since epoch). */
+	updatedAt: number
+	presets: Preset[]
+	/**
+	 * Which parser saved it (`readyMade.ts` `PARSER`). A list saved by an older one has lost fields
+	 * it didn't know, like `hidden` and `shows`, so it is ignored and downloaded again.
+	 */
+	parsedBy?: number
+}
+
 export interface ClearUrlsData {
 	/** When it was downloaded (ms since epoch). */
 	updatedAt: number
@@ -66,6 +79,8 @@ export interface SendTweaksStorage {
 	 * download. Replaced whole on each update (an object, but every field is rewritten together).
 	 */
 	clearUrlsData: ClearUrlsData | null
+	/** Null until first downloaded; the built-in list is used until then. Replaced whole. */
+	readyMadeData?: ReadyMadeData | null
 	/** Start every reply with the mention switched off. Discord's own @ toggle still works. */
 	noReplyMention: boolean
 	/** `except`: no reply pings except to `replyPingPeople`. `only`: reply pings except to them. */
@@ -104,6 +119,9 @@ export interface SendTweaksStorage {
 	 * can't do the hold-and-swipe. Optional: older storage has no value, which reads as off.
 	 */
 	tapToPreview?: boolean
+	/** How Replacement rules and Link rules are listed (`lib/ruleSort.ts`). Display only. */
+	textRulesSort?: string
+	linkRulesSort?: string
 	/** Also apply link cleaning and text replacement when you edit a message. */
 	applyToEdits: boolean
 	debugLogging: boolean

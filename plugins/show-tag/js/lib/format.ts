@@ -55,6 +55,20 @@ export function formatName(
 }
 
 /**
+ * What to show in the small tag after the name ("Small and dim"), or undefined when the name
+ * already says it. Same rules as `formatName`, without the brackets: `@username` on current
+ * accounts, `username#1234` (or `#1234` when the name is the username) on legacy ones and bots.
+ */
+export function smallTagText(shown: string, user: TagUser): string | undefined {
+	if (user.discriminator === '0') {
+		if (shown.toLowerCase() === user.username) return undefined
+		return `@${user.username}`
+	}
+	if (shown !== user.username) return `${user.username}#${user.discriminator}`
+	return `#${user.discriminator}`
+}
+
+/**
  * The reply preview ("replying to X") stores the shown name sometimes prefixed with "@", so the
  * prefix is stripped before applying the rules and put back afterwards.
  */

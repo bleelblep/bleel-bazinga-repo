@@ -3,6 +3,30 @@ import type { ChangelogEntry } from '../../../shared/changelog'
 /** Newest first. Every version users got gets an entry; see shared/changelog.tsx. */
 export const CHANGELOG: ChangelogEntry[] = [
 	{
+		version: '1.2.21',
+		date: '2026-11-02',
+		title: 'Credit line',
+		changes: ['The foot of the settings now reads "Made by Fiery", who made the original, with a smaller "Ported by bleelblep" underneath.'],
+	},
+	{
+		version: '1.2.20',
+		date: '2026-11-02',
+		title: 'Tidier settings',
+		changes: [
+			"Each Custom format box shows what it gives right now, as you type.",
+			"Custom's two format boxes only show while Custom is picked, each with a short explanation.",
+			'Ready-made formats sit above the boxes as a list with the one in use ticked. Picking one over a format you typed asks first.',
+			'The format letters are folded away until you open them.',
+			'Every setting has an icon, and the last rows no longer sit under the gesture bar.',
+		],
+	},
+	{
+		version: '1.2.16',
+		date: '2026-11-01',
+		title: 'Made by',
+		changes: ['A small "Made by bleelblep" line at the foot of the settings page.'],
+	},
+	{
 		version: '1.2.15',
 		date: '2026-10-30',
 		title: "Today's messages",

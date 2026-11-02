@@ -47,7 +47,9 @@ Corners and Text Animation have native Android code, so they are Android only.
 Counts your message's characters in a small square above the message box, and sends long ones as
 several messages.
 
-- Characters typed, characters left, or typed out of the limit; always or only near the limit.
+- Characters typed, characters left, or typed out of the limit; always or only near the limit;
+  with or without the word "characters".
+- On the right, it moves aside for Discord's Jump to present button.
 - Past the limit it turns red and says how far over you are.
 - Past the limit, Send sends the message as several, cut at a blank line, a line break or the end
   of a sentence, one after another, each after Discord confirms the one before. A sheet shows the
@@ -96,6 +98,7 @@ you stay in the server, and your server order on other devices isn't touched.
   to finish.
 - Hide a channel or category from its long-press menu ("Hide channel").
 - A list in settings to bring anything back.
+- Hidden servers' emoji still show in the emoji picker, unless you turn on "Hide their emoji too".
 
 Credit: with blerp; one file adapted from kmmiio99o's ServerDrawer.
 
@@ -170,6 +173,8 @@ Undoes the redesign's squares.
 - Send, emoji, media, gift and apps buttons as circles; the message box as a pill.
 - The bottom bar and the You tab's floating bar as pills.
 - Small things fully round: folders, channel rows, search bars, segmented controls.
+- Big containers (cards, settings rows, voice tiles) with their pre-redesign corners, on a switch
+  of their own.
 - Each group of shapes has its own switch.
 
 ### Send Tweaks
@@ -179,8 +184,10 @@ Tidies your messages as you send them. Link cleaning, polish and your rules neve
 - **Clean links:** strips tracking tags from links (YouTube, Spotify, X, Instagram, Amazon and more),
   plus the ClearURLs community rules, which update about once a week.
 - **Polish (off by default):** capitalise sentences, add apostrophes, and optionally end with a full stop.
-- **Your own rules:** find-and-replace for text or links (for example, X links to fxtwitter). Pick
-  from ready-made rules, or import and export them. A rule can also apply as you type. Anything
+- **Your own rules:** find-and-replace for text or links (for example, X links to fixupx). Pick
+  from ready-made rules (one per site, each showing what it changes), which update from this repo, so new and fixed ones arrive without a plugin
+  update and a rule you added offers an update when it is fixed. Or import and export them. A rule
+  can also apply as you type. Anything
   typing skipped is caught when you send.
 - **Shortcuts in any message:** `{timestamp}` becomes the current time, shown in each reader's own
   time zone. `{rainbow:text}` becomes rainbow-coloured text. Colour codes written into ` ```ansi `
@@ -206,7 +213,8 @@ icons and pictures. Android only, because chat messages are drawn natively.
 ### Show Tag
 
 Shows usernames next to display names in chat, including in replies. `Display Name (@username)`,
-or just the username with a switch.
+the username in small, dim text after or (on Android) below the name, or just the username, each
+with a switch.
 
 Credit: a port of Cynosphere's Show Tag for Vendetta.
 
@@ -252,6 +260,7 @@ A few plugins talk to services other than Discord. None of them sends your Disco
 | --- | --- | --- |
 | ReviewDB | ReviewDB (`manti.vendicated.dev`) | The profile or server you're viewing, your reviews and votes, and ReviewDB's own sign-in token |
 | Send Tweaks | ClearURLs rules (`rules2.clearurls.xyz`, GitLab) | Nothing: it downloads the rule list at most once a week. On by default; can be turned off |
+| Send Tweaks | Ready-made rules (`bleelblep.github.io`, this repo's site) | Nothing: it downloads the list when you open Ready-made rules (at most every few hours), and about weekly if you added one |
 | Timezones | Shared timezone list (`timezonedb.catvibers.me`) | The user IDs of people shown in chat whose timezone you haven't set. On by default; can be turned off |
 | Timezones | Open-Meteo place search | The place name you type. On by default; can be turned off |
 | Timezones | Equicord's timezone list (`timezone.creations.works`) | Nothing about you: it downloads the whole list, about once an hour. Off by default |

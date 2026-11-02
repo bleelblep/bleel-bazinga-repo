@@ -5,7 +5,7 @@
  */
 
 import { askPermission, chooseFiles } from './requests'
-import { recordVisit, settings } from './store'
+import { homeUrl, recordVisit, settings } from './store'
 import { showToast } from '../../../../shared/toast'
 import * as modulesNative from '@valenced/modules/native'
 import * as react from '@valenced/react'
@@ -166,7 +166,8 @@ export function pushSettings() {
 		javascript: s.javascript,
 		desktop: s.desktop,
 		restore: s.restore,
-		home: s.home,
+		// Never empty: an empty home means the search engine's page.
+		home: homeUrl(s),
 		thirdPartyCookies: s.thirdPartyCookies,
 		keepPlaying: s.keepPlaying,
 		pageNewTabs: s.pageNewTabs,

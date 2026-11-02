@@ -6,7 +6,8 @@
  * box and the accessories above it. The square is added to that container, absolutely placed from
  * its top edge (`bottom: '100%'`), so it floats without making anything taller. When the "…is
  * typing" line is showing (the container then holds Discord's solid typing fill: `pointerEvents:
- * 'none'`, absolute-fill, a background), the square moves up above it.
+ * 'none'`, absolute-fill, a background), the square moves up above it. On the right, it moves left
+ * while Discord's "Jump to present" button is showing (`lib/jumpButton.ts`), to sit beside it.
  *
  * The container has no name to match, so it is found by that shape. The tree Discord returned is
  * never edited in place (its compiler caches elements): the path down to the container is cloned.
@@ -24,7 +25,8 @@ import { FloaterProbe } from '../../../../shared/chatFloaters'
 import { reportError } from '../../../../shared/report'
 import { FONT_SIZE } from '../index'
 import { withMemoizedNamedExoticComponent } from './filters'
-import { forgetChatInput, rememberChatInput } from './input'
+import { currentChannelId, forgetChatInput, rememberChatInput } from './input'
+import { jumpButtonClearance, useJumpToPresentShowing } from './jumpButton'
 import { limit, useLength } from './length'
 import { replaceElement } from './react'
 import { offerSplit, planSplit } from './sender'
@@ -110,19 +112,22 @@ function characters(n: number): string {
 	return `${grouped(n)} ${n === 1 ? 'character' : 'characters'}`
 }
 
-function label(
+/** What the square says. Exported for the settings page's examples. */
+export function label(
 	length: number,
 	max: number,
 	show: CharCounterStorage['show'],
 	parts = 0,
+	numbersOnly = false,
 ): string {
+	const count = numbersOnly ? grouped : characters
 	if (length > max)
 		return parts
 			? `Split into ${parts} ›`
-			: `${characters(length - max)} over the limit`
-	if (show === 'left') return `${characters(max - length)} left`
-	if (show === 'limit') return `${grouped(length)} / ${characters(max)}`
-	return characters(length)
+			: `${count(length - max)} over${numbersOnly ? '' : ' the limit'}`
+	if (show === 'left') return `${count(max - length)} left`
+	if (show === 'limit') return `${grouped(length)} / ${count(max)}`
+	return count(length)
 }
 
 /** The square's text size, clamped, from settings stored before there was one too. */
@@ -183,6 +188,8 @@ function Badge({
 	typing: boolean
 }) {
 	const length = useLength()
+	// Hooks before any early return, so they run in the same order every render.
+	const jumpButton = useJumpToPresentShowing(currentChannelId())
 	const s = settings()
 	const max = limit()
 	if (length <= 0) return null
@@ -193,11 +200,15 @@ function Badge({
 	// Past the limit with splitting on, the square offers the split: the real plan's count, from the
 	// text in the box, so what it says is what the sheet will show. Nothing is sent from here.
 	const parts = over && s.split ? (planSplit(s)?.parts.length ?? 0) : 0
-	const side = s.side === 'right' ? { right: 16 } : { left: 16 }
+	// On the right, beside the Jump to present button while it shows, rather than on top of it.
+	const side =
+		s.side === 'right'
+			? { right: jumpButton ? Math.max(16, jumpButtonClearance() + GAP) : 16 }
+			: { left: 16 }
 
 	const square = (
 		<CounterSquare
-			text={label(length, max, s.show, parts)}
+			text={label(length, max, s.show, parts, !!s.numbersOnly)}
 			// The colours Discord's own counter uses past the limit, and its warning shade before.
 			colour={
 				over && !parts

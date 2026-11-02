@@ -3,6 +3,26 @@ import type { ChangelogEntry } from '../../../shared/changelog'
 /** Newest first. Every version users got gets an entry; see shared/changelog.tsx. */
 export const CHANGELOG: ChangelogEntry[] = [
 	{
+		version: '0.1.27',
+		date: '2026-11-02',
+		title: 'Credit line',
+		changes: [
+			'The foot of the settings now reads "Made by mantikafasi and Vendicated", who made the original, with a smaller "Ported by bleelblep" underneath.',
+		],
+	},
+	{
+		version: '0.1.26',
+		date: '2026-11-02',
+		title: 'Note you can hide',
+		changes: ["The \"Reviews are public\" note can be hidden for good with \"Don't show again\". The line under it still says reviews are public."],
+	},
+	{
+		version: '0.1.25',
+		date: '2026-11-01',
+		title: 'Made by',
+		changes: ['A small "Made by bleelblep" line at the foot of the settings page.'],
+	},
+	{
 		version: '0.1.24',
 		date: '2026-10-30',
 		title: 'Clear of the navigation bar',

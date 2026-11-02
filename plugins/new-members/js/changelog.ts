@@ -3,6 +3,15 @@ import type { ChangelogEntry } from '../../../shared/changelog'
 /** Newest first. Every version users got gets an entry; see shared/changelog.tsx. */
 export const CHANGELOG: ChangelogEntry[] = [
 	{
+		version: '0.1.18',
+		date: '2026-11-02',
+		title: 'Tidier settings',
+		changes: [
+			'Plainer wording for the badge choices.',
+			'No stray gap between groups, and the last rows no longer sit under the gesture bar.',
+		],
+	},
+	{
 		version: '0.1.17',
 		date: '2026-10-28',
 		title: 'Changelog',

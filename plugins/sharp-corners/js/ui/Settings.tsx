@@ -1,9 +1,9 @@
+import { Credit } from '../../../../shared/ui/credit'
 import { useChangelog } from '../../../../shared/changelog'
 import { rowIcon } from '../../../../shared/ui/icon'
 import { useBottomPadding } from '../../../../shared/ui/safeArea'
 import { sendOptions, type Stats, stats } from '../lib/native'
 import { type CirclesStorage, settings, update, useSettings } from '../lib/settings'
-import { tokenCount } from '../lib/tokens'
 import * as components from '@valenced/components'
 import { Design } from '@valenced/discord/design'
 import * as react from '@valenced/react'
@@ -19,7 +19,7 @@ const SWITCHES: Array<{ key: keyof CirclesStorage; label: string; description: s
 	{
 		key: 'native',
 		label: 'The chat',
-		description: 'Messages are drawn natively: embeds, attachments, reactions, voice messages, mentions.',
+		description: 'Inside messages: embeds, attachments, reactions, voice messages and mentions.',
 		icon: ['ChatIcon'],
 	},
 	{
@@ -30,7 +30,10 @@ const SWITCHES: Array<{ key: keyof CirclesStorage; label: string; description: s
 	},
 ]
 
-/** One switch per area, live counts, and the reload note. */
+/**
+ * One page (settings design guide §2.1): a warning while Round Corners is on, one switch per area
+ * (each offers the reload it needs), then whether the native part is working.
+ */
 export default function Settings({ api }: { api: any }) {
 	useChangelog()
 	const { React } = react
@@ -75,17 +78,18 @@ export default function Settings({ api }: { api: any }) {
 						))}
 					</TableRowGroup>
 
-					<TableRowGroup title="Working" hasIcons>
+					<TableRowGroup title="Status" hasIcons>
 						<TableRow
 							label={counts ? `${counts.hooks} native hooks in` : 'Native part not loaded'}
 							subLabel={
 								counts
-									? `Corners removed so far: ${counts.app} in screens, ${counts.native} in the chat, ${counts.ovals} circles. ${tokenCount} corner tokens at 0.`
+									? `Corners removed so far: ${counts.app} in screens, ${counts.native} in the chat, ${counts.ovals} circles.`
 									: 'Without it only the corner tokens change. Reinstall the plugin.'
 							}
 							icon={rowIcon('CheckmarkLargeIcon', 'InfoIcon')}
 						/>
 					</TableRowGroup>
+					<Credit />
 				</Stack>
 			</ScrollView>
 		</Page>

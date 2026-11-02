@@ -3,6 +3,23 @@ import type { ChangelogEntry } from '../../../shared/changelog'
 /** Newest first. Every version users got gets an entry; see shared/changelog.tsx. */
 export const CHANGELOG: ChangelogEntry[] = [
 	{
+		version: '0.4.16',
+		date: '2026-11-02',
+		title: 'Settings in pages',
+		changes: [
+			'The settings are split into short pages: Tabs and picker, Links, Menu, Pages, Pop-out player, and History and data. The main page says what each is set to.',
+			"Options that only work with the Web tab only show while it's on, instead of greyed out.",
+			'"New tab for each link" only shows while links open in the Web tab.',
+			"Leave the home page empty and it follows your search engine: pick Google and Home goes to Google.",
+		],
+	},
+	{
+		version: '0.4.14',
+		date: '2026-11-01',
+		title: 'Made by',
+		changes: ['A small "Made by bleelblep" line at the foot of the settings page.'],
+	},
+	{
 		version: '0.4.13',
 		date: '2026-10-30',
 		title: 'Pages show again',

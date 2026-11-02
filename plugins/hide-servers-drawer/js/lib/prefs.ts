@@ -27,6 +27,26 @@ export function setStaticIcons(value: boolean) {
 	}
 }
 
+/**
+ * Defaults to false: a hidden server's emoji stay in the emoji picker and `:` autocomplete.
+ * Hiding them was a side effect of filtering SortedGuildStore (patches/emoji.ts), never the point.
+ */
+export function hideEmoji(): boolean {
+	try {
+		return !!js?.cache?.hideEmoji
+	} catch {
+		return false
+	}
+}
+
+export function setHideEmoji(value: boolean) {
+	try {
+		js?.set({ hideEmoji: value })
+	} catch {
+		/* session-only, still works until restart */
+	}
+}
+
 /** Defaults to false: stock shows a static Home icon, not the latest DM's avatar. */
 export function dmAvatarHome(): boolean {
 	try {

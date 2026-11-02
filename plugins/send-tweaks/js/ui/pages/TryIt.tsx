@@ -5,14 +5,14 @@ import * as ReactNative from 'react-native'
 import { makeSilent } from '../../lib/silent'
 import { useSettings } from '../../lib/state'
 import { transform } from '../../lib/transform'
-import { FieldGroup } from '../fieldGroup'
+import { FieldGroup, FieldRow } from '../fieldGroup'
 import { useBottomPadding } from '../safeArea'
 
 const EXAMPLES = [
 	'https://youtu.be/dQw4w9WgXcQ?si=Abc123xyz',
 	'look https://open.spotify.com/track/4uLU6hMCjMI75M1A2tKUQC?si=3f9a2b',
 	'https://x.com/user/status/123?s=20&t=Zk9q',
-	'https://twitter.com/user/status/123 — a link rule can turn this into fxtwitter',
+	'https://twitter.com/user/status/123 — a link rule can turn this into fixupx',
 	'https://www.amazon.com/dp/B0ABC/ref=sr_1_3?keywords=mug&qid=1&sr=8-3',
 	'`https://x.com/a?s=20` — inside code, left alone',
 ]
@@ -25,8 +25,8 @@ const EXAMPLES = [
 export default function TryIt() {
 	// Read per-render, never at module scope -- see docs/coding-rules.md rule 1.
 	const { Page } = components
-	const { ScrollView, View } = ReactNative
-	const { Stack, Text, Card, TableRowGroup, TableRow, TextInput } = Design
+	const { ScrollView } = ReactNative
+	const { Stack, Text, TableRowGroup, TableRow, TextInput } = Design
 
 	const s = useSettings()
 	const [draft, setDraft] = React.useState('')
@@ -78,27 +78,14 @@ export default function TryIt() {
 					</FieldGroup>
 
 					{result ? (
-						<Card variant="secondary" border="none">
-							<View style={{ paddingHorizontal: 16, paddingVertical: 12 }}>
-								<Text color="text-muted" variant="text-sm/semibold">
-									Would be sent as
-								</Text>
-								<Text
-									color="text-default"
-									variant="text-md/normal"
-									style={{ marginTop: 8 }}
-								>
+						// A row, not a Card: cards change shade under custom themes (design guide §3.6).
+						<TableRowGroup>
+							<FieldRow label="Would be sent as" description={summary}>
+								<Text color="text-default" variant="text-md/normal" selectable>
 									{result.text}
 								</Text>
-								<Text
-									color="text-muted"
-									variant="text-sm/normal"
-									style={{ marginTop: 8 }}
-								>
-									{summary}
-								</Text>
-							</View>
-						</Card>
+							</FieldRow>
+						</TableRowGroup>
 					) : null}
 
 					<TableRowGroup title="Try one of these">

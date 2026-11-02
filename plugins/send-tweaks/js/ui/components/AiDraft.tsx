@@ -20,7 +20,7 @@ import type { Navigation } from '../navigation'
 export default function AiDraft({ kind }: { kind: RuleKind }) {
 	const { React } = react
 	const { View } = ReactNative
-	const { Text, Card, TableRowGroup, TableRow, TextInput } = Design
+	const { Text, TableRowGroup, TableRow, TextInput } = Design
 	const { useNavigation } = ReactNavigationNative
 	const navigation = useNavigation() as Navigation
 
@@ -103,11 +103,9 @@ export default function AiDraft({ kind }: { kind: RuleKind }) {
 			) : null}
 
 			{draft?.ok ? (
-				<Card variant="secondary" border="none">
-					<View style={{ paddingHorizontal: 16, paddingVertical: 12, gap: 6 }}>
-						<Text color="text-default" variant="text-md/semibold">
-							{draft.rule.name || 'New rule'}
-						</Text>
+				// A row, not a Card: cards change shade under custom themes (design guide §3.6).
+				<TableRowGroup title="Drafted rule" hasIcons>
+					<FieldRow label={draft.rule.name || 'New rule'}>
 						<Text color="text-muted" variant="text-sm/normal" selectable>
 							{`Find${draft.rule.regex ? ' (regex)' : ''}: ${draft.rule.find}
 Replace with: ${draft.rule.replace || '(removed)'}`}
@@ -138,7 +136,7 @@ Replace with: ${draft.rule.replace || '(removed)'}`}
 									? 'The examples pass here. The AI cannot check that the site it chose still exists, so check a link after sending one.'
 									: 'The examples pass here.'}
 						</Text>
-					</View>
+					</FieldRow>
 					<TableRow
 						label="Add it"
 						subLabel="Opens it so you can check or change it"
@@ -150,7 +148,7 @@ Replace with: ${draft.rule.replace || '(removed)'}`}
 						icon={rowIcon('TrashIcon', 'ic_trash_24px')}
 						onPress={() => setDraft(undefined)}
 					/>
-				</Card>
+				</TableRowGroup>
 			) : null}
 		</View>
 	)

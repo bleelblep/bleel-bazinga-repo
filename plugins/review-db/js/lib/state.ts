@@ -24,6 +24,8 @@ export interface ReviewDBStorage {
 	/** Private: the newest review id seen on your own profile, for the "new reviews" toast. */
 	lastReviewId: number
 	auth: Record<string, AccountAuth>
+	/** The settings page's "Reviews are public" note was hidden for good (settings design guide §4.3). */
+	noticeDismissed: boolean
 }
 
 /** Also the fallback for every read. */
@@ -34,6 +36,7 @@ export const DEFAULTS: ReviewDBStorage = {
 	hideBlockedUsers: true,
 	lastReviewId: 0,
 	auth: {},
+	noticeDismissed: false,
 }
 
 type Storage = ValencedPluginStartApi<ReviewDBStorage>['jsonStorage']

@@ -3,6 +3,29 @@ import type { ChangelogEntry } from '../../../shared/changelog'
 /** Newest first. Every version users got gets an entry; see shared/changelog.tsx. */
 export const CHANGELOG: ChangelogEntry[] = [
 	{
+		version: '1.3.5',
+		date: '2026-11-02',
+		title: 'Credit line',
+		changes: [
+			'The foot of the settings now reads "Made by Cynosphere", who made the original, with a smaller "Ported by bleelblep" underneath.',
+		],
+	},
+	{
+		version: '1.3.4',
+		date: '2026-11-02',
+		title: 'Small and dim',
+		changes: [
+			'New "Small and dim" setting: the username shows in small, dim text after the name instead of in brackets, so names read normally. Replies and bots keep the brackets.',
+			'With it on, "Below the name" puts the username on its own line under the name (Android). Restart Discord once after updating.',
+		],
+	},
+	{
+		version: '1.3.1',
+		date: '2026-11-01',
+		title: 'Made by',
+		changes: ['A small "Made by bleelblep" line at the foot of the settings page.'],
+	},
+	{
 		version: '1.3.0',
 		date: '2026-10-27',
 		title: 'Tidier under the hood',

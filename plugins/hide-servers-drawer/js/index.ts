@@ -5,6 +5,7 @@ import patchChannelList from "./patches/channelList"
 import patchChannelSheet from "./patches/channelSheet"
 import { patchCreateElement } from "./patches/createElementIntercept"
 import patchEditMode from "./patches/editMode"
+import patchEmoji from "./patches/emoji"
 import patchGuildsBar from "./patches/guildsBar"
 import patchSaveGuildFolders from "./patches/saveGuildFolders"
 import patchSortedGuilds, { refresh } from "./patches/sortedGuilds"
@@ -41,6 +42,10 @@ export interface HideServersDrawerStorage {
 	 * stock. It isn't what stock does here, so it is now off by default and opt-in.
 	 */
 	dmAvatarHome?: boolean
+	/** Also leave hidden servers' emoji out of the emoji picker and autocomplete. Off by default. */
+	hideEmoji?: boolean
+	/** The settings page's "local to this device" note was hidden for good (settings design guide §4.3). */
+	noticeDismissed?: boolean
 }
 
 export default plugin<{ jsonStorage: HideServersDrawerStorage }>({
@@ -108,6 +113,7 @@ export default plugin<{ jsonStorage: HideServersDrawerStorage }>({
 			apply("editMode", patchEditMode)
 			apply("channelList", patchChannelList)
 			apply("channelSheet", patchChannelSheet)
+			apply("emoji", patchEmoji)
 			refresh()
 		}, 0)
 		cleanup(() => clearTimeout(installTimer))

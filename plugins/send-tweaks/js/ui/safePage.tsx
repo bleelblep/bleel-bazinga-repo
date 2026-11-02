@@ -10,9 +10,12 @@
 import * as React from 'react'
 import * as ReactNative from 'react-native'
 import { reportError } from '../../../../shared/report'
+import { tokenHex } from '../lib/colours'
 import type { ComponentType, FunctionComponent, ReactNode } from 'react'
 
 const TAG = '[SendTweaks]'
+/** Readable on both dark and light themes, for when the theme's own colours don't resolve. */
+const FALLBACK = '#9a9aa2'
 
 interface BoundaryProps {
 	children?: ReactNode
@@ -40,23 +43,27 @@ function getBoundary(): ComponentType<BoundaryProps> {
 			if (this.state.error === undefined) return this.props.children
 			// Only React Native's own parts here: Discord's may be what failed.
 			const { View, Text } = ReactNative
+			// The theme's colours where they resolve (design guide §3.5), grey where they don't.
+			// `tokenHex` never throws, so this screen still draws if the theme lookup is broken.
+			const strong = tokenHex('text-default') ?? FALLBACK
+			const muted = tokenHex('text-muted') ?? FALLBACK
 			const message =
 				this.state.error instanceof Error
 					? this.state.error.message
 					: String(this.state.error)
 			return (
 				<View style={{ padding: 16, gap: 8 }}>
-					<Text style={{ fontSize: 16, fontWeight: '600', color: '#9a9aa2' }}>
+					<Text style={{ fontSize: 16, fontWeight: '600', color: strong }}>
 						This page couldn't load
 					</Text>
-					<Text style={{ fontSize: 14, color: '#9a9aa2' }}>
+					<Text style={{ fontSize: 14, color: muted }}>
 						Something went wrong while drawing it. Discord is fine; go back and
 						try again, or reload Discord. If it keeps happening, send the
 						plugin's developer this error:
 					</Text>
 					<Text
 						selectable
-						style={{ fontSize: 12, color: '#9a9aa2', fontFamily: 'monospace' }}
+						style={{ fontSize: 12, color: muted, fontFamily: 'monospace' }}
 					>
 						{message}
 					</Text>

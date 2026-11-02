@@ -25,6 +25,11 @@ export default plugin<{ jsonStorage: CirclesStorage }>({
 	start(api) {
 		setReporter(api.plugin)
 		api.cleanup(() => setReporter(undefined))
+		// Tells Round Corners' settings this is on: the two undo each other.
+		;(globalThis as any).__bleelblepSharp = true
+		api.cleanup(() => {
+			delete (globalThis as any).__bleelblepSharp
+		})
 		setStorage(api.jsonStorage)
 		api.cleanup(() => setStorage(undefined))
 		void sendOptions(settings())

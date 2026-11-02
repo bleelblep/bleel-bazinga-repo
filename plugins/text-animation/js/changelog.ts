@@ -3,6 +3,21 @@ import type { ChangelogEntry } from '../../../shared/changelog'
 /** Newest first. Every version users got gets an entry; see shared/changelog.tsx. */
 export const CHANGELOG: ChangelogEntry[] = [
 	{
+		version: '0.1.13',
+		date: '2026-11-02',
+		title: 'Tidier settings',
+		changes: [
+			'The letter effects and their sliders only show while "Animate new letters" is on, and the cursor options while the gliding cursor is.',
+			'Every slider for the letters is in one Adjust group, and every effect says what it does.',
+		],
+	},
+	{
+		version: '0.1.12',
+		date: '2026-11-01',
+		title: 'Made by',
+		changes: ['A small "Made by bleelblep" line at the foot of the settings page.'],
+	},
+	{
 		version: '0.1.11',
 		date: '2026-10-31',
 		title: 'Strength sliders',

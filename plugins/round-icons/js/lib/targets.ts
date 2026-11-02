@@ -97,7 +97,7 @@ export const TARGETS: Target[] = [
 	{
 		id: 'chatButtons',
 		label: 'Chat bar buttons',
-		description: "Send, emoji, media, gift and apps buttons as circles. The redesign draws them as rounded squares (corner 8, Discord's radii.sm).",
+		description: "Send, emoji, media, gift and apps buttons as circles, instead of the redesign's rounded squares.",
 		// ChatInputActionButton draws every chat-bar button, the send button included.
 		components: [
 			{ path: `${CHAT}action_buttons/ChatInputActionButton.tsx` },
@@ -110,7 +110,7 @@ export const TARGETS: Target[] = [
 	{
 		id: 'chatInput',
 		label: 'Message box',
-		description: 'The text box in the chat bar as a pill (corner 24; Discord draws 20, or 8 on the older layout).',
+		description: 'The text box in the chat bar as a pill.',
 		// The box's plain styles say 0; its rounding and fill are a Reanimated animated style fed by
 		// the CHAT_INPUT_FLOATING_BORDER_RADIUS / CHAT_INPUT_BORDER_RADIUS tokens (live, 351.3). So only
 		// the tokens change: no render hooks here (wrapping its animated views stripped the box bare).
@@ -127,7 +127,7 @@ export const TARGETS: Target[] = [
 	{
 		id: 'otherCorners',
 		label: 'Everything else',
-		description: 'Small things fully round: server folders, channel rows and their icons, search bars, segmented controls, the media keyboard, voice pills, the quest dock, buttons. Text boxes get rounder corners without cutting off their text. Big containers (cards, settings rows, voice tiles, keyboard tops, the channel drawer) get their pre-redesign corners instead of pills.',
+		description: 'Small things fully round: server folders, channel rows and their icons, search bars, segmented controls, the media keyboard, voice pills, the quest dock, buttons. Text boxes get rounder corners without cutting off their text.',
 		components: [],
 		rule: () => undefined,
 		install: () => {
@@ -150,20 +150,6 @@ export const TARGETS: Target[] = [
 				],
 				active,
 			)
-			// Containers: back to their pre-redesign corner (a pill-shaped card or row looks broken).
-			const stock = stockCorners(
-				[
-					'TABLE_ROW_BORDER_RADIUS',
-					'CARD_DEFAULT_RADIUS',
-					'CHANNEL_DRAWER_CORNER_RADIUS',
-					'CONTROL_CHECKBOX_BORDER_RADIUS',
-					'MOBILE_KEYBOARD_TOP_BORDER_RADIUS',
-					'MOBILE_MEDIA_KEYBOARD_TOP_BORDER_RADIUS',
-					'VOICE_TILE_BORDER_RADIUS',
-					'BOUNTY_TILE_BORDER_RADIUS',
-				],
-				active,
-			)
 			// Text fields: corner 24, not a pill. One token serves single- and multi-line fields alike,
 			// and a fully round multi-line box (the profile Bio) curved over its own text (352.6,
 			// 2026-10-28). A ~48 dp single-line field is still a pill at 24, like the message box.
@@ -177,9 +163,34 @@ export const TARGETS: Target[] = [
 			}
 			return () => {
 				round.cleanup()
-				stock.cleanup()
 				fields.forEach(undo => undo())
 			}
+		},
+	},
+	{
+		// Was part of "Everything else" until 1.3.10; split out on request, for the pre-redesign
+		// containers without everything else going round. Its setting follows otherCorners until set.
+		id: 'containerCorners',
+		label: 'Big containers',
+		description: 'Cards, settings rows, checkboxes, voice tiles, keyboard tops and the channel drawer get their pre-redesign corners, instead of the rounder new ones.',
+		components: [],
+		rule: () => undefined,
+		install: () => {
+			// Back to their pre-redesign corner (a pill-shaped card or row looks broken).
+			const stock = stockCorners(
+				[
+					'TABLE_ROW_BORDER_RADIUS',
+					'CARD_DEFAULT_RADIUS',
+					'CHANNEL_DRAWER_CORNER_RADIUS',
+					'CONTROL_CHECKBOX_BORDER_RADIUS',
+					'MOBILE_KEYBOARD_TOP_BORDER_RADIUS',
+					'MOBILE_MEDIA_KEYBOARD_TOP_BORDER_RADIUS',
+					'VOICE_TILE_BORDER_RADIUS',
+					'BOUNTY_TILE_BORDER_RADIUS',
+				],
+				() => settings().containerCorners === true,
+			)
+			return () => stock.cleanup()
 		},
 	},
 	{

@@ -3,6 +3,29 @@ import type { ChangelogEntry } from '../../../shared/changelog'
 /** Newest first. Every version users got gets an entry; see shared/changelog.tsx. */
 export const CHANGELOG: ChangelogEntry[] = [
 	{
+		version: '1.3.12',
+		date: '2026-11-02',
+		title: 'Credit line',
+		changes: [
+			'The foot of the settings now reads "Made by John (janisslsm)", who made the original, with a smaller "Ported by bleelblep" underneath.',
+		],
+	},
+	{
+		version: '1.3.11',
+		date: '2026-11-02',
+		title: 'Tidier settings',
+		changes: [
+			'Shorter descriptions under each switch.',
+			'The last switch no longer sits under the gesture bar.',
+		],
+	},
+	{
+		version: '1.3.10',
+		date: '2026-11-01',
+		title: 'Made by',
+		changes: ['A small "Made by bleelblep" line at the foot of the settings page.'],
+	},
+	{
 		version: '1.3.9',
 		date: '2026-10-27',
 		title: 'Clearer settings',

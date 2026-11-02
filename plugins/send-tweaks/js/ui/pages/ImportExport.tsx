@@ -40,14 +40,26 @@ function ImportExport({ kind }: { kind: RuleKind }) {
 
 	const runImport = (text: string) => {
 		const result = importRules(text)
-		setSkipped(result.skipped)
-		if (result.rules.length) {
-			writeRules(kind, [...readRules(kind), ...result.rules])
+		// A rule with the same find and replace as one you have (or one earlier in this import) is
+		// skipped, so importing the same list twice doesn't double every rule.
+		const existing = readRules(kind)
+		const skippedNow = [...result.skipped]
+		const added: typeof result.rules = []
+		const same = (a: { find: string; replace: string }) => (b: typeof a) =>
+			a.find === b.find && a.replace === b.replace
+		for (const rule of result.rules) {
+			if (existing.some(same(rule)) || added.some(same(rule)))
+				skippedNow.push(`${rule.name ?? rule.find}: already in your rules`)
+			else added.push(rule)
+		}
+		setSkipped(skippedNow)
+		if (added.length) {
+			writeRules(kind, [...existing, ...added])
 			setPasted('')
 		}
 		showToast(
-			result.rules.length
-				? `Imported ${result.rules.length} rule${result.rules.length === 1 ? '' : 's'}${result.skipped.length ? `, skipped ${result.skipped.length}` : ''}.`
+			added.length
+				? `Imported ${added.length} rule${added.length === 1 ? '' : 's'}${skippedNow.length ? `, skipped ${skippedNow.length}` : ''}.`
 				: 'Nothing imported — see below.',
 		)
 	}

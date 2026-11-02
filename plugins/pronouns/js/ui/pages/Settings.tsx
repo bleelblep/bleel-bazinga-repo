@@ -1,3 +1,4 @@
+import { Credit } from '../../../../../shared/ui/credit'
 import * as components from '@valenced/components'
 import { Design } from '@valenced/discord/design'
 import { ReactNavigationNative } from '@valenced/externals/react-navigation'
@@ -96,6 +97,7 @@ export default function Settings(_props: Props) {
 							onPress={() => navigation.navigate(BADGE_COLOR_ROUTE)}
 						/>
 					</TableRowGroup>
+					<Credit />
 				</Stack>
 			</ScrollView>
 		</Page>

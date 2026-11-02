@@ -35,6 +35,8 @@ export interface TimezonesStorage {
 	messageMenu: boolean
 	/** Timezones you set, per user id; null clears (older writes may still carry one). */
 	people: Record<string, PersonZone | null>
+	/** The settings page's intro note was hidden for good (settings design guide §4.3). */
+	introDismissed?: boolean
 }
 
 export const DEFAULTS: TimezonesStorage = {
@@ -46,6 +48,7 @@ export const DEFAULTS: TimezonesStorage = {
 	showDay: true,
 	messageMenu: true,
 	people: {},
+	introDismissed: false,
 }
 
 type Handle = ValencedJsonStorageApi<TimezonesStorage>

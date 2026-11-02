@@ -1,3 +1,4 @@
+import { Credit } from '../../../../shared/ui/credit'
 import { FieldRow } from './fieldGroup'
 import { callNative } from '../native'
 import { rowIcon } from './icon'
@@ -47,88 +48,86 @@ export default function Settings() {
 							value={s.typing}
 							onValueChange={(typing: boolean) => update({ typing })}
 						/>
-						<TableSwitchRow
-							label="Slide up"
-							icon={rowIcon('ArrowLargeUpIcon', 'ArrowUpIcon')}
-							value={s.slide}
-							disabled={!s.typing}
-							onValueChange={(slide: boolean) => update({ slide })}
-						/>
-						<TableSwitchRow
-							label="Unblur"
-							icon={rowIcon('EyeIcon')}
-							value={s.blur}
-							disabled={!s.typing}
-							onValueChange={(blur: boolean) => update({ blur })}
-						/>
-						<TableSwitchRow
-							label="Pop"
-							subLabel="Grows in with a little bounce."
-							icon={rowIcon('MagicWandIcon')}
-							value={s.pop}
-							disabled={!s.typing}
-							onValueChange={(pop: boolean) => update({ pop })}
-						/>
-						<TableSwitchRow
-							label="Tilt"
-							icon={rowIcon('RefreshIcon', 'RetryIcon')}
-							value={s.tilt}
-							disabled={!s.typing}
-							onValueChange={(tilt: boolean) => update({ tilt })}
-						/>
+						{/* The effects only work on animated letters, so they show with that switch. */}
+						{s.typing ? (
+							<>
+								<TableSwitchRow
+									label="Slide up"
+									subLabel="Rises into place from a little below."
+									icon={rowIcon('ArrowLargeUpIcon', 'ArrowUpIcon')}
+									value={s.slide}
+									onValueChange={(slide: boolean) => update({ slide })}
+								/>
+								<TableSwitchRow
+									label="Unblur"
+									subLabel="Starts blurry and comes into focus."
+									icon={rowIcon('EyeIcon')}
+									value={s.blur}
+									onValueChange={(blur: boolean) => update({ blur })}
+								/>
+								<TableSwitchRow
+									label="Pop"
+									subLabel="Grows in with a little bounce."
+									icon={rowIcon('MagicWandIcon')}
+									value={s.pop}
+									onValueChange={(pop: boolean) => update({ pop })}
+								/>
+								<TableSwitchRow
+									label="Tilt"
+									subLabel="Swings upright as it lands."
+									icon={rowIcon('RefreshIcon', 'RetryIcon')}
+									value={s.tilt}
+									onValueChange={(tilt: boolean) => update({ tilt })}
+								/>
+							</>
+						) : null}
 					</TableRowGroup>
 
-					{s.pop && s.typing ? (
-						<TableRowGroup>
-							<FieldRow label={`Pop strength — ${s.popAmount}%`}>
+					{/* Related sliders share one group (settings design guide §3.6). */}
+					{s.typing ? (
+						<TableRowGroup title="Adjust">
+							<FieldRow label={`Speed — ${s.duration} ms per letter`}>
 								<Slider
-									step={5}
-									value={s.popAmount}
-									minimumValue={25}
-									maximumValue={200}
-									onValueChange={(v: number) => update({ popAmount: Math.round(v / 5) * 5 })}
+									step={20}
+									value={s.duration}
+									minimumValue={120}
+									maximumValue={900}
+									onValueChange={(v: number) => update({ duration: Math.round(v / 20) * 20 })}
 								/>
 							</FieldRow>
-						</TableRowGroup>
-					) : null}
-
-					{s.tilt && s.typing ? (
-						<TableRowGroup>
-							<FieldRow label={`Tilt strength — ${s.tiltAmount}%`}>
-								<Slider
-									step={5}
-									value={s.tiltAmount}
-									minimumValue={25}
-									maximumValue={200}
-									onValueChange={(v: number) => update({ tiltAmount: Math.round(v / 5) * 5 })}
-								/>
-							</FieldRow>
-						</TableRowGroup>
-					) : null}
-
-					<TableRowGroup>
-						<FieldRow label={`Speed — ${s.duration} ms per letter`}>
-							<Slider
-								step={20}
-								value={s.duration}
-								minimumValue={120}
-								maximumValue={900}
-								onValueChange={(v: number) => update({ duration: Math.round(v / 20) * 20 })}
-							/>
-						</FieldRow>
-					</TableRowGroup>
-
-					{s.slide && s.typing ? (
-						<TableRowGroup>
-							<FieldRow label={`Slide distance — ${s.slideDp} dp`}>
-								<Slider
-									step={1}
-									value={s.slideDp}
-									minimumValue={2}
-									maximumValue={30}
-									onValueChange={(v: number) => update({ slideDp: Math.round(v) })}
-								/>
-							</FieldRow>
+							{s.slide ? (
+								<FieldRow label={`Slide distance — ${s.slideDp}`}>
+									<Slider
+										step={1}
+										value={s.slideDp}
+										minimumValue={2}
+										maximumValue={30}
+										onValueChange={(v: number) => update({ slideDp: Math.round(v) })}
+									/>
+								</FieldRow>
+							) : null}
+							{s.pop ? (
+								<FieldRow label={`Pop strength — ${s.popAmount}%`}>
+									<Slider
+										step={5}
+										value={s.popAmount}
+										minimumValue={25}
+										maximumValue={200}
+										onValueChange={(v: number) => update({ popAmount: Math.round(v / 5) * 5 })}
+									/>
+								</FieldRow>
+							) : null}
+							{s.tilt ? (
+								<FieldRow label={`Tilt strength — ${s.tiltAmount}%`}>
+									<Slider
+										step={5}
+										value={s.tiltAmount}
+										minimumValue={25}
+										maximumValue={200}
+										onValueChange={(v: number) => update({ tiltAmount: Math.round(v / 5) * 5 })}
+									/>
+								</FieldRow>
+							) : null}
 						</TableRowGroup>
 					) : null}
 
@@ -157,32 +156,27 @@ export default function Settings() {
 							disabled={!cursorWorks}
 							onValueChange={(cursor: boolean) => update({ cursor })}
 						/>
-						<TableSwitchRow
-							label="Stretchy trail"
-							subLabel="Stretches out behind itself as it moves."
-							icon={rowIcon('WaveIcon', 'MagicWandIcon')}
-							value={s.cursorTrail}
-							disabled={!s.cursor || !cursorWorks}
-							onValueChange={(cursorTrail: boolean) => update({ cursorTrail })}
-						/>
-					</TableRowGroup>
-
-					{s.cursor && cursorWorks ? (
-						<TableRowGroup>
-							<FieldRow label={`Cursor speed — ${s.cursorSpeed}`}>
-								<Text color="text-muted" variant="text-sm/normal">
-									Higher catches up faster.
-								</Text>
-								<Slider
-									step={1}
-									value={s.cursorSpeed}
-									minimumValue={6}
-									maximumValue={40}
-									onValueChange={(v: number) => update({ cursorSpeed: Math.round(v) })}
+						{s.cursor && cursorWorks ? (
+							<>
+								<TableSwitchRow
+									label="Stretchy trail"
+									subLabel="Stretches out behind itself as it moves."
+									icon={rowIcon('WaveIcon', 'MagicWandIcon')}
+									value={s.cursorTrail}
+									onValueChange={(cursorTrail: boolean) => update({ cursorTrail })}
 								/>
-							</FieldRow>
-						</TableRowGroup>
-					) : null}
+								<FieldRow label={`Cursor speed — ${s.cursorSpeed}`} description="Higher catches up faster.">
+									<Slider
+										step={1}
+										value={s.cursorSpeed}
+										minimumValue={6}
+										maximumValue={40}
+										onValueChange={(v: number) => update({ cursorSpeed: Math.round(v) })}
+									/>
+								</FieldRow>
+							</>
+						) : null}
+					</TableRowGroup>
 
 					<TableRowGroup hasIcons>
 						<TableSwitchRow
@@ -193,6 +187,7 @@ export default function Settings() {
 							onValueChange={(everywhere: boolean) => update({ everywhere })}
 						/>
 					</TableRowGroup>
+					<Credit />
 				</Stack>
 			</ScrollView>
 		</Page>

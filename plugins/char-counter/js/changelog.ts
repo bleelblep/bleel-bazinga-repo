@@ -3,6 +3,30 @@ import type { ChangelogEntry } from '../../../shared/changelog'
 /** Newest first. Every version users got gets an entry; see shared/changelog.tsx. */
 export const CHANGELOG: ChangelogEntry[] = [
 	{
+		version: '0.5.7',
+		date: '2026-11-02',
+		title: 'Tidier settings',
+		changes: [
+			'Settings are grouped more clearly, and the options for long messages only show while splitting is on.',
+			'A short "How it works" note, which you can hide for good.',
+		],
+	},
+	{
+		version: '0.5.4',
+		date: '2026-11-02',
+		title: 'Numbers only, out of the way',
+		changes: [
+			'New "Numbers only" setting: the square shows just 45 instead of 45 characters.',
+			"On the right, the square moves left while Discord's Jump to present button is showing, so it sits beside it instead of on top of it.",
+		],
+	},
+	{
+		version: '0.5.2',
+		date: '2026-11-01',
+		title: 'Made by',
+		changes: ['A small "Made by bleelblep" line at the foot of the settings page.'],
+	},
+	{
 		version: '0.5.1',
 		date: '2026-10-31',
 		title: 'Send splits, really',

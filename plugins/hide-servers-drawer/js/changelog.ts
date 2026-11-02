@@ -3,6 +3,25 @@ import type { ChangelogEntry } from '../../../shared/changelog'
 /** Newest first. Every version users got gets an entry; see shared/changelog.tsx. */
 export const CHANGELOG: ChangelogEntry[] = [
 	{
+		version: '1.8.9',
+		date: '2026-11-02',
+		title: 'Tidier settings',
+		changes: [
+			"The \"local to this device\" note can be hidden for good with \"Don't show again\".",
+			'"Show them all again" on the Servers page asks first, since it clears the whole list.',
+			'Turning "Hide their emoji too" on or off offers the reload it needs.',
+		],
+	},
+	{
+		version: '1.8.8',
+		date: '2026-11-02',
+		title: 'Emoji from hidden servers',
+		changes: [
+			"Hiding a server no longer takes its emoji out of the emoji picker and autocomplete.",
+			'Want them gone too? Turn on "Hide their emoji too" in settings.',
+		],
+	},
+	{
 		version: '1.8.7',
 		date: '2026-11-01',
 		title: 'The tick stays under your finger',

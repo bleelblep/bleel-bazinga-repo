@@ -30,12 +30,32 @@ export function writeRules(kind: RuleKind, rules: Rule[]) {
 	getStorage()?.set({ [storageKey(kind)]: rules })
 }
 
+/** What a rule does. Changing any of these makes it your own rule rather than a ready-made one. */
+const CONTENT: Array<keyof Rule> = [
+	'find',
+	'replace',
+	'regex',
+	'caseSensitive',
+	'wholeWord',
+	'extraFlags',
+]
+
 export function updateRule(kind: RuleKind, id: string, patch: Partial<Rule>) {
 	writeRules(
 		kind,
-		readRules(kind).map(rule =>
-			rule.id === id ? { ...rule, ...patch } : rule,
-		),
+		readRules(kind).map(rule => {
+			if (rule.id !== id) return rule
+			const next = { ...rule, ...patch }
+			// Edited by hand: unlink it from its ready-made rule, so an update can't overwrite the
+			// edit. The Edit rule screen saves the whole rule, so compare values, not keys.
+			if (
+				rule.preset &&
+				!('preset' in patch) &&
+				CONTENT.some(key => (next[key] ?? '') !== (rule[key] ?? ''))
+			)
+				delete next.preset
+			return next
+		}),
 	)
 }
 

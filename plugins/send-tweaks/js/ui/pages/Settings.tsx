@@ -1,3 +1,4 @@
+import { Credit } from '../../../../../shared/ui/credit'
 import * as components from '@valenced/components'
 import { Design } from '@valenced/discord/design'
 import { ReactNavigationNative } from '@valenced/externals/react-navigation'
@@ -164,6 +165,7 @@ export default function Settings({
 							/>
 						</TableRowGroup>
 					)}
+					<Credit />
 				</Stack>
 			</ScrollView>
 		</Page>

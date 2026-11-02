@@ -1,6 +1,8 @@
 import { clearHidden, hiddenFolderIds, hiddenIds, isFolderHidden, isHidden, setFolderHidden, setHidden } from "../../lib/hidden"
 import { refresh, store, unfiltered } from "../../patches/sortedGuilds"
 import GuildIcon from "../components/GuildIcon"
+import { confirmDestructive } from "../../../../../shared/ui/confirm"
+import { dangerIcon } from "../../../../../shared/ui/icon"
 import { rowIcon } from "../icon"
 import { useBottomPadding } from "../safeArea"
 import * as components from "@valenced/components"
@@ -117,14 +119,22 @@ export default function Servers() {
 					{servers + folders > 0 ? (
 						<TableRowGroup title="Hidden" hasIcons>
 							<TableRow
-								label={`${servers} server${servers === 1 ? "" : "s"}, ${folders} folder${folders === 1 ? "" : "s"} hidden`}
-								subLabel="Tap to show all again"
-								icon={rowIcon("EyeSlashIcon")}
-								onPress={() => {
-									clearHidden()
-									refresh()
-									bump()
-								}}
+								label="Show them all again"
+								subLabel={`${servers} server${servers === 1 ? "" : "s"}, ${folders} folder${folders === 1 ? "" : "s"} hidden. Clears the whole list.`}
+								variant="danger"
+								icon={dangerIcon("EyeIcon")}
+								onPress={() =>
+									confirmDestructive({
+										title: "Show every server again?",
+										body: "Every hidden server and folder comes back, and the list of what you hid is cleared.",
+										action: "Show all",
+										onConfirm: () => {
+											clearHidden()
+											refresh()
+											bump()
+										},
+									})
+								}
 							/>
 						</TableRowGroup>
 					) : null}

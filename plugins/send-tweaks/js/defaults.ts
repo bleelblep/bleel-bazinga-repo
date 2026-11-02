@@ -10,6 +10,7 @@ export const DEFAULTS: SendTweaksStorage = {
 	// On: it only ever adds to what is removed, and the built-in list is used until it downloads.
 	clearUrlsRules: true,
 	clearUrlsData: null,
+	readyMadeData: null,
 	// Off: pinging on reply is Discord's default and plenty of people rely on it. This is a
 	// preference to opt into, not a fix.
 	noReplyMention: false,

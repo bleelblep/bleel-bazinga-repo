@@ -1,3 +1,4 @@
+import { Credit } from '../../../../../shared/ui/credit'
 import * as components from '@valenced/components'
 import { Design } from '@valenced/discord/design'
 import { ReactNavigationNative } from '@valenced/externals/react-navigation'
@@ -121,6 +122,7 @@ export default function Settings({ api }: Props) {
 						message rows are drawn by Discord's native code, which takes text
 						and one colour, so there an icon appears as its plain character.
 					</Text>
+					<Credit author="Fiery and シグマ siguma" />
 				</Stack>
 			</ScrollView>
 		</Page>

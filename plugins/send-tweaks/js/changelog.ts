@@ -3,6 +3,85 @@ import type { ChangelogEntry } from '../../../shared/changelog'
 /** Newest first. Every public version gets an entry; see shared/changelog.tsx. */
 export const CHANGELOG: ChangelogEntry[] = [
 	{
+		version: '1.1.2',
+		date: '2026-11-02',
+		title: 'Search, sort and cleaner imports',
+		changes: [
+			'Search your link rules and replacement rules by name, by what they find or by what they replace it with.',
+			'Sort a rule list by name, by find pattern, with on, off or not-working rules first. Rules still run in their saved order.',
+			'Importing rules skips any you already have.',
+		],
+	},
+	{
+		version: '1.0.26',
+		date: '2026-11-02',
+		title: 'Fewer surprises',
+		changes: [
+			'Removing someone from the reply ping list, or a ready-made rule that no longer works, now asks first.',
+			'Greyed-out options say which switch turns them on.',
+			'Try a message and the AI rule draft show their results in a normal row, so they match your theme.',
+		],
+	},
+	{
+		version: '1.0.25',
+		date: '2026-11-02',
+		title: 'Settings as they were',
+		changes: [
+			'The settings are back to how they were before 1.0.23: Try a message is its own page again, and the switches are back in their old groups.',
+		],
+	},
+	{
+		version: '1.0.22',
+		date: '2026-11-02',
+		title: 'One rule per site, for real',
+		changes: [
+			'Ready-made rules could keep showing the old choices after updating, until the list next refreshed. It now refreshes straight away.',
+		],
+	},
+	{
+		version: '1.0.21',
+		date: '2026-11-02',
+		title: 'One rule per site',
+		changes: [
+			'Ready-made rules is now just the list, one rule for each site, and every rule shows what it changes, like twitter.com → fixupx.com.',
+			'X to fixupx now does twitter.com links too. If you added it, tap the update.',
+			'Rules you already added from the old choices (fxtwitter, vxtwitter, tiktxk) keep working as they are.',
+			'Writing a rule with AI moved to the foot of your rule list.',
+		],
+	},
+	{
+		version: '1.0.20',
+		date: '2026-11-02',
+		title: 'Rules that stop working',
+		changes: [
+			'When a ready-made rule stops working (say the site it points to shuts down), it leaves the list. If you added it, it shows in the yellow card as "No longer works", and a tap removes it.',
+		],
+	},
+	{
+		version: '1.0.19',
+		date: '2026-11-02',
+		title: 'Updates you can see',
+		changes: [
+			'A rule that needs updating now shows a yellow card at the top of your rule list and of Ready-made rules, with the rules to update inside it.',
+		],
+	},
+	{
+		version: '1.0.18',
+		date: '2026-11-02',
+		title: 'Ready-made rules that keep up',
+		changes: [
+			'Ready-made rules now update from the Bazinga repo, so new and fixed rules turn up without a plugin update. When one you added is fixed, it shows "Update available"; tap it to take the fix. Your own edits are never replaced.',
+			'TikTok rules also catch vt.tiktok.com share links, and TikTok to tnktok does photo posts.',
+			'New: Twitter and X to fxtwitter, one rule for both.',
+		],
+	},
+	{
+		version: '1.0.17',
+		date: '2026-11-01',
+		title: 'Made by',
+		changes: ['A small "Made by bleelblep" line at the foot of the settings page.'],
+	},
+	{
 		version: '1.0.16',
 		date: '2026-10-30',
 		title: 'Reply ping list, cleaner X links',

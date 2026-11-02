@@ -3,6 +3,30 @@ import type { ChangelogEntry } from '../../../shared/changelog'
 /** Newest first. Every version users got gets an entry; see shared/changelog.tsx. */
 export const CHANGELOG: ChangelogEntry[] = [
 	{
+		version: '0.2.9',
+		date: '2026-11-02',
+		title: 'Credit line',
+		changes: [
+			'The foot of the settings now reads "Made by aniimalz", who made the original, with a smaller "Ported by bleelblep" underneath.',
+		],
+	},
+	{
+		version: '0.2.8',
+		date: '2026-11-02',
+		title: 'Tidier settings',
+		changes: [
+			"The people you've set are at the top of the settings, before the options.",
+			'Tapping someone in the list opens a small menu to change their timezone or remove them.',
+			"The note at the top can be hidden for good with \"Don't show again\".",
+		],
+	},
+	{
+		version: '0.2.7',
+		date: '2026-11-01',
+		title: 'Made by',
+		changes: ['A small "Made by bleelblep" line at the foot of the settings page.'],
+	},
+	{
 		version: '0.2.6',
 		date: '2026-10-30',
 		title: 'In the profile menu',

@@ -3,6 +3,30 @@ import type { ChangelogEntry } from '../../../shared/changelog'
 /** Newest first. Every version users got gets an entry; see shared/changelog.tsx. */
 export const CHANGELOG: ChangelogEntry[] = [
 	{
+		version: '1.3.11',
+		date: '2026-11-02',
+		title: 'Tidier settings',
+		changes: [
+			'Changing a switch offers the reload it needs, instead of a separate Reload row.',
+			'Whether each part of Discord was found is one Status row at the bottom, not a line under every switch.',
+			'A note shows while Sharp Corners is also on, since the two undo each other.',
+		],
+	},
+	{
+		version: '1.3.10',
+		date: '2026-11-02',
+		title: 'Big containers on their own',
+		changes: [
+			'"Big containers" has its own switch now: cards, settings rows, voice tiles, keyboard tops and the channel drawer can have their pre-redesign corners without everything else going round. It starts the same as your "Everything else" switch.',
+		],
+	},
+	{
+		version: '1.3.9',
+		date: '2026-11-01',
+		title: 'Made by',
+		changes: ['A small "Made by bleelblep" line at the foot of the settings page.'],
+	},
+	{
 		version: '1.3.8',
 		date: '2026-10-31',
 		title: 'Two fixes',

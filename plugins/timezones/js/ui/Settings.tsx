@@ -1,4 +1,6 @@
+import { Credit } from '../../../../shared/ui/credit'
 import * as components from '@valenced/components'
+import { AlertActionCreators } from '@valenced/discord/actions'
 import { Design } from '@valenced/discord/design'
 import { Stores } from '@valenced/discord/flux'
 import * as React from 'react'
@@ -6,12 +8,12 @@ import * as ReactNative from 'react-native'
 import { useChangelog } from '../../../../shared/changelog'
 import { confirmDestructive } from '../../../../shared/ui/confirm'
 import { FieldGroup } from '../../../../shared/ui/fieldGroup'
-import { dangerIcon, rowIcon } from '../../../../shared/ui/icon'
+import { rowIcon } from '../../../../shared/ui/icon'
 import { useBottomPadding } from '../../../../shared/ui/safeArea'
 import { pickZone } from '../lib/picker'
 import { refetch } from '../lib/shared'
 import { bindSettingsStorage, setPersonZone, update, useSettings } from '../lib/state'
-import { intlZonesWork, timeIn, zoneName } from '../lib/zones'
+import { intlZonesWork, timeIn } from '../lib/zones'
 import { showToast } from '../../../../shared/toast'
 
 /** Their current Discord name, falling back to the one saved with the entry. */
@@ -35,7 +37,6 @@ function nowLine(zone: string, hour24: boolean, place?: string): string {
 function People() {
 	const s = useSettings()
 	const { TableRowGroup, TableRow } = Design as any
-	const [selected, setSelected] = React.useState<string | undefined>()
 	// Re-render every minute so the times stay current while the page is open.
 	const [, tick] = React.useReducer((n: number) => n + 1, 0)
 	React.useEffect(() => {
@@ -62,44 +63,84 @@ function People() {
 							label={nameOf(id, entry.name)}
 							subLabel={nowLine(entry.zone, s.hour24, entry.place)}
 							icon={rowIcon('UserCircleIcon', 'CompassIcon')}
-							onPress={() => setSelected(selected === id ? undefined : id)}
+							arrow
+							onPress={() => personMenu(id, nameOf(id, entry.name), s.sharedLookup)}
 						/>
 					))
 				)}
 			</TableRowGroup>
-			{selected && s.people[selected] && <PersonActions id={selected} />}
 		</>
 	)
 }
 
-function PersonActions({ id }: { id: string }) {
-	const s = useSettings()
-	const { TableRowGroup, TableRow } = Design as any
-	const entry = s.people[id]
-	const name = nameOf(id, entry?.name)
-	return (
-		<TableRowGroup title={name} hasIcons>
-			<TableRow
-				label="Change timezone"
-				subLabel={entry ? (entry.place ?? zoneName(entry.zone)) : undefined}
-				icon={rowIcon('PencilIcon', 'ic_edit')}
-				onPress={() => pickZone(id, name)}
-			/>
-			<TableRow
-				label="Remove"
-				subLabel={s.sharedLookup ? 'Their time goes back to the shared list, if they are on it.' : undefined}
-				variant="danger"
-				icon={dangerIcon('TrashIcon')}
-				onPress={() =>
-					confirmDestructive({
-						title: `Remove ${name}?`,
-						body: 'Their local time stops showing next to their messages.',
-						action: 'Remove',
-						onConfirm: () => setPersonZone(id, name, undefined),
-					})
-				}
-			/>
-		</TableRowGroup>
+/**
+ * What you can do with someone in the list, in Discord's alert: change their timezone or remove
+ * them (asked again, in red). Replaces a group that opened under the list, which was easy to miss.
+ */
+function personMenu(id: string, name: string, sharedLookup: boolean) {
+	const { AlertModal, AlertActionButton } = Design as any
+	const alerts = AlertActionCreators as any
+	const key = `timezones-person-${Date.now()}`
+	alerts.openAlert(
+		key,
+		<AlertModal
+			title={name}
+			actions={
+				<>
+					<AlertActionButton
+						text="Change timezone"
+						variant="primary"
+						onPress={() => {
+							alerts.dismissAlert(key)
+							pickZone(id, name)
+						}}
+					/>
+					<AlertActionButton
+						text="Remove"
+						variant="destructive"
+						onPress={() => {
+							alerts.dismissAlert(key)
+							confirmDestructive({
+								title: `Remove ${name}?`,
+								body: sharedLookup
+									? 'Their local time stops showing next to their messages, unless the shared list has them.'
+									: 'Their local time stops showing next to their messages.',
+								action: 'Remove',
+								onConfirm: () => setPersonZone(id, name, undefined),
+							})
+						}}
+					/>
+					<AlertActionButton text="Cancel" variant="secondary" onPress={() => alerts.dismissAlert(key)} />
+				</>
+			}
+		/>,
+	)
+}
+
+/** "Are you sure?" before the intro note goes for good (settings design guide §4.3). */
+function confirmHideIntro() {
+	const { AlertModal, AlertActionButton } = Design as any
+	const alerts = AlertActionCreators as any
+	const key = `timezones-hide-intro-${Date.now()}`
+	alerts.openAlert(
+		key,
+		<AlertModal
+			title="Hide this note?"
+			content="It won't be shown again, even after updates."
+			actions={
+				<>
+					<AlertActionButton
+						text="Hide"
+						variant="primary"
+						onPress={() => {
+							alerts.dismissAlert(key)
+							update({ introDismissed: true })
+						}}
+					/>
+					<AlertActionButton text="Cancel" variant="secondary" onPress={() => alerts.dismissAlert(key)} />
+				</>
+			}
+		/>,
 	)
 }
 
@@ -151,27 +192,37 @@ export default function Settings({ api }: { api?: { jsonStorage?: any } }) {
 	const s = useSettings()
 	const { Page } = components
 	const { ScrollView, View } = ReactNative
-	const { Stack, Card, Text, TableRowGroup, TableSwitchRow } = Design as any
+	const { Stack, Card, Button, Text, TableRowGroup, TableSwitchRow } = Design as any
 
 	return (
 		<Page>
 			<ScrollView contentContainerStyle={{ paddingBottom: useBottomPadding() }}>
 				<Stack spacing={24}>
-					<Card variant="secondary" border="none">
-						<View style={{ paddingHorizontal: 16, paddingVertical: 12 }}>
-							<Text color="text-default" variant="text-md/semibold">
-								Their time, beside their messages
-							</Text>
-							<Text color="text-muted" variant="text-sm/normal" style={{ marginTop: 8 }}>
-								Long-press someone's message to set their timezone. Only you see it.
-							</Text>
-						</View>
-					</Card>
+					{s.introDismissed ? null : (
+						<Card variant="secondary" border="none">
+							<View style={{ paddingHorizontal: 16, paddingVertical: 12 }}>
+								<Text color="text-default" variant="text-md/semibold">
+									Their time, beside their messages
+								</Text>
+								<Text color="text-muted" variant="text-sm/normal" style={{ marginTop: 8 }}>
+									Long-press someone's message to set their timezone. Only you see it.
+								</Text>
+								<View style={{ marginTop: 12, alignItems: 'flex-start' }}>
+									<Button text="Don't show again" size="sm" variant="secondary" onPress={confirmHideIntro} />
+								</View>
+							</View>
+						</Card>
+					)}
+					<Text color="text-muted" variant="text-sm/normal">
+						Timezones you set are only seen by you.
+					</Text>
 					{!intlZonesWork() && (
 						<Text color="text-feedback-critical" variant="text-sm/normal">
 							This Discord build can't work out city timezones, so only offsets like +5:30 show.
 						</Text>
 					)}
+					<People />
+					<AddById />
 					<TableRowGroup title="Chat" hasIcons>
 						<TableSwitchRow
 							label="Show in chat"
@@ -225,8 +276,7 @@ export default function Settings({ api }: { api?: { jsonStorage?: any } }) {
 							onValueChange={(placeSearch: boolean) => update({ placeSearch })}
 						/>
 					</TableRowGroup>
-					<People />
-					<AddById />
+					<Credit author="aniimalz" />
 				</Stack>
 			</ScrollView>
 		</Page>

@@ -189,6 +189,32 @@ export const THREAD = {
 }
 
 export interface Preset {
+	/**
+	 * Stable name for this preset across versions, so a rule added from it stays linked to it. Never
+	 * reuse one for a different rule.
+	 */
+	id: string
+	/** Goes up by one each time the rule changes. A linked rule on a lower version can be updated. */
+	version: number
+	/**
+	 * `find` patterns this preset used before, from before rules were linked by id. A rule with one
+	 * of these counts as added from an older version.
+	 */
+	legacyFinds?: string[]
+	/**
+	 * No longer offered: the site shut down or the rule stopped working. Bump `version` when
+	 * retiring one, so the built-in copy can't bring it back. Anyone who added it is offered a tap
+	 * to remove it; `note` should say why.
+	 */
+	retired?: boolean
+	/**
+	 * No longer offered, but still works: there is one rule per site, and this one lost out to
+	 * another for the same site. Unlike `retired`, anyone who added it keeps it with no card or
+	 * prompt. Don't bump `version` to hide one, or its owners are offered an "update".
+	 */
+	hidden?: boolean
+	/** What the rule does at a glance, shown under its name: `from` → `to`. */
+	shows?: { from: string; to: string }
 	/** Which list it belongs in. */
 	kind: 'links' | 'text'
 	/**
@@ -215,9 +241,30 @@ export interface Preset {
  * seriaati/embed-fixer, which tracks these services: tnktok.com (fxTikTok), bskx.app (VixBluesky),
  * phixiv.net and oginstagram.com. The first three were checked on real posts; OGInstagram answered
  * properly but wasn't tried on a real post. Left out: fixthreads and tpmblr (unclear on test links).
+ *
+ * 2026-11-02, from a user's request: tnktok and tiktxk also take vt.tiktok.com share links (vt. and
+ * vm. on tnktok.com both redirect to the bare domain, so the bare domain is kept), and tnktok embeds
+ * /photo/ posts where tiktxk shows nothing. Added "Twitter and X to fxtwitter" for both domains.
+ *
+ * Checked again on 2026-11-02, same way, on real posts. Every rule still embeds; vxreddit shows
+ * the title but no picture or author. Still dead: rxddit.com (502), vxtiktok.com ("Notice"),
+ * ddinstagram.com (no answer). Then cut to one rule per site: Twitter and X to fixupx (fixupx takes
+ * twitter.com paths too), TikTok to tnktok, Reddit to vxreddit, Instagram to oginstagram. The
+ * others are `hidden`, not retired, because they still work.
+ *
+ * This list ships with the plugin and is also the fallback for `readyMade.ts`, which downloads the
+ * same shape from the Bazinga repo so rules can be added, fixed or retired without a plugin update.
+ * Keep the two in step: bump `version` when a preset's rule changes or it is retired (not for a
+ * note, `shows` or `hidden`), and never reuse an `id`. Don't delete a preset from the file to remove
+ * it: retire or hide it, or the built-in copy comes back and people who added it never hear it
+ * stopped working.
  */
 export const PRESETS: Preset[] = [
 	{
+		id: 'twitter-fxtwitter',
+		version: 1,
+		hidden: true,
+		shows: { from: 'twitter.com', to: 'fxtwitter.com' },
 		kind: 'links',
 		source: 'updated',
 		note: 'Also catches www. and mobile. links. Pick this or vxtwitter, not both.',
@@ -231,6 +278,10 @@ export const PRESETS: Preset[] = [
 		},
 	},
 	{
+		id: 'twitter-vxtwitter',
+		version: 1,
+		hidden: true,
+		shows: { from: 'twitter.com', to: 'vxtwitter.com' },
 		kind: 'links',
 		source: 'updated',
 		note: 'Another embed fixer for the same links; pick this or fxtwitter, not both. The original also stripped ?s= and ?t=, which Send Tweaks already removes.',
@@ -244,12 +295,16 @@ export const PRESETS: Preset[] = [
 		},
 	},
 	{
+		id: 'x-fixupx',
+		version: 2,
+		legacyFinds: [String.raw`https?:\/\/(?:www\.|mobile\.)?x\.com(?=\/\w+?\/status\/)`],
+		shows: { from: 'twitter.com, x.com', to: 'fixupx.com' },
 		kind: 'links',
 		source: 'added',
-		note: 'Not from the thread, which predates x.com links. Same service as fxtwitter.',
+		note: 'One rule for twitter.com and x.com links, and ones already on vxtwitter or fixvx. Same service as fxtwitter.',
 		rule: {
-			name: 'X to fixupx',
-			find: String.raw`https?:\/\/(?:www\.|mobile\.)?x\.com(?=\/\w+?\/status\/)`,
+			name: 'Twitter and X to fixupx',
+			find: String.raw`https?:\/\/(?:www\.|mobile\.)?(?:twitter|x|vxtwitter|fixvx)\.com(?=\/\w+\/status\/\d)`,
 			replace: 'https://fixupx.com',
 			regex: true,
 			caseSensitive: false,
@@ -257,6 +312,26 @@ export const PRESETS: Preset[] = [
 		},
 	},
 	{
+		id: 'twitter-x-fxtwitter',
+		version: 1,
+		hidden: true,
+		shows: { from: 'twitter.com, x.com', to: 'fxtwitter.com' },
+		kind: 'links',
+		source: 'added',
+		note: 'One rule for twitter.com and x.com links, and ones already on vxtwitter, fixupx or fixvx. Use this instead of the Twitter and X rules above, not as well.',
+		rule: {
+			name: 'Twitter and X to fxtwitter',
+			find: String.raw`https?:\/\/(?:www\.|mobile\.)?(?:twitter|x|vxtwitter|fixupx|fixvx)\.com(?=\/\w+\/status\/\d)`,
+			replace: 'https://fxtwitter.com',
+			regex: true,
+			caseSensitive: false,
+			wholeWord: false,
+		},
+	},
+	{
+		id: 'reddit-vxreddit',
+		version: 1,
+		shows: { from: 'reddit.com', to: 'vxreddit.com' },
 		kind: 'links',
 		source: 'updated',
 		note: 'The thread used rxyddit.com, which has shut down. vxreddit.com embeds posts properly.',
@@ -270,12 +345,17 @@ export const PRESETS: Preset[] = [
 		},
 	},
 	{
+		id: 'tiktok-tiktxk',
+		version: 2,
+		legacyFinds: [String.raw`https?:\/\/(?:(?:www\.|m\.)?tiktok\.com\/(@[\w.-]+\/video\/\d+|t\/\w+)|vm\.tiktok\.com\/(\w+))`],
+		hidden: true,
+		shows: { from: 'tiktok.com', to: 'tiktxk.com' },
 		kind: 'links',
 		source: 'updated',
-		note: 'Also catches links without www. and usernames with dots or underscores, which the original missed.',
+		note: 'Also catches links without www., vt.tiktok.com share links and usernames with dots or underscores, which the original missed.',
 		rule: {
 			name: 'TikTok to tiktxk',
-			find: String.raw`https?:\/\/(?:(?:www\.|m\.)?tiktok\.com\/(@[\w.-]+\/video\/\d+|t\/\w+)|vm\.tiktok\.com\/(\w+))`,
+			find: String.raw`https?:\/\/(?:(?:www\.|m\.)?tiktok\.com\/(@[\w.-]+\/video\/\d+|t\/\w+)|(?:vm|vt)\.tiktok\.com\/(\w+))`,
 			replace: 'https://tiktxk.com/$1$2',
 			regex: true,
 			caseSensitive: false,
@@ -283,12 +363,16 @@ export const PRESETS: Preset[] = [
 		},
 	},
 	{
+		id: 'tiktok-tnktok',
+		version: 2,
+		legacyFinds: [String.raw`https?:\/\/(?:(?:www\.|m\.)?tiktok\.com\/(@[\w.-]+\/video\/\d+|t\/\w+)|vm\.tiktok\.com\/(\w+))`],
+		shows: { from: 'tiktok.com', to: 'tnktok.com' },
 		kind: 'links',
 		source: 'added',
-		note: 'fxTikTok, the most used TikTok fixer in 2026. Pick this or tiktxk, not both.',
+		note: 'fxTikTok, the most used TikTok fixer in 2026. Also does photo posts and vt.tiktok.com share links.',
 		rule: {
 			name: 'TikTok to tnktok',
-			find: String.raw`https?:\/\/(?:(?:www\.|m\.)?tiktok\.com\/(@[\w.-]+\/video\/\d+|t\/\w+)|vm\.tiktok\.com\/(\w+))`,
+			find: String.raw`https?:\/\/(?:(?:www\.|m\.)?tiktok\.com\/(@[\w.-]+\/(?:video|photo)\/\d+|t\/\w+)|(?:vm|vt)\.tiktok\.com\/(\w+))`,
 			replace: 'https://tnktok.com/$1$2',
 			regex: true,
 			caseSensitive: false,
@@ -296,6 +380,9 @@ export const PRESETS: Preset[] = [
 		},
 	},
 	{
+		id: 'instagram-oginstagram',
+		version: 1,
+		shows: { from: 'instagram.com', to: 'oginstagram.com' },
 		kind: 'links',
 		source: 'added',
 		note: 'Posts and reels. Instagram previews in Discord often show nothing; this fills them in.',
@@ -309,6 +396,9 @@ export const PRESETS: Preset[] = [
 		},
 	},
 	{
+		id: 'bluesky-bskx',
+		version: 1,
+		shows: { from: 'bsky.app', to: 'bskx.app' },
 		kind: 'links',
 		source: 'added',
 		note: 'Bluesky posts with their pictures and videos.',
@@ -322,6 +412,9 @@ export const PRESETS: Preset[] = [
 		},
 	},
 	{
+		id: 'pixiv-phixiv',
+		version: 1,
+		shows: { from: 'pixiv.net', to: 'phixiv.net' },
 		kind: 'links',
 		source: 'added',
 		note: 'pixiv artworks with the picture, including age-restricted ones.',
@@ -335,6 +428,9 @@ export const PRESETS: Preset[] = [
 		},
 	},
 	{
+		id: 'youtube-shorts-watch',
+		version: 1,
+		shows: { from: 'youtube.com/shorts/', to: 'youtube.com/watch?v=' },
 		kind: 'links',
 		source: 'thread',
 		note: 'Opens Shorts in the normal YouTube player.',
@@ -348,6 +444,9 @@ export const PRESETS: Preset[] = [
 		},
 	},
 	{
+		id: 'shrug',
+		version: 1,
+		shows: { from: '/shrug', to: '¯\\_(ツ)_/¯' },
 		kind: 'text',
 		source: 'thread',
 		note: 'Anywhere in a message, not only at the start like Discord’s own /shrug.',
@@ -361,6 +460,9 @@ export const PRESETS: Preset[] = [
 		},
 	},
 	{
+		id: 'disable-markdown',
+		version: 1,
+		shows: { from: '*bold*', to: String.raw`\*bold\*` },
 		kind: 'text',
 		source: 'thread',
 		note: 'Escapes every markdown character in every message while it is on — switch it off to format again.',
@@ -374,6 +476,9 @@ export const PRESETS: Preset[] = [
 		},
 	},
 	{
+		id: 'rainbow',
+		version: 1,
+		shows: { from: '/rainbow hello', to: 'hello in rainbow colours' },
 		kind: 'text',
 		source: 'added',
 		note: 'Turns `/rainbow <text>` into an ANSI rainbow codeblock of any length.',

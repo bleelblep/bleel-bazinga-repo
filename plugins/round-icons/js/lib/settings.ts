@@ -19,8 +19,14 @@ export interface SquaresStorage {
 	chatInput: boolean
 	/** The You tab's Quests / Shop / Settings buttons as circles. */
 	youNav: boolean
-	/** Every other corner token back to its pre-redesign value. */
+	/** Small things fully round, and text boxes rounder. */
 	otherCorners: boolean
+	/**
+	 * Big containers (cards, settings rows, voice tiles, keyboard tops, the channel drawer) back to
+	 * their pre-redesign corners. Part of `otherCorners` until 1.3.10, so unset means "same as
+	 * otherCorners": nobody's look changes on update. `settings()` fills it in.
+	 */
+	containerCorners?: boolean
 	changelogSeenVersion?: string
 }
 
@@ -43,7 +49,9 @@ export function setStorage(handle: any) {
 }
 
 export function settings(): SquaresStorage {
-	return { ...DEFAULTS, ...(storage?.cache ?? {}) }
+	const s: SquaresStorage = { ...DEFAULTS, ...(storage?.cache ?? {}) }
+	if (typeof s.containerCorners !== 'boolean') s.containerCorners = s.otherCorners
+	return s
 }
 
 export function update(patch: Partial<SquaresStorage>) {

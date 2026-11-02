@@ -19,6 +19,7 @@ import { reportError, setReporter } from '../../../shared/report'
 import { CHANGELOG } from './changelog'
 import { DEFAULTS } from './defaults'
 import { refreshClearUrlsIfStale } from './lib/clearurls'
+import { refreshReadyMadeOnStart } from './lib/readyMade'
 import { patchComposer } from './lib/composer'
 import { setAi, setRequireReload, setStorage } from './lib/state'
 import patchOutgoing from './patches/outgoing'
@@ -85,7 +86,7 @@ export default plugin<{ jsonStorage: SendTweaksStorage }>({
 		apply('live composer', patchComposer)
 		apply('send button', patchSendButton)
 
-		// The ClearURLs rules refresh themselves about weekly. Checked a little after start: storage is
+		// The ClearURLs and ready-made rules refresh themselves about weekly. Checked a little after start: storage is
 		// read without being awaited (`load: true`), and until it lands the defaults say "never
 		// downloaded", which would fetch on every launch.
 		const refresh = setTimeout(() => {
@@ -93,6 +94,11 @@ export default plugin<{ jsonStorage: SendTweaksStorage }>({
 				refreshClearUrlsIfStale()
 			} catch (error) {
 				reportError('[SendTweaks] ClearURLs refresh failed:', error)
+			}
+			try {
+				refreshReadyMadeOnStart()
+			} catch (error) {
+				reportError('[SendTweaks] ready-made refresh failed:', error)
 			}
 		}, 8000)
 		cleanup(() => clearTimeout(refresh))

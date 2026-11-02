@@ -46,6 +46,12 @@ export interface Rule {
 	 * and `i` follows `caseSensitive`, so neither is stored here.
 	 */
 	extraFlags?: string
+	/**
+	 * The ready-made rule this was added from, and its version then (`readyMade.ts`). Lets the
+	 * ready-made screen offer an update when that rule is fixed. Dropped when you change what the
+	 * rule finds or replaces, so an update never overwrites your own edits.
+	 */
+	preset?: { id: string; version: number }
 }
 
 export function newRule(overrides: Partial<Rule> = {}): Rule {

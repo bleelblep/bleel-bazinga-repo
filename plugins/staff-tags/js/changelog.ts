@@ -3,6 +3,20 @@ import type { ChangelogEntry } from '../../../shared/changelog'
 /** Newest first. Every version users got gets an entry; see shared/changelog.tsx. */
 export const CHANGELOG: ChangelogEntry[] = [
 	{
+		version: '1.3.16',
+		date: '2026-11-02',
+		title: 'Credit line',
+		changes: [
+			'The foot of the settings now reads "Made by Fiery and シグマ siguma", who made the original, with a smaller "Ported by bleelblep" underneath.',
+		],
+	},
+	{
+		version: '1.3.14',
+		date: '2026-11-01',
+		title: 'Made by',
+		changes: ['A small "Made by bleelblep" line at the foot of the settings page.'],
+	},
+	{
 		version: '1.3.13',
 		date: '2026-10-27',
 		title: 'Staff tags are back',

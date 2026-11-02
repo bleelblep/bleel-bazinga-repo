@@ -9,6 +9,8 @@ import Settings from './ui/Settings'
 export interface CharCounterStorage {
 	/** `count`: "45 characters". `limit`: "45 / 4,000 characters". `left`: "3,955 characters left". Past the limit: "N characters over the limit". */
 	show: 'count' | 'limit' | 'left'
+	/** Just the numbers: "45" rather than "45 characters". */
+	numbersOnly?: boolean
 	/** Which side of the message box the square floats above. */
 	side: 'left' | 'right'
 	/** Only once the message reaches 90% of the limit. */
@@ -23,6 +25,8 @@ export interface CharCounterStorage {
 	splitMax: number
 	/** Send on a long message: `send` runs the split straight away, `ask` shows the parts first. */
 	onSend: 'send' | 'ask'
+	/** The settings page's "How it works" note was hidden for good (settings design guide §4.3). */
+	introDismissed?: boolean
 }
 
 export const FONT_SIZE = { min: 10, max: 20, default: 12 } as const
@@ -32,6 +36,7 @@ export const SPLIT_MAX = { min: 2, max: 10, default: 5 } as const
 /** Also the fallback for every read: `load: true` doesn't wait for storage (coding rule 7). */
 export const DEFAULTS: CharCounterStorage = {
 	show: 'count',
+	numbersOnly: false,
 	side: 'left',
 	onlyNearLimit: false,
 	fontSize: FONT_SIZE.default,
@@ -39,6 +44,7 @@ export const DEFAULTS: CharCounterStorage = {
 	splitDelaySec: SPLIT_DELAY.default,
 	splitMax: SPLIT_MAX.default,
 	onSend: 'send',
+	introDismissed: false,
 }
 
 export default plugin<{ jsonStorage: CharCounterStorage }>({

@@ -10,7 +10,7 @@ import type { RuleKind } from '../../lib/ruleStore'
  * Send Tweaks' AI screen: writing a link rule or a text rule from a description, in one place.
  *
  * This is where the AI Hub and AI Core's settings send people (the route given to AI Core's
- * `setSettingsRoute`), because the same feature also sits on each Ready-made screen and the AI Hub
+ * `setSettingsRoute`), because the same feature also sits at the foot of each rule list and the AI Hub
  * needs a single destination. Registered only while AI Core is installed.
  */
 export default function AiRules() {

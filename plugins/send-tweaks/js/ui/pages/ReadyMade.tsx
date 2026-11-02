@@ -1,55 +1,37 @@
 import * as components from '@valenced/components'
 import { Design } from '@valenced/discord/design'
-import * as finders from '@valenced/modules/finders'
-import * as filters from '@valenced/modules/finders/filters'
+import * as React from 'react'
 import * as ReactNative from 'react-native'
-import { reportError } from '../../../../../shared/report'
-import { copyText } from '../../lib/clipboard'
-import { PRESETS, THREAD } from '../../lib/importRules'
-import { addRule, useRules } from '../../lib/ruleStore'
+import { tokenHex } from '../../lib/colours'
+import {
+	applyUpdate,
+	attentionTitle,
+	linkFor,
+	refreshReadyMadeIfStale,
+	useReadyMade,
+} from '../../lib/readyMade'
+import { addRule, deleteRule, useRules } from '../../lib/ruleStore'
 import { showToast as triggerToast } from '../../lib/toast'
-import AiDraft from '../components/AiDraft'
-import { rowIcon } from '../icon'
+import UpdateBanner from '../components/UpdateBanner'
+import { confirmDestructive } from '../../../../../shared/ui/confirm'
+import { dangerIcon, rowIcon } from '../icon'
 import { useBottomPadding } from '../safeArea'
 import type { Preset } from '../../lib/importRules'
 import type { RuleKind } from '../../lib/ruleStore'
 
-/** Discord's router: `transitionTo` opens an in-app path. On the namespace or on `default`. */
-interface Routing {
-	transitionTo?(path: string): void
-	transitionToGuild?(...args: unknown[]): void
-	default?: Routing
-}
 function showToast(content: string) {
 	triggerToast(content, { key: 'SendTweaksReadyToast' })
 }
 
-/**
- * Opens the thread inside Discord. `transitionTo` is Discord's in-app router; handing the
- * discord.com URL to Android instead does nothing visible in this repackaged app, which is not that
- * domain's link handler (ghost-log-native-beta `lib/navigate.ts` found this on-device).
- */
-function openThread(): boolean {
-	try {
-		const { lookupModule } = finders
-		const { withProps } = filters
-		const routing = lookupModule(withProps<Routing>('transitionToGuild'))?.[0]
-		const host =
-			typeof routing?.transitionTo === 'function' ? routing : routing?.default
-		if (typeof host?.transitionTo !== 'function') return false
-		host.transitionTo(`/channels/${THREAD.guildId}/${THREAD.channelId}`)
-		return true
-	} catch (error) {
-		reportError('[SendTweaks] could not open the thread:', error)
-		return false
-	}
-}
-
 const SOURCE: Record<Preset['source'], string> = {
-	thread: 'From the thread',
-	updated: 'From the thread, updated',
+	thread: 'From the Text Replace thread',
+	updated: 'From the Text Replace thread, updated',
 	added: 'Added by Send Tweaks',
 }
+
+/** Used when the theme's tokens don't resolve. */
+const MUTED = '#a8abb2'
+const BRAND = '#949cf7'
 
 export function ReadyMadeLinks() {
 	return <ReadyMade kind="links" />
@@ -59,22 +41,154 @@ export function ReadyMadeText() {
 	return <ReadyMade kind="text" />
 }
 
+/** "twitter.com → fixupx.com" as two small code chips, then the note. */
+function Detail({ preset, prefix }: { preset: Preset; prefix: string }) {
+	// Read per-render, never at module scope -- see docs/coding-rules.md rule 1.
+	const { View } = ReactNative
+	const { Text } = Design
+	const muted = tokenHex('text-muted') ?? MUTED
+	const brand = tokenHex('text-brand') ?? BRAND
+	const chip = (text: string, colour: string, background: string) => (
+		<View
+			style={{
+				backgroundColor: background,
+				borderRadius: 6,
+				paddingHorizontal: 6,
+				paddingVertical: 1,
+			}}
+		>
+			<Text
+				variant="text-sm/medium"
+				style={{ color: colour, fontFamily: 'monospace' }}
+			>
+				{text}
+			</Text>
+		</View>
+	)
+	return (
+		<View style={{ gap: 6, marginTop: 4 }}>
+			{preset.shows ? (
+				<View
+					style={{
+						flexDirection: 'row',
+						flexWrap: 'wrap',
+						alignItems: 'center',
+						gap: 6,
+					}}
+				>
+					{chip(preset.shows.from, tokenHex('text-default') ?? '#f2f3f5', `${muted}26`)}
+					<Text color="text-muted" variant="text-sm/normal">
+						→
+					</Text>
+					{chip(preset.shows.to, brand, `${brand}26`)}
+				</View>
+			) : null}
+			<Text color="text-muted" variant="text-sm/normal">
+				{prefix}
+				{preset.note}
+			</Text>
+		</View>
+	)
+}
+
 /**
- * Ready-made rules for one list. There is one of these per list, each opened only
- * from its own list's screen, so link rules are only offered next to link rules and text rules next
- * to text rules.
- *
- * The rules come from the Text Replace thread in the Vendetta server -- see the note on `PRESETS`
- * for what was checked, changed and left out.
+ * Ready-made rules for one list, and nothing else: one row per site, each showing what it changes.
+ * There is one of these per list, each opened only from its own list's screen, so link rules are
+ * only offered next to link rules and text rules next to text rules. The list keeps itself up to
+ * date (`readyMade.ts`); AI drafting lives on the rule list itself.
  */
 function ReadyMade({ kind }: { kind: RuleKind }) {
 	const { Page } = components
-	const { ScrollView, View } = ReactNative
-	const { Stack, Text, Card, TableRowGroup, TableRow } = Design
+	const { ScrollView } = ReactNative
+	const { Stack, TableRowGroup, TableRow } = Design
 
-	const links = kind === 'links'
 	const rules = useRules(kind)
-	const presets = PRESETS.filter(preset => preset.kind === kind)
+	const readyMade = useReadyMade()
+	const presets = readyMade.presets.filter(preset => preset.kind === kind)
+
+	// Fetch a newer list if this one is a few hours old. The rows re-render when it lands.
+	React.useEffect(() => refreshReadyMadeIfStale(), [])
+
+	const row = (preset: Preset) => {
+		const link = linkFor(rules, preset)
+		const label = preset.rule.name ?? preset.rule.find
+		if (link?.retired) {
+			return (
+				<TableRow
+					key={preset.id}
+					variant="danger"
+					label={label}
+					subLabel={
+						<Detail
+							preset={preset}
+							prefix="No longer works · tap to remove your copy. "
+						/>
+					}
+					icon={dangerIcon('TrashIcon', 'ic_trash_24px')}
+					onPress={() =>
+						confirmDestructive({
+							title: `Remove “${label}”?`,
+							body: 'It no longer works, so it is taken out of your rules. This cannot be undone.',
+							action: 'Remove',
+							onConfirm: () => {
+								deleteRule(kind, link.rule.id)
+								showToast(`Removed “${label}”.`)
+							},
+						})
+					}
+				/>
+			)
+		}
+		if (link?.outdated) {
+			return (
+				<TableRow
+					key={preset.id}
+					label={label}
+					subLabel={<Detail preset={preset} prefix="Tap to update. " />}
+					icon={rowIcon('RefreshIcon', 'ic_refresh')}
+					onPress={() => {
+						applyUpdate(kind, link.rule, preset)
+						showToast(`Updated “${label}”.`)
+					}}
+				/>
+			)
+		}
+		return (
+			<TableRow
+				key={preset.id}
+				label={label}
+				subLabel={
+					<Detail
+						preset={preset}
+						prefix={`${link ? 'Added · ' : ''}${SOURCE[preset.source]}. `}
+					/>
+				}
+				icon={
+					link
+						? rowIcon('CircleCheckIcon')
+						: rowIcon('PlusSmallIcon', 'PlusLargeIcon', 'ic_add_24px')
+				}
+				disabled={!!link}
+				onPress={() => {
+					addRule(kind, {
+						...preset.rule,
+						preset: { id: preset.id, version: preset.version },
+					})
+					showToast(`Added “${label}”.`)
+				}}
+			/>
+		)
+	}
+	const attention = presets.flatMap(preset => {
+		const link = linkFor(rules, preset)
+		return link && (link.outdated || link.retired) ? [{ preset, link }] : []
+	})
+	const needsTap = attention.map(item => item.preset)
+	// Retired rules are only shown to people who still have them, in the card above. Hidden ones
+	// aren't shown at all: whoever has one keeps it as it is.
+	const current = presets.filter(
+		preset => !preset.retired && !preset.hidden && !needsTap.includes(preset),
+	)
 
 	return (
 		<Page>
@@ -83,75 +197,20 @@ function ReadyMade({ kind }: { kind: RuleKind }) {
 				contentContainerStyle={{ paddingBottom: useBottomPadding() }}
 			>
 				<Stack spacing={24}>
-					<Card variant="secondary" border="none">
-						<View
-							style={{ paddingHorizontal: 16, paddingVertical: 12, gap: 6 }}
-						>
-							<Text color="text-default" variant="text-md/semibold">
-								From the Text Replace thread
-							</Text>
-							<Text color="text-muted" variant="text-sm/normal">
-								{links
-									? "These were shared in the Vendetta server's thread for Text Replace, a Vendetta and Bunny plugin. Some rules may not work correctly: the sites they point to can change or shut down at any time, so check a link after sending it."
-									: "These were shared in the Vendetta server's thread for Text Replace, a Vendetta and Bunny plugin. Some rules may not work correctly, so try one in Try a message before relying on it."}
-							</Text>
-						</View>
-					</Card>
-
-					<TableRowGroup hasIcons>
-						<TableRow
-							label="Open the thread"
-							subLabel="In the Vendetta server. You need to have joined it."
-							icon={rowIcon('ChatIcon', 'ic_message')}
-							arrow
-							onPress={() => {
-								if (!openThread()) {
-									showToast(
-										copyText(THREAD.url)
-											? 'Could not open it here, so the link was copied.'
-											: 'Could not open the thread.',
-									)
-								}
-							}}
-						/>
-						<TableRow
-							label="Copy the link"
-							subLabel={THREAD.url}
-							icon={rowIcon('LinkIcon', 'ic_link')}
-							onPress={() =>
-								showToast(
-									copyText(THREAD.url)
-										? 'Link copied.'
-										: 'Could not reach the clipboard.',
-								)
+					{needsTap.length ? (
+						<UpdateBanner
+							title={attentionTitle(attention.map(item => item.link))}
+							body={
+								attention.some(item => item.link.retired)
+									? 'These were fixed or stopped working after you added them. Tap one to update it, or to remove one that no longer works.'
+									: 'These were fixed after you added them. Tap one to update it. Your rule stays on or off and keeps where it runs.'
 							}
-						/>
-					</TableRowGroup>
+						>
+							<TableRowGroup hasIcons>{needsTap.map(row)}</TableRowGroup>
+						</UpdateBanner>
+					) : null}
 
-					<AiDraft kind={kind} />
-
-					<TableRowGroup title="Ready-made" hasIcons>
-						{presets.map(preset => {
-							const added = rules.some(rule => rule.find === preset.rule.find)
-							return (
-								<TableRow
-									key={preset.rule.name}
-									label={preset.rule.name ?? preset.rule.find}
-									subLabel={`${added ? 'Added · ' : ''}${SOURCE[preset.source]}. ${preset.note}`}
-									icon={
-										added
-											? rowIcon('CircleCheckIcon')
-											: rowIcon('PlusSmallIcon', 'PlusLargeIcon', 'ic_add_24px')
-									}
-									disabled={added}
-									onPress={() => {
-										addRule(kind, { ...preset.rule })
-										showToast(`Added “${preset.rule.name}”.`)
-									}}
-								/>
-							)
-						})}
-					</TableRowGroup>
+					<TableRowGroup hasIcons>{current.map(row)}</TableRowGroup>
 				</Stack>
 			</ScrollView>
 		</Page>

@@ -21,6 +21,7 @@ import Panel, { openHoldMenu } from './ui/Panel'
 import patchViewerButton from './popout/viewerButton'
 import { patchUpload } from './lib/upload'
 import Settings from './ui/Settings'
+import { registerPages } from './ui/routes'
 import { reportError, setReporter } from '../../../shared/report'
 
 const TAG = '[Pocket Browser]'
@@ -48,6 +49,8 @@ export default plugin<{ jsonStorage: PocketBrowserStorage }>({
 		setStorage(jsonStorage)
 		cleanup(() => setStorage(undefined))
 		attempt(cleanup, 'changelog', () => setupChangelog(api, CHANGELOG))
+		// The settings sub-pages, opened from the settings index (ui/routes.tsx).
+		attempt(cleanup, 'settings pages', registerPages)
 		attempt(cleanup, 'native bridge', connect)
 		// Holding a link or image in a page opens this menu.
 		setHoldHandler(openHoldMenu)

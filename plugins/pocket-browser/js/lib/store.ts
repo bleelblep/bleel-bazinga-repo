@@ -32,6 +32,7 @@ export interface PocketBrowserStorage {
 	/** On the start page, in the order added. */
 	bookmarks: Bookmark[]
 	search: SearchEngine
+	/** Empty: the search engine's own page (homeUrl). */
 	home: string
 	javascript: boolean
 	/** Ask sites for their desktop version. */
@@ -86,7 +87,7 @@ export const DEFAULTS: PocketBrowserStorage = {
 	history: [],
 	bookmarks: [],
 	search: 'duckduckgo',
-	home: 'https://duckduckgo.com',
+	home: '',
 	javascript: true,
 	desktop: false,
 	restore: true,
@@ -104,12 +105,27 @@ export const DEFAULTS: PocketBrowserStorage = {
 /** Text size choices, in percent. */
 export const TEXT_ZOOMS = [75, 90, 100, 115, 130, 150, 175, 200]
 
-export const SEARCH_ENGINES: Record<SearchEngine, { name: string; url: string }> = {
-	duckduckgo: { name: 'DuckDuckGo', url: 'https://duckduckgo.com/?q=%s' },
-	google: { name: 'Google', url: 'https://www.google.com/search?q=%s' },
-	bing: { name: 'Bing', url: 'https://www.bing.com/search?q=%s' },
-	brave: { name: 'Brave Search', url: 'https://search.brave.com/search?q=%s' },
-	startpage: { name: 'Startpage', url: 'https://www.startpage.com/do/search?q=%s' },
+/** `home` is the engine's own front page, used as the home page when none is set. */
+export const SEARCH_ENGINES: Record<SearchEngine, { name: string; url: string; home: string }> = {
+	duckduckgo: { name: 'DuckDuckGo', url: 'https://duckduckgo.com/?q=%s', home: 'https://duckduckgo.com' },
+	google: { name: 'Google', url: 'https://www.google.com/search?q=%s', home: 'https://www.google.com' },
+	bing: { name: 'Bing', url: 'https://www.bing.com/search?q=%s', home: 'https://www.bing.com' },
+	brave: { name: 'Brave Search', url: 'https://search.brave.com/search?q=%s', home: 'https://search.brave.com' },
+	startpage: { name: 'Startpage', url: 'https://www.startpage.com/do/search?q=%s', home: 'https://www.startpage.com' },
+}
+
+/** Every version before 0.4.15 saved this as the default home, so it counts as none set. */
+const OLD_DEFAULT_HOME = 'https://duckduckgo.com'
+
+/** The home page someone set themselves, or '' when it follows the search engine. */
+export function customHome(s: Pick<PocketBrowserStorage, 'home'>): string {
+	const home = s.home?.trim() ?? ''
+	return home === OLD_DEFAULT_HOME ? '' : home
+}
+
+/** The home page in use: the one set, or else the search engine's front page. */
+export function homeUrl(s: Pick<PocketBrowserStorage, 'home' | 'search'>): string {
+	return customHome(s) || (SEARCH_ENGINES[s.search] ?? SEARCH_ENGINES.duckduckgo).home
 }
 
 const HISTORY_LIMIT = 500

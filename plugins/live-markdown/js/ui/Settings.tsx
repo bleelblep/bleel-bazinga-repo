@@ -1,3 +1,4 @@
+import { Credit } from '../../../../shared/ui/credit'
 import { Page } from '@valenced/components'
 import { Design } from '@valenced/discord/design'
 import { ScrollView, View } from 'react-native'
@@ -85,6 +86,7 @@ export default function Settings({ api: { jsonStorage } }: Props) {
 							/>
 						))}
 					</TableRowGroup>
+					<Credit />
 				</Stack>
 			</ScrollView>
 		</Page>

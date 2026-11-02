@@ -13,8 +13,9 @@ import * as components from '@valenced/components'
 import { Design } from '@valenced/discord/design'
 import * as React from 'react'
 import * as ReactNative from 'react-native'
+import { confirmDestructive } from '../../../../../shared/ui/confirm'
 import { FieldRow } from '../fieldGroup'
-import { rowIcon } from '../icon'
+import { dangerIcon, rowIcon } from '../icon'
 import { useBottomPadding } from '../safeArea'
 import type { SendTweaksStorage } from '../../types'
 
@@ -75,6 +76,10 @@ export default function Options() {
 	const clearUrlsLine = data
 		? `Community rules for ${data.providers.length} sites, on top of the built-in list. Updated ${new Date(data.updatedAt).toLocaleDateString()}.`
 		: 'Adds the ClearURLs community rules for about 200 sites, and turns redirect links like google.com/url into where they really go. Downloads when first used.'
+	// A greyed-out row says why (settings design guide §6).
+	const NEEDS_TRACKING = 'Turn on Remove tracking from links to use this.'
+	const polishLine = (text: string) =>
+		s.polishWording ? text : `Turn on Polish wording to use this. ${text}`
 
 	return (
 		<Page>
@@ -132,7 +137,7 @@ export default function Options() {
 						<TableSwitchRow
 							label="Tap send to preview"
 							subLabel="Tapping send shows the preview first, then Send sends it. Use this if holding send doesn't work for you. Empty messages and / commands send straight away."
-							icon={rowIcon('EyeIcon', 'ic_eye')}
+							icon={rowIcon('ScreenIcon', 'EyeIcon')}
 							value={!!s.tapToPreview}
 							onValueChange={value => set({ tapToPreview: value })}
 						/>
@@ -148,7 +153,11 @@ export default function Options() {
 						/>
 						<TableSwitchRow
 							label="Use ClearURLs rules"
-							subLabel={clearUrlsLine}
+							subLabel={
+								s.cleanUrls
+									? clearUrlsLine
+									: `${NEEDS_TRACKING} ${clearUrlsLine}`
+							}
 							icon={rowIcon('DownloadIcon', 'ic_download_24px')}
 							disabled={!s.cleanUrls}
 							value={!!s.clearUrlsRules}
@@ -163,14 +172,20 @@ export default function Options() {
 									? 'Updating ClearURLs rules…'
 									: 'Update ClearURLs rules now'
 							}
-							subLabel="They also update themselves about once a week."
+							subLabel={
+								!s.cleanUrls
+									? NEEDS_TRACKING
+									: !s.clearUrlsRules
+										? 'Turn on Use ClearURLs rules to use this.'
+										: 'They also update themselves about once a week.'
+							}
 							icon={rowIcon('RefreshIcon', 'ic_refresh')}
 							disabled={!s.cleanUrls || !s.clearUrlsRules || updating}
 							onPress={runUpdate}
 						/>
 						<TableSwitchRow
 							label="Rewrite links"
-							subLabel="Your own link rules, like twitter.com to fxtwitter.com so they embed properly."
+							subLabel="Your own link rules, like x.com to fixupx.com so they embed properly."
 							icon={rowIcon('LinkIcon', 'ic_link')}
 							value={!!s.linkRewrite}
 							onValueChange={value => set({ linkRewrite: value })}
@@ -197,31 +212,39 @@ export default function Options() {
 						/>
 						<TableSwitchRow
 							label="Add apostrophes"
-							subLabel="dont → don't, im → I'm, thats → that's. Words like its, ill and were are left alone."
-							icon={rowIcon('TextIcon', 'ic_edit_24px')}
+							subLabel={polishLine(
+								"dont → don't, im → I'm, thats → that's. Words like its, ill and were are left alone.",
+							)}
+							icon={rowIcon('QuoteIcon', 'ChatIcon')}
 							disabled={!s.polishWording}
 							value={s.polishApostrophes !== false}
 							onValueChange={value => set({ polishApostrophes: value })}
 						/>
 						<TableSwitchRow
 							label="Capitalise sentences"
-							subLabel="A capital at the start of each sentence, and i on its own becomes I. Words with a capital already, like iPhone, stay as typed."
-							icon={rowIcon('TextIcon', 'ic_edit_24px')}
+							subLabel={polishLine(
+								'A capital at the start of each sentence, and i on its own becomes I. Words with a capital already, like iPhone, stay as typed.',
+							)}
+							icon={rowIcon('TextUppercaseIcon', 'ArrowLargeUpIcon', 'ExpandIcon')}
 							disabled={!s.polishWording}
 							value={s.polishCapitals !== false}
 							onValueChange={value => set({ polishCapitals: value })}
 						/>
 						<TableSwitchRow
 							label="End with a full stop"
-							subLabel="Adds one when a message ends in a word. Some people read that as cold in casual chat."
-							icon={rowIcon('TextIcon', 'ic_edit_24px')}
+							subLabel={polishLine(
+								'Adds one when a message ends in a word. Some people read that as cold in casual chat.',
+							)}
+							icon={rowIcon('CheckmarkLargeIcon')}
 							disabled={!s.polishWording}
 							value={!!s.polishFullStop}
 							onValueChange={value => set({ polishFullStop: value })}
 						/>
 						<FieldRow
 							label="Never capitalise"
-							description="Words to leave lower case at the start of a sentence, separated by commas."
+							description={polishLine(
+								'Words to leave lower case at the start of a sentence, separated by commas.',
+							)}
 						>
 							<SingleLineField
 								placeholder="lol, brb, ngl"
@@ -254,13 +277,34 @@ export default function Options() {
 					) : null}
 
 					{s.noReplyMention ? (
-						<TableRowGroup title={`People (${(s.replyPingPeople ?? []).length})`}>
+						<TableRowGroup
+							title={`People (${(s.replyPingPeople ?? []).length})`}
+							hasIcons
+						>
 							{(s.replyPingPeople ?? []).length ? (
 								(s.replyPingPeople ?? []).map(person => (
-									<TableRow key={person.id} label={person.name} subLabel="Tap to remove" onPress={() => removeListed(person.id)} />
+									<TableRow
+										key={person.id}
+										variant="danger"
+										label={person.name}
+										subLabel="Tap to remove"
+										icon={dangerIcon('UserMinusIcon', 'TrashIcon')}
+										onPress={() =>
+											confirmDestructive({
+												title: `Remove ${person.name}?`,
+												body: 'They go back to the default for replies. You can add them again from one of their messages.',
+												action: 'Remove',
+												onConfirm: () => removeListed(person.id),
+											})
+										}
+									/>
 								))
 							) : (
-								<TableRow label="Nobody yet" subLabel="Long-press someone's message to add them." />
+								<TableRow
+									label="Nobody yet"
+									subLabel="Long-press someone's message to add them."
+									icon={rowIcon('UserPlusIcon', 'UserIcon')}
+								/>
 							)}
 						</TableRowGroup>
 					) : null}

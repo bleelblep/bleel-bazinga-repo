@@ -8,7 +8,7 @@
 		"John (https://github.com/janisslsm \"GitHub\")"
 	],
 	"icon": "PhoneCallIcon",
-	"version": "1.3.9",
+	"version": "1.3.12",
 	"dependencies": {
 		"valenced.api": {
 			"version": ">=1 <2"

@@ -4,7 +4,7 @@ import { withName } from '@valenced/modules/finders/filters'
 import { after } from '@valenced/patcher'
 import { getErrorStack } from '@valenced/utils/error'
 import { DEFAULTS } from '../index'
-import { formatName, formatReplyName, isTagless } from '../lib/format'
+import { formatName, formatReplyName, isTagless, smallTagText } from '../lib/format'
 import type { DiscordModules } from '@valenced/discord/types'
 import type { PluginApi } from '@valenced/plugins/types'
 import type { ShowTagStorage } from '../index'
@@ -28,6 +28,21 @@ interface RowMessage {
 	username?: string
 	authorId?: string
 	referencedMessage?: { message?: RowMessage }
+	/**
+	 * The small tag after the name (bots' "APP", "SYSTEM"), drawn natively by `MessageTagView`: 12 sp,
+	 * one line, no caps, in `tagTextColor` on `tagBackgroundColor`. All colours are ARGB ints. Read
+	 * from the 352.2 APK (`com.discord.chat.bridge.Message`, `MessageTagView`, layout
+	 * `message_tag_view`). Tapping it sends `onTapTag`, whose JS `handleTapTag` only looks the message
+	 * up (352.2 bundle), so a username there does nothing when tapped.
+	 */
+	tagText?: string
+	tagTextColor?: number
+	tagBackgroundColor?: number
+	tagVerified?: boolean
+	/** What kind of tag; only passed back on tap. `show-tag-below` asks the native half to move it under the name. */
+	tagType?: string
+	/** The timestamp's colour: Discord's muted text for the theme in use. */
+	timestampColor?: number
 }
 
 interface UserStore {
@@ -35,6 +50,9 @@ interface UserStore {
 }
 
 const MessageRowType = 1
+
+/** Read by Show Tag's native half (src/main/kotlin/.../ShowTagPlugin.kt): keep the two in step. */
+const BELOW_MARKER = 'show-tag-below'
 
 type Api = PluginApi<{ jsonStorage: ShowTagStorage }>
 
@@ -51,12 +69,32 @@ export default function patchRowManager({ cleanup, jsonStorage, plugin }: Api) {
 
 	const rename = (
 		message: RowMessage,
-		onlyUsername: boolean,
+		{ onlyUsername, smallTag, below }: ShowTagStorage,
 		reply: boolean,
 	) => {
 		if (message.username == null || !message.authorId) return
 		const user = UserStore.getUser(message.authorId)
 		if (isTagless(user)) return
+		// Small and dim: into the tag slot after the name, unless something already uses it (a bot's
+		// APP tag) or there is no muted colour to draw it in. Replies have no tag slot: brackets there.
+		if (
+			smallTag &&
+			!onlyUsername &&
+			!reply &&
+			message.tagText == null &&
+			typeof message.timestampColor === 'number'
+		) {
+			const text = smallTagText(message.username, user)
+			if (text) {
+				message.tagText = text
+				message.tagTextColor = message.timestampColor
+				// Fully transparent: no pill behind it, just the text.
+				message.tagBackgroundColor = 0
+				message.tagVerified = false
+				if (below) message.tagType = BELOW_MARKER
+			}
+			return
+		}
 		message.username = reply
 			? formatReplyName(message.username, user, onlyUsername)
 			: formatName(message.username, user, onlyUsername)
@@ -72,11 +110,11 @@ export default function patchRowManager({ cleanup, jsonStorage, plugin }: Api) {
 					if (!message) return row
 
 					try {
-						const { onlyUsername } = settings()
-						rename(message, onlyUsername, false)
+						const s = settings()
+						rename(message, s, false)
 
 						const reply = message.referencedMessage?.message
-						if (reply) rename(reply, onlyUsername, true)
+						if (reply) rename(reply, s, true)
 					} catch (e) {
 						plugin.reportError(
 							`Show Tag: generate hook failed: ${getErrorStack(e)}`,

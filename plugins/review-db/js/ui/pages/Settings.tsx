@@ -1,15 +1,17 @@
 /*
  * The root page, on the shared base layout (docs/plugin-design-language.md 2.2): a neutral notice
- * card (reviews are public, and ReviewDB isn't Discord), a muted scope line, the account in its
+ * card (reviews are public, and ReviewDB isn't Discord) until it's hidden for good (settings design
+ * guide §4.3), a muted scope line that repeats its key fact, the account in its
  * own group, then the index. Settings from Vencord's reviewDB settings.tsx.
  * Copyright (c) 2023 Vendicated and contributors. GPL-3.0-or-later; see ../../../NOTICE.md.
  */
 
+import { Credit } from '../../../../../shared/ui/credit'
 import { dangerIcon, rowIcon } from '../../../../../shared/ui/icon'
 import { useBottomPadding } from '../../../../../shared/ui/safeArea'
 import { authorize } from '../../lib/auth'
 import { confirm } from '../../lib/discord'
-import { currentUserId, logOut, useSettings } from '../../lib/state'
+import { currentUserId, logOut, setSetting, useSettings } from '../../lib/state'
 import { ABOUT_ROUTE, BLOCKED_ROUTE, OPTIONS_ROUTE } from '../routes'
 import { useChangelog } from '../../../../../shared/changelog'
 import { ReactNavigationNative } from '@valenced/externals/react-navigation'
@@ -22,7 +24,7 @@ export default function Settings() {
 	useChangelog()
 	const { Page } = components
 	const { ScrollView, View } = ReactNative
-	const { Stack, Text, Card, TableRowGroup, TableRow } = Design as any
+	const { Stack, Text, Card, Button, TableRowGroup, TableRow } = Design as any
 	const { useNavigation } = ReactNavigationNative
 	const navigation = useNavigation() as { navigate: (route: string) => void }
 
@@ -35,21 +37,39 @@ export default function Settings() {
 		<Page>
 			<ScrollView contentContainerStyle={{ paddingBottom: useBottomPadding() }}>
 				<Stack spacing={24}>
-					<Card variant="secondary">
-						<View style={{ paddingHorizontal: 16, paddingVertical: 12 }}>
-							<Text variant="text-md/semibold" style={{ textAlign: 'center' }}>
-								Reviews are public
-							</Text>
-							<Text color="text-muted" variant="text-sm/normal" style={{ marginTop: 8 }}>
-								ReviewDB is a community service, not part of Discord. Anything you write can be read by
-								everyone who uses it, on any client, and reviews are moderated by ReviewDB, not Discord.
-							</Text>
-						</View>
-					</Card>
+					{s.noticeDismissed ? null : (
+						<Card variant="secondary" border="none">
+							<View style={{ paddingHorizontal: 16, paddingVertical: 12 }}>
+								<Text variant="text-md/semibold" color="text-default">
+									Reviews are public
+								</Text>
+								<Text color="text-muted" variant="text-sm/normal" style={{ marginTop: 8 }}>
+									ReviewDB is a community service, not part of Discord. Anything you write can be read by
+									everyone who uses it, on any client, and reviews are moderated by ReviewDB, not Discord.
+								</Text>
+								<View style={{ marginTop: 12, alignItems: 'flex-start' }}>
+									<Button
+										text="Don't show again"
+										size="sm"
+										variant="secondary"
+										onPress={() =>
+											confirm({
+												title: 'Hide this note?',
+												body: "It won't be shown again, even after updates.",
+												confirmText: 'Hide',
+												onConfirm: () => setSetting('noticeDismissed', true),
+											})
+										}
+									/>
+								</View>
+							</View>
+						</Card>
+					)}
 
 					<Text color="text-muted" variant="text-sm/normal">
 						Reviews show on the main tab of a profile, and under Server Reviews when you long-press a
-						server. Reading them doesn't need an account.
+						server. Reading them doesn't need an account. Reviews are public, and ReviewDB moderates
+						them, not Discord.
 					</Text>
 
 					<TableRowGroup title="Account" hasIcons>
@@ -114,6 +134,7 @@ export default function Settings() {
 							onPress={() => navigation.navigate(ABOUT_ROUTE)}
 						/>
 					</TableRowGroup>
+					<Credit author="mantikafasi and Vendicated" />
 				</Stack>
 			</ScrollView>
 		</Page>
