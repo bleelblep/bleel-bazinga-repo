@@ -279,6 +279,25 @@
 				"caseSensitive": false,
 				"wholeWord": false
 			}
+		},
+		{
+			"id": "hide-gif-links",
+			"version": 1,
+			"shows": {
+				"from": "tenor.com/view/…",
+				"to": "the GIF, without its link"
+			},
+			"kind": "text",
+			"source": "added",
+			"note": "Wraps Tenor, Giphy and Klipy links in an invisible link, so only the GIF shows. Links already in [text](link) are left alone.",
+			"rule": {
+				"name": "Hide GIF links",
+				"find": "(^|\\s)(https?://(?:[\\w-]+\\.)*(?:tenor\\.com|giphy\\.com|klipy\\.com)/[^\\s)>]+)",
+				"replace": "$1[⠀]($2)",
+				"regex": true,
+				"caseSensitive": false,
+				"wholeWord": false
+			}
 		}
 	]
 }
