@@ -632,43 +632,6 @@
         }
       }
     },
-    "bleelblep.show-tag": {
-      "name": "Show Tag",
-      "description": "Shows usernames next to display names in chat, including in replies.",
-      "author": "bleelblep, Cynosphere",
-      "icon": "AtIcon",
-      "channels": {
-        "latest": "1.3.5"
-      },
-      "versions": {
-        "1.3.0": {
-          "url": "https://bleelblep.github.io/bleel-bazinga-repo/pool/bleelblep.show-tag@1.3.0.zip",
-          "sha256": "baafe2be96ae64ab00f0b5101f54b45a856550cbe4e799262321264f6ba7f9a5",
-          "size": 4571,
-          "dependencies": {
-            "valenced.api": {
-              "version": ">=1 <2"
-            },
-            "discord": {
-              "version": ">=350.2"
-            }
-          }
-        },
-        "1.3.5": {
-          "url": "https://bleelblep.github.io/bleel-bazinga-repo/pool/bleelblep.show-tag@1.3.5.zip",
-          "sha256": "39575e8ee2a474a44c56938a8d460fbf9eca2e5f3804a597860bd1f340b57b11",
-          "size": 18296,
-          "dependencies": {
-            "valenced.api": {
-              "version": ">=1 <2"
-            },
-            "discord": {
-              "version": ">=350.2"
-            }
-          }
-        }
-      }
-    },
     "bleelblep.staff-tags": {
       "name": "Staff Tags",
       "description": "Shows extra tags for staff members — OWNER, ADMIN, STAFF, MOD, VC Mod, Chat Mod, WEBHOOK.",
