@@ -21,7 +21,8 @@
 import { getReviews } from '../lib/api'
 import { defaultAvatar, TAG } from '../lib/discord'
 import { ReviewType, type UserReviewsData } from '../lib/entities'
-import { ReviewerPile } from '../ui/native'
+import { Native, ReviewerPile } from '../ui/native'
+import { token } from '../ui/theme'
 import { openReviews } from '../ui/routes'
 import { Design } from '@valenced/discord/design'
 import { Stores } from '@valenced/discord/flux'
@@ -57,12 +58,58 @@ function ProfileCardComponent(): any {
 	if (profileCard === undefined) {
 		try {
 			const mod = (finders as any).lookupModuleWithImportedPath(CARD_PATH)?.[0]
-			profileCard = typeof mod?.default === 'function' ? mod.default : null
+			profileCard = isComponent(mod?.default) ? mod.default : null
 		} catch {
 			profileCard = null
 		}
 	}
 	return profileCard
+}
+
+const WRAPPERS = new Set(['react.memo', 'react.forward_ref', 'react.lazy'].map(name => Symbol.for(name)))
+
+/**
+ * Something React can draw as a component: a function or class, or a memo / forwardRef / lazy
+ * wrapper. Anything else (a module object, an element) throws "Element type is invalid" and takes
+ * the whole profile down with it.
+ */
+function isComponent(value: unknown): boolean {
+	if (typeof value === 'function') return true
+	return !!value && typeof value === 'object' && WRAPPERS.has((value as { $$typeof?: symbol }).$$typeof as symbol)
+}
+
+/** `value` if it's a component; otherwise reports which of Discord's parts changed (once) and gives undefined. */
+function part(name: string, value: unknown): any {
+	if (isComponent(value)) return value
+	const shape =
+		value && typeof value === 'object' ? `an object with ${Object.keys(value).slice(0, 8).join(', ') || 'no keys'}` : typeof value
+	reportError(`${TAG} Discord's ${name} is ${shape}, not a component; the reviews card uses its plain version.`)
+	return undefined
+}
+
+/** The reviews row drawn with React Native only, for when Discord's table row can't be used. */
+function PlainRow({ label, subLabel, onPress }: { label: string; subLabel?: string; onPress?: () => void }) {
+	const { Pressable, Text, View } = ReactNative
+	return (
+		<Pressable
+			disabled={!onPress}
+			onPress={onPress}
+			accessibilityRole="button"
+			style={{
+				borderRadius: 16,
+				paddingHorizontal: 16,
+				paddingVertical: 12,
+				backgroundColor: token('CARD_SECONDARY_BG', token('BACKGROUND_MOD_SUBTLE', '#2b2d31')),
+			}}
+		>
+			<View>
+				<Text style={{ color: token('TEXT_DEFAULT', '#dbdee1'), fontSize: 16, fontWeight: '500' }}>{label}</Text>
+				{subLabel ? (
+					<Text style={{ color: token('TEXT_MUTED', '#949ba4'), fontSize: 14, marginTop: 2 }}>{subLabel}</Text>
+				) : null}
+			</View>
+		</Pressable>
+	)
 }
 
 function usernameOf(userId: string): string {
@@ -122,7 +169,11 @@ function Reviewers({ data }: { data: UserReviewsData }) {
 }
 
 function ReviewsCard({ userId }: { userId: string }) {
-	const { TableRowGroup, TableRow, Card, Text } = Design as any
+	const D = Design as any
+	const TableRowGroup = part('TableRowGroup', D?.TableRowGroup)
+	const TableRow = part('TableRow', D?.TableRow)
+	const Card = part('Card', D?.Card)
+	const Text = part('Text', D?.Text)
 	const [data, setData] = React.useState<UserReviewsData | null>(() => cache.get(userId)?.data ?? null)
 	const [failed, setFailed] = React.useState(false)
 	// Bumped by "tap to try again" to run the lookup once more.
@@ -160,26 +211,30 @@ function ReviewsCard({ userId }: { userId: string }) {
 	const count = data?.reviewCount ?? 0
 	const label = failed && !data ? "Couldn't load reviews" : !data ? 'Loading…' : optedOut ? 'User opted out' : count ? `${count} ${count === 1 ? 'review' : 'reviews'}` : 'No reviews yet'
 
-	const row = (
-		<TableRowGroup hasIcons={false}>
-			<TableRow
-				label={label}
-				subLabel={
-					failed && !data ? 'Tap to try again' : !optedOut && data ? 'Tap to read or write reviews' : undefined
-				}
-				trailing={data && count ? <Reviewers data={data} /> : undefined}
-				arrow={!optedOut && !(failed && !data)}
-				disabled={optedOut}
-				onPress={
-					failed && !data
-						? () => setAttempt(n => n + 1)
-						: optedOut
-							? undefined
-							: () => openReviews(userId, usernameOf(userId), ReviewType.User)
-				}
-			/>
-		</TableRowGroup>
-	)
+	const subLabel =
+		failed && !data ? 'Tap to try again' : !optedOut && data ? 'Tap to read or write reviews' : undefined
+	const onPress =
+		failed && !data
+			? () => setAttempt(n => n + 1)
+			: optedOut
+				? undefined
+				: () => openReviews(userId, usernameOf(userId), ReviewType.User)
+
+	const row =
+		TableRowGroup && TableRow ? (
+			<TableRowGroup hasIcons={false}>
+				<TableRow
+					label={label}
+					subLabel={subLabel}
+					trailing={data && count ? <Reviewers data={data} /> : undefined}
+					arrow={!optedOut && !(failed && !data)}
+					disabled={optedOut}
+					onPress={onPress}
+				/>
+			</TableRowGroup>
+		) : (
+			<PlainRow label={label} subLabel={subLabel} onPress={onPress} />
+		)
 
 	const UserProfileCard = ProfileCardComponent()
 	if (UserProfileCard) {
@@ -189,13 +244,38 @@ function ReviewsCard({ userId }: { userId: string }) {
 			</UserProfileCard>
 		)
 	}
-	return (
+	const { View, Text: PlainText } = ReactNative
+	const title = Text ? (
+		<Text variant="text-sm/medium" color="text-strong" style={{ marginBottom: 8 }}>
+			User Reviews
+		</Text>
+	) : (
+		<PlainText style={{ color: token('TEXT_STRONG', '#f2f3f5'), fontSize: 14, fontWeight: '500', marginBottom: 8 }}>
+			User Reviews
+		</PlainText>
+	)
+	return Card ? (
 		<Card>
-			<Text variant="text-sm/medium" color="text-strong" style={{ marginBottom: 8 }}>
-				User Reviews
-			</Text>
+			{title}
 			{row}
 		</Card>
+	) : (
+		<View>
+			{title}
+			{row}
+		</View>
+	)
+}
+
+/**
+ * The card inside the same guard Discord's avatars use (ui/native.tsx): if anything in it still
+ * fails to render on some Discord version, the card is left out and the profile opens as normal.
+ */
+function GuardedReviewsCard({ userId }: { userId: string }) {
+	return (
+		<Native name="reviews card" available fallback={null}>
+			<ReviewsCard userId={userId} />
+		</Native>
 	)
 }
 
@@ -259,7 +339,7 @@ export default function patchProfileCard(): () => void {
 					const userId = props?.userId
 					if (typeof userId !== 'string') return ret
 					try {
-						const card = <ReviewsCard userId={userId} />
+						const card = <GuardedReviewsCard userId={userId} />
 						return ret ? (
 							<>
 								{ret}
@@ -306,7 +386,7 @@ export default function patchProfileCard(): () => void {
 					const userId = props?.user?.id
 					if (typeof userId !== 'string') return ret
 					try {
-						return appendToCardList(ret, <ReviewsCard key="reviewdb-card" userId={userId} />) ?? ret
+						return appendToCardList(ret, <GuardedReviewsCard key="reviewdb-card" userId={userId} />) ?? ret
 					} catch (error) {
 						reportError(`${TAG} bot profile card render failed:`, error)
 						return ret

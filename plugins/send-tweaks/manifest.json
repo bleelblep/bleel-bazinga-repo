@@ -2,10 +2,10 @@
 	"format": 1,
 	"id": "bleelblep.send-tweaks",
 	"name": "Send Tweaks",
-	"description": "Cleans links, polishes wording and applies your own find-and-replace rules.",
+	"description": "Cleans links, polishes wording, applies your own find-and-replace rules and gives you a few seconds to undo a send.",
 	"author": "bleelblep, Rosie, WarFade",
 	"icon": "SendMessageIcon",
-	"version": "1.1.2",
+	"version": "1.1.6",
 	"dependencies": {
 		"valenced.api": {
 			"version": ">=1 <2"

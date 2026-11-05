@@ -55,7 +55,7 @@ export default function Settings(_props: Props) {
 								variant="text-sm/normal"
 								style={{ marginTop: 8 }}
 							>
-								Show pronouns on messages, choose whose badges appear, and set
+								Show pronouns on messages and in calls, choose whose badges appear, and set
 								their colours.
 							</Text>
 						</View>
@@ -70,6 +70,13 @@ export default function Settings(_props: Props) {
 							icon={rowIcon('UserIcon', 'ic_profile_24px')}
 							value={s.showInChat}
 							onValueChange={showInChat => update({ showInChat })}
+						/>
+						<TableSwitchRow
+							label="Show in calls"
+							subLabel="Show a pronouns pill on call tiles: under the avatar, or above the name when their video is on."
+							icon={rowIcon('PhoneCallIcon', 'PhoneIcon')}
+							value={s.showInCalls}
+							onValueChange={showInCalls => update({ showInCalls })}
 						/>
 					</TableRowGroup>
 					<TableRowGroup title="Settings" hasIcons>

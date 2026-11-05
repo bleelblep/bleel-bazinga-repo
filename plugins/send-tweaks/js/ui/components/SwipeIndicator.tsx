@@ -6,6 +6,11 @@ import { reportError } from '../../../../../shared/report'
 import { tokenHex } from '../../lib/colours'
 import { TAG } from '../../lib/state'
 import {
+	FLICK_DISTANCE,
+	FLICK_SHOW,
+	flickDrag,
+	flickLift,
+	flickShow,
 	previewDistance,
 	SWIPE_DISTANCE,
 	SWIPE_TRAVEL,
@@ -14,7 +19,7 @@ import {
 } from '../../lib/swipe'
 import type { ComponentType, ReactNode } from 'react'
 import type { Animated } from 'react-native'
-import type { Anchor, Stop, SwipeActions } from '../../lib/swipe'
+import type { Anchor, FlickPhase, Stop, SwipeActions } from '../../lib/swipe'
 
 const BLURPLE = '#5865F2'
 const GREEN = '#23A55A'
@@ -387,33 +392,160 @@ function Capsule({
 	)
 }
 
+/**
+ * Flick up to preview: a ghost of the send button, in its colour and corners, that rises with the
+ * finger, with a Preview label beside it. Once letting go would preview, the ghost takes the Preview
+ * colour (the capsule's middle) and the label reads "Let go to preview". Letting go there floats it
+ * on up and fades it; letting go short of it just fades it.
+ *
+ * Its place, opacity and colour come straight from the Animated values in `lib/swipe.ts`, so it
+ * moves with the finger from the first touch move without waiting for a redraw (1.1.4's first try
+ * faded in on a phase change and only showed up once the finger had let go). Only the label's
+ * wording follows `phase`, which can lag a frame.
+ */
+function FlickGhost({
+	Icon,
+	anchor,
+	phase,
+	buttonColour,
+	buttonRadius,
+}: {
+	Icon?: IconComponent
+	anchor: Anchor
+	phase: FlickPhase
+	buttonColour?: unknown
+	buttonRadius?: number
+}) {
+	const { Animated, Dimensions, Text, View } = ReactNative
+	const drag = flickDrag()
+	const bottomColour = sendButtonColour(buttonColour)
+	const previewColour = mix(GREEN, bottomColour, 0.5)
+	const ready = phase === 'ready' || phase === 'done'
+	const size = Math.max(anchor.width, anchor.height)
+	const radius = Math.min(size / 2, buttonRadius ?? Math.round(size * 0.3))
+	const left = anchor.x + anchor.width / 2 - size / 2
+	const top = anchor.y + anchor.height - size
+	// Hidden for a tap's jitter, see-through on the way up, solid once letting go would preview.
+	const opacity = Animated.multiply(
+		flickShow(),
+		drag.interpolate({
+			inputRange: [0, FLICK_SHOW, FLICK_DISTANCE - 1, FLICK_DISTANCE],
+			outputRange: [0, 0.75, 0.75, 1],
+			extrapolate: 'clamp',
+		}),
+	)
+	const fill = drag.interpolate({
+		inputRange: [FLICK_DISTANCE - 1, FLICK_DISTANCE],
+		outputRange: [bottomColour, previewColour],
+		extrapolate: 'clamp',
+	})
+	// Follows the finger to a little past the preview point, then waits there.
+	const y = Animated.multiply(
+		Animated.add(
+			drag.interpolate({
+				inputRange: [0, FLICK_DISTANCE * 1.5],
+				outputRange: [0, FLICK_DISTANCE * 1.5],
+				extrapolate: 'clamp',
+			}),
+			flickLift(),
+		),
+		-1,
+	)
+	const labelRight = Dimensions.get('window').width - left + 8
+
+	return (
+		<View
+			pointerEvents="none"
+			style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
+		>
+			<Animated.View
+				style={{
+					position: 'absolute',
+					left,
+					top,
+					width: size,
+					height: size,
+					borderRadius: radius,
+					backgroundColor: fill,
+					alignItems: 'center',
+					justifyContent: 'center',
+					elevation: 8,
+					opacity,
+					transform: [{ translateY: y }],
+				}}
+			>
+				{Icon ? (
+					<Icon size="sm" color="#FFFFFF" />
+				) : (
+					<Text style={{ color: '#FFFFFF', fontSize: 18, fontWeight: '700' }}>
+						↑
+					</Text>
+				)}
+			</Animated.View>
+			{/* The label rides with the ghost, level with its middle. */}
+			<Animated.View
+				style={{
+					position: 'absolute',
+					left: 0,
+					right: 0,
+					top: top + size / 2,
+					transform: [{ translateY: y }],
+				}}
+			>
+				<StopLabel
+					top={0}
+					right={labelRight}
+					opacity={opacity}
+					lit={ready}
+					colour={previewColour}
+					idle="Preview"
+					active="Let go to preview"
+				/>
+			</Animated.View>
+		</View>
+	)
+}
+
 export default function SwipeIndicator({
 	Icon,
 	actions,
+	flick,
 	buttonColour,
 	buttonRadius,
 }: {
 	Icon?: IconComponent
 	actions: SwipeActions
+	flick?: boolean
 	buttonColour?: unknown
 	buttonRadius?: number
 }) {
-	const { armed, stop, anchor } = useSwipeState()
+	const { armed, stop, anchor, flick: phase } = useSwipeState()
 	const Portal = getPortal()
 	if (!Portal || !anchor) return null
 	const SafeBoundary = getBoundary()
 	return (
 		<SafeBoundary>
 			<Portal>
-				<Capsule
-					Icon={Icon}
-					anchor={anchor}
-					armed={armed}
-					stop={stop}
-					actions={actions}
-					buttonColour={buttonColour}
-					buttonRadius={buttonRadius}
-				/>
+				{actions.preview || actions.send ? (
+					<Capsule
+						Icon={Icon}
+						anchor={anchor}
+						armed={armed}
+						stop={stop}
+						actions={actions}
+						buttonColour={buttonColour}
+						buttonRadius={buttonRadius}
+					/>
+				) : null}
+				{flick ? (
+					<FlickGhost
+						Icon={Icon}
+						anchor={anchor}
+						phase={phase}
+						buttonColour={buttonColour}
+						buttonRadius={buttonRadius}
+					/>
+				) : null}
 			</Portal>
 		</SafeBoundary>
 	)

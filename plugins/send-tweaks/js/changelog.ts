@@ -3,6 +3,24 @@ import type { ChangelogEntry } from '../../../shared/changelog'
 /** Newest first. Every public version gets an entry; see shared/changelog.tsx. */
 export const CHANGELOG: ChangelogEntry[] = [
 	{
+		version: '1.1.6',
+		date: '2026-11-04',
+		title: 'Undo send',
+		changes: [
+			'New: Undo send. After you press send, the message waits 3, 5 or 10 seconds with an Undo bar above the box. Tap it and the text, reply and files are back in the box. Off by default, in Settings.',
+			'Switching apps, locking the phone, logging out or switching account cancels anything still waiting and puts it back in the box. Nothing is sent in the background.',
+		],
+	},
+	{
+		version: '1.1.5',
+		date: '2026-11-03',
+		title: 'Flick to preview',
+		changes: [
+			'New: flick up off the send button to preview, no hold needed. Off by default. A ghost of the button follows your finger and lights up once letting go will preview.',
+			'With Tap send to preview on, the swipe preview and the flick are greyed out, since a tap already previews. Swipe up to send unchanged still works.',
+		],
+	},
+	{
 		version: '1.1.2',
 		date: '2026-11-02',
 		title: 'Search, sort and cleaner imports',

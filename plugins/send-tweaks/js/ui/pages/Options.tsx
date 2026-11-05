@@ -18,6 +18,7 @@ import { FieldRow } from '../fieldGroup'
 import { dangerIcon, rowIcon } from '../icon'
 import { useBottomPadding } from '../safeArea'
 import type { SendTweaksStorage } from '../../types'
+import { DELAYS, delayMs } from '../../undo/state'
 
 function SingleLineField({
 	value,
@@ -106,16 +107,55 @@ export default function Options() {
 						/>
 					</TableRowGroup>
 
+					<TableRowGroup title="Undo send" hasIcons>
+						<TableSwitchRow
+							label="Undo send"
+							subLabel="After you press send, the message waits a few seconds with an Undo bar above the box. Tap it and the text is back in the box. Nobody sees the message until the wait ends."
+							icon={rowIcon('ArrowAngleLeftUpIcon', 'ClockIcon', 'ic_clock')}
+							value={!!s.undoSend}
+							onValueChange={value => set({ undoSend: value })}
+						/>
+						<TableSwitchRow
+							label="Hold photos and files too"
+							subLabel={
+								s.undoSend
+									? 'Undo puts the photos and files back above the box too.'
+									: 'Turn on Undo send to use this.'
+							}
+							icon={rowIcon('ImageIcon', 'AttachmentIcon', 'ic_image')}
+							disabled={!s.undoSend}
+							value={s.undoSendFiles !== false}
+							onValueChange={value => set({ undoSendFiles: value })}
+						/>
+					</TableRowGroup>
+
+					{s.undoSend ? (
+						<TableRadioGroup
+							key={`undo-delay-${s.undoSendDelay}`}
+							title="Wait before sending"
+							description="Switching apps, locking the phone, logging out or switching account cancels anything still waiting and puts it back in the box. Up to 3 wait at once; more send straight away."
+							defaultValue={delayMs(s) / 1000}
+							onChange={(undoSendDelay: number) => set({ undoSendDelay })}
+						>
+							{DELAYS.map(d => (
+								<TableRadioRow key={d} label={`${d} seconds`} value={d} />
+							))}
+						</TableRadioGroup>
+					) : null}
+
 					<TableRowGroup title="Hold send and swipe up" hasIcons>
 						<TableSwitchRow
 							label="Message preview"
 							subLabel={
-								s.swipeSendUnchanged
-									? 'Let go halfway up to see the message as it will be sent, then send it or close.'
-									: 'Let go at the top to see the message as it will be sent, then send it or close.'
+								s.tapToPreview
+									? 'Off while Tap send to preview is on: a tap already shows the preview.'
+									: s.swipeSendUnchanged
+										? 'Let go halfway up to see the message as it will be sent, then send it or close.'
+										: 'Let go at the top to see the message as it will be sent, then send it or close.'
 							}
 							icon={rowIcon('EyeIcon', 'ic_eye')}
-							value={!!s.swipePreview}
+							disabled={!!s.tapToPreview}
+							value={!!s.swipePreview && !s.tapToPreview}
 							onValueChange={value => {
 								set({ swipePreview: value })
 								requireReload()
@@ -133,13 +173,31 @@ export default function Options() {
 						/>
 					</TableRowGroup>
 
-					<TableRowGroup title="Tap send" hasIcons>
+					<TableRowGroup title="Preview without holding" hasIcons>
+						<TableSwitchRow
+							label="Flick up to preview"
+							subLabel={
+								s.tapToPreview
+									? 'Off while Tap send to preview is on: a tap already shows the preview.'
+									: 'A quick flick up off send, no hold needed, shows the preview. Holding still works as above.'
+							}
+							icon={rowIcon('ArrowLargeUpIcon', 'EyeIcon')}
+							disabled={!!s.tapToPreview}
+							value={!!s.flickToPreview && !s.tapToPreview}
+							onValueChange={value => {
+								set({ flickToPreview: value })
+								requireReload()
+							}}
+						/>
 						<TableSwitchRow
 							label="Tap send to preview"
 							subLabel="Tapping send shows the preview first, then Send sends it. Use this if holding send doesn't work for you. Empty messages and / commands send straight away."
 							icon={rowIcon('ScreenIcon', 'EyeIcon')}
 							value={!!s.tapToPreview}
-							onValueChange={value => set({ tapToPreview: value })}
+							onValueChange={value => {
+								set({ tapToPreview: value })
+								requireReload()
+							}}
 						/>
 					</TableRowGroup>
 

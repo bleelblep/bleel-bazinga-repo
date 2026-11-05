@@ -3,6 +3,24 @@ import type { ChangelogEntry } from '../../../shared/changelog'
 /** Newest first. Every version users got gets an entry; see shared/changelog.tsx. */
 export const CHANGELOG: ChangelogEntry[] = [
 	{
+		version: '1.3.21',
+		date: '2026-11-05',
+		title: 'You bar corner and colour',
+		changes: ['No more square edge beside your avatar: the bar and your nameplate run smoothly under it.', "With a nameplate, the bar uses your theme's colour instead of Discord's grey."],
+	},
+	{
+		version: '1.3.13',
+		date: '2026-11-05',
+		title: 'You bar fill',
+		changes: ['The You bar is solid again instead of see-through.'],
+	},
+	{
+		version: '1.3.12',
+		date: '2026-11-04',
+		title: 'Quest panel fixed',
+		changes: ['The "Quest completed!" panel is a rounded panel again, not a giant half-circle. The small quest dock stays a pill.'],
+	},
+	{
 		version: '1.3.11',
 		date: '2026-11-02',
 		title: 'Tidier settings',

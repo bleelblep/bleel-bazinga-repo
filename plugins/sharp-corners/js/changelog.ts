@@ -3,6 +3,18 @@ import type { ChangelogEntry } from '../../../shared/changelog'
 /** Newest first. Every version users got gets an entry; see shared/changelog.tsx. */
 export const CHANGELOG: ChangelogEntry[] = [
 	{
+		version: '0.1.11',
+		date: '2026-11-05',
+		title: 'You bar fill',
+		changes: ['The You bar is solid again instead of see-through.'],
+	},
+	{
+		version: '0.1.10',
+		date: '2026-11-04',
+		title: 'You bar cut-out',
+		changes: ['The You bar no longer has a round notch beside your square avatar and status dot.'],
+	},
+	{
 		version: '0.1.9',
 		date: '2026-11-02',
 		title: 'Tidier settings',

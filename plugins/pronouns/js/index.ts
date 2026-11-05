@@ -5,6 +5,7 @@ import { watchDiscord } from './lib/discord'
 import { stop as stopPronounDB } from './lib/pronounDB'
 import { watchChannelMessages } from './lib/redraw'
 import { DEFAULTS, setStorage } from './lib/state'
+import patchCalls from './patches/calls'
 import patchChat from './patches/chat'
 import patchMessageSheet from './patches/messageSheet'
 import Settings from './ui/pages/Settings'
@@ -36,6 +37,7 @@ export default plugin<{ jsonStorage: PronounsStorage }>({
 			watchChannelMessages(),
 		)
 		patchChat(cleanup)
+		patchCalls(cleanup)
 		patchMessageSheet(cleanup)
 	},
 

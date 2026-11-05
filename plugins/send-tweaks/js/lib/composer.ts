@@ -4,14 +4,15 @@
  * `ChatInput` passes two refs to its autocomplete and accessory children: `chatInputRef` (the
  * input's handle, with `getText()`) and `chatInputStateRef` (its live text, caret and edit id).
  * An `after` hook on its render finds them in the tree, without relying on component names, hands
- * them to Replace as you type (`lib/liveReplace.ts`), and wraps the tree in a provider so the send
- * button patch can read the draft at release time.
+ * them to Replace as you type (`lib/liveReplace.ts`), adds Undo send's bar (`undo/bar.tsx`), and wraps
+ * the tree in a provider so the send button patch can read the draft at release time.
  */
 
 import { getModuleWithImportedPath } from '@valenced/discord/utils/modules/finders'
 import { after } from '@valenced/patcher'
 import { createContext, createElement } from 'react'
 import { reportError } from '../../../../shared/report'
+import { decorateChatInput, forgetChatInput } from '../undo/bar'
 import { attachLive, detachLive } from './liveReplace'
 import { renderHost } from './renderHost'
 import type { Context, ReactNode } from 'react'
@@ -79,6 +80,8 @@ export function patchComposer(): () => void {
 						error,
 					)
 				}
+				// Undo send: the input's handle, and the bar above the box. Never throws.
+				decorateChatInput(tree)
 				return createElement(Context.Provider, { value: ref }, tree)
 			})
 		},
@@ -89,6 +92,7 @@ export function patchComposer(): () => void {
 		unsubscribe?.()
 		undo?.()
 		detachLive()
+		forgetChatInput()
 	}
 }
 

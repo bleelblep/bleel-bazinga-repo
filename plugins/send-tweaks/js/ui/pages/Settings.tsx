@@ -54,6 +54,7 @@ export default function Settings({
 
 	const on = [
 		s.silentMessages && 'silent',
+		s.undoSend && 'undo send',
 		s.cleanUrls && 'tracking',
 		s.linkRewrite && 'link rules',
 		s.textReplace && 'text rules',

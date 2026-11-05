@@ -40,6 +40,7 @@ export default plugin<{ jsonStorage: CirclesStorage }>({
 				() => sharpenTokens(() => settings().app).cleanup,
 			],
 			['emoji row', () => squareEmojiRow(() => settings().app)],
+			// Its round cut-out beside the avatar only clashes once the avatar is square.
 			[
 				'status dots',
 				() =>

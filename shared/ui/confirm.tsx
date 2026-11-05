@@ -13,6 +13,20 @@ export function confirmDestructive(options: {
 	action: string
 	onConfirm(): void
 }) {
+	openConfirm(options, 'destructive')
+}
+
+/** The same dialog for a non-destructive "are you sure" (turning on something experimental). */
+export function confirmAction(options: { title: string; body: string; action: string; onConfirm(): void }) {
+	openConfirm(options, 'primary')
+}
+
+function openConfirm(options: {
+	title: string
+	body: string
+	action: string
+	onConfirm(): void
+}, variant: 'destructive' | 'primary') {
 	const { AlertModal, AlertActionButton } = Design as any
 	const Alerts = AlertActionCreators as any
 	const key = `bleelblep-confirm-${Date.now()}`
@@ -25,7 +39,7 @@ export function confirmDestructive(options: {
 				<>
 					<AlertActionButton
 						text={options.action}
-						variant="destructive"
+						variant={variant}
 						onPress={() => {
 							Alerts.dismissAlert(key)
 							options.onConfirm()

@@ -3,6 +3,14 @@ import type { ChangelogEntry } from '../../../shared/changelog'
 /** Newest first. Every version users got gets an entry; see shared/changelog.tsx. */
 export const CHANGELOG: ChangelogEntry[] = [
 	{
+		version: '0.1.28',
+		date: '2026-11-04',
+		title: 'Safer profile card',
+		changes: [
+			"The reviews card on profiles checks Discord's parts before using them and falls back to a plain look when one has changed. If it still can't be drawn, it's left out and the profile opens as normal, instead of the whole profile failing.",
+		],
+	},
+	{
 		version: '0.1.27',
 		date: '2026-11-02',
 		title: 'Credit line',

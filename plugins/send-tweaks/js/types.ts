@@ -119,6 +119,20 @@ export interface SendTweaksStorage {
 	 * can't do the hold-and-swipe. Optional: older storage has no value, which reads as off.
 	 */
 	tapToPreview?: boolean
+	/**
+	 * A quick flick up off send, with no hold, opens the preview. Off with Tap send to preview on.
+	 * Optional: older storage has no value, which reads as off.
+	 */
+	flickToPreview?: boolean
+	/**
+	 * Undo send: hold each new message for a few seconds with an Undo bar above the box. Optional:
+	 * older storage has no value, which reads as off.
+	 */
+	undoSend?: boolean
+	/** How long a message waits, in seconds: 3, 5 or 10. Anything else reads as 5. */
+	undoSendDelay?: number
+	/** Hold messages with a photo or file on them too. Unset reads as on. */
+	undoSendFiles?: boolean
 	/** How Replacement rules and Link rules are listed (`lib/ruleSort.ts`). Display only. */
 	textRulesSort?: string
 	linkRulesSort?: string

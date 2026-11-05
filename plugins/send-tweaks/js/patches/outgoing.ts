@@ -53,6 +53,7 @@ import { withSendRandom } from '../lib/random'
 import { makeSilent } from '../lib/silent'
 import { debug, settings, TAG } from '../lib/state'
 import { transform } from '../lib/transform'
+import { rememberTyped } from '../undo/hold'
 import type { OneOff } from '../lib/nextSend'
 
 const DEBUG: boolean = false
@@ -194,6 +195,8 @@ export default function patchOutgoing(): () => void {
 								return args
 							}
 							const [channelId, message] = args
+							// Undo send gives back the text as typed, not as rewritten (undo/hold.ts).
+							rememberTyped(message)
 							// The channel and reply target, for greeting placeholders (lib/greetings.ts).
 							const reference = args.find(hasMessageReference)?.messageReference
 							withSendContext(

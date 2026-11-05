@@ -131,7 +131,7 @@ function squareCutoutProps(node: any, sharpenRects: boolean, depth = 0): any {
 }
 
 /** Avatar is a plain function, a memo(fn) or a forwardRef depending on the build. */
-function componentTarget(exported: any, ns: any): [any, string] | undefined {
+export function componentTarget(exported: any, ns: any): [any, string] | undefined {
 	return typeof exported === 'function'
 		? [ns, 'default']
 		: typeof exported?.type === 'function'

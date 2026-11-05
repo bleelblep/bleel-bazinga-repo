@@ -140,7 +140,8 @@ A web browser inside Discord, in a new tab of the emoji picker. Android only.
 
 ### Pronouns
 
-People's pronouns as a small tag next to their name in chat.
+People's pronouns as a small tag next to their name in chat, and after their name in calls
+(call tiles and the people under voice channels).
 
 - Read from their Discord profile (the server profile first), and optionally from
   [PronounDB](https://pronoundb.org).
@@ -193,10 +194,13 @@ Tidies your messages as you send them. Link cleaning, polish and your rules neve
   time zone. `{rainbow:text}` becomes rainbow-coloured text. Colour codes written into ` ```ansi `
   blocks are fixed up so the colours show.
 - **Silent messages (off by default):** send every new message without notifying anyone.
+- **Undo send (off by default):** a message waits 3, 5 or 10 seconds with an Undo bar above the
+  box. Tap Undo and the text, reply and photos go back in the box. Leaving the app or switching
+  account cancels anything still waiting. Nothing is sent in the background.
 - **Reply pings (opt-in):** start replies with the @ mention switched off. You can still turn it back on.
 - **Hold and swipe the send button:** let go halfway to preview the finished message before
-  sending, or swipe all the way up to send it exactly as typed. You can also make a plain tap open
-  the preview.
+  sending, or swipe all the way up to send it exactly as typed. You can also flick up off the
+  button to preview without holding, or make a plain tap open the preview.
 - **Edits:** cleaning and rules apply to edited messages too (you can turn this off). An old
   message is tidied as soon as you open it for editing, so you see the result before saving.
 

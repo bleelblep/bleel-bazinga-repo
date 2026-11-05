@@ -10,6 +10,10 @@
  * text inside a code block. A message this plugin has nothing to say about is sent exactly as it
  * would have been without it.
  *
+ * Undo send (`undo/`, off by default) holds a message for a few seconds after you press send, with
+ * an Undo bar above the box. It was its own plugin before. Only its timer sends; stopping the
+ * plugin, leaving the app or an account change cancel what's waiting and put it back in the box.
+ *
  * AI Core is an **optional** dependency: with it installed, the Ready-made screens can write a rule
  * from a description (`lib/aiRule.ts`). Without it, `api.ai` is undefined and nothing AI-related shows.
  */
@@ -30,6 +34,10 @@ import Settings from './ui/pages/Settings'
 import { AI_ROUTE, registerPages } from './ui/routes'
 import { safePage } from './ui/safePage'
 import type { AiHandle, SendTweaksStorage } from './types'
+import { clear as clearHeld } from './undo/holds'
+import patchHold from './undo/hold'
+import watchAccount from './undo/watchAccount'
+import watchAppState from './undo/watchAppState'
 
 export { DEFAULTS }
 export type { SendTweaksStorage }
@@ -85,6 +93,12 @@ export default plugin<{ jsonStorage: SendTweaksStorage }>({
 		apply('reply ping menu', patchReplyPeopleSheet)
 		apply('live composer', patchComposer)
 		apply('send button', patchSendButton)
+		// Undo send. The hook is always there and checks the switch on every send.
+		apply('undo send', patchHold)
+		apply('undo send app state', watchAppState)
+		apply('undo send account', watchAccount)
+		// Stop cancels anything held and puts it back in the box; nothing is sent.
+		cleanup(clearHeld)
 
 		// The ClearURLs and ready-made rules refresh themselves about weekly. Checked a little after start: storage is
 		// read without being awaited (`load: true`), and until it lands the defaults say "never

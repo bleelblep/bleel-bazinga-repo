@@ -30,12 +30,22 @@
  * `onTouchStart` never arrives and the swipe can't be followed; the long-press then opens the
  * preview straight away instead of doing nothing.
  *
+ * ## Flick up to preview
+ *
+ * A quick flick up off the button, with no hold, opens the preview (a user asked for it: the hold
+ * is the slow part). It reuses the touch handlers: the finger's highest point is kept, and letting
+ * go at least `FLICK_DISTANCE` above where it went down, without the hold having armed, previews.
+ * The finger is then well outside the pressable's retention area, so it doesn't send as well; in
+ * case some build keeps the press anyway, `onPress` is skipped for a touch that went that far up.
+ *
  * ## Tap to preview
  *
  * Not everyone can hold and slide (testers reported the hold never registering, and some people
  * just can't do the gesture). With "Tap send to preview" on, a plain tap opens the preview, and its
  * Send button calls Discord's own `onPress`. An empty or unreadable draft (attachments only, the
  * composer not found yet) and slash commands send normally, so a tap never gets stuck.
+ * With it on, the swipe's Preview stop and the flick are switched off (`effectiveActions`): the tap
+ * already previews. Send unchanged stays, since nothing else sends exactly as typed.
  *
  * ## An `instead` on the render
  *
@@ -59,7 +69,17 @@ import { sendOnce } from '../lib/nextSend'
 import { showPreview } from '../lib/preview'
 import { renderHost } from '../lib/renderHost'
 import { settings, TAG } from '../lib/state'
-import { setSwipe, setSwipeDistance, stopAt } from '../lib/swipe'
+import {
+	endFlick,
+	FLICK_DISTANCE,
+	FLICK_SHOW,
+	hideFlick,
+	setFlickDistance,
+	setSwipe,
+	setSwipeDistance,
+	startFlick,
+	stopAt,
+} from '../lib/swipe'
 import SwipeIndicator from '../ui/components/SwipeIndicator'
 import type { ComponentType, ReactElement, ReactNode } from 'react'
 import type { StyleProp, ViewStyle } from 'react-native'
@@ -118,6 +138,7 @@ const status = {
 	swiped: 0,
 	previewed: 0,
 	tapped: 0,
+	flicked: 0,
 	fallbacks: 0,
 	touchesSeen: false,
 }
@@ -127,7 +148,34 @@ export function sendButtonStatus() {
 }
 
 /** The touch in progress on the send button. One finger, one button: module state is enough. */
-const gesture = { touched: false, armed: false, stop: 0 as Stop, startY: 0 }
+const gesture = {
+	touched: false,
+	/** The flick has gone far enough to preview; for the tick when it first gets there. */
+	flickReady: false,
+	armed: false,
+	stop: 0 as Stop,
+	startY: 0,
+	/** Highest the finger has been this touch, in dp above where it went down. */
+	maxUp: 0,
+}
+
+/** What the send button does, from the settings. Tap to preview turns off the other previews. */
+export function effectiveActions(s: {
+	swipePreview?: boolean
+	swipeSendUnchanged?: boolean
+	flickToPreview?: boolean
+	tapToPreview?: boolean
+}): { actions: SwipeActions; flick: boolean; tapPreview: boolean } {
+	const tapPreview = !!s.tapToPreview
+	return {
+		actions: {
+			preview: !!s.swipePreview && !tapPreview,
+			send: !!s.swipeSendUnchanged,
+		},
+		flick: !!s.flickToPreview && !tapPreview,
+		tapPreview,
+	}
+}
 
 function buzz(ms: number) {
 	try {
@@ -189,8 +237,10 @@ function swipeProps(
 	element: ButtonElement,
 	send: SendPress,
 	actions: SwipeActions,
+	flick: boolean,
 	getDraft: () => string | undefined,
 ): Partial<PressableProps> {
+	const swipe = actions.preview || actions.send
 	const sendFn = send ? () => send() : undefined
 	const pageY = (event: TouchEvent): number =>
 		event.nativeEvent?.pageY ?? gesture.startY
@@ -201,7 +251,7 @@ function swipeProps(
 		setSwipe({ armed: false, stop: 0 })
 		setSwipeDistance(0)
 	}
-	return {
+	const hold: Partial<PressableProps> = {
 		delayLongPress: 250,
 		onLongPress: () => {
 			// The pressable dropped the touch props, so the swipe can't be followed: the hold alone
@@ -220,20 +270,40 @@ function swipeProps(
 			gesture.armed = true
 			gesture.stop = 0
 			setSwipeDistance(0)
-			setSwipe({ armed: true, stop: 0 })
+			hideFlick()
+			setSwipe({ armed: true, stop: 0, flick: 'idle' })
 			buzz(10)
 		},
+	}
+	return {
+		...(swipe ? hold : null),
 		onTouchStart: chain(element, 'onTouchStart', event => {
 			gesture.touched = true
 			gesture.armed = false
 			gesture.stop = 0
 			gesture.startY = pageY(event)
+			gesture.maxUp = 0
+			gesture.flickReady = false
+			startFlick()
+			setSwipe({ flick: 'idle' })
 			if (DEBUG) status.touchesSeen = true
 			anchorFrom(event)
 		}),
 		onTouchMove: chain(element, 'onTouchMove', event => {
-			if (!gesture.armed) return
 			const up = gesture.startY - pageY(event)
+			if (up > gesture.maxUp) gesture.maxUp = up
+			if (!gesture.armed) {
+				if (!flick) return
+				// The ghost button follows the finger; a tick when letting go would preview.
+				setFlickDistance(up)
+				const ready = up >= FLICK_DISTANCE
+				if (ready && !gesture.flickReady) buzz(12)
+				gesture.flickReady = ready
+				setSwipe({
+					flick: ready ? 'ready' : up >= FLICK_SHOW ? 'moving' : 'idle',
+				})
+				return
+			}
 			setSwipeDistance(up)
 			const stop = stopAt(up, actions)
 			if (stop === gesture.stop) return
@@ -245,9 +315,21 @@ function swipeProps(
 		}),
 		onTouchEnd: chain(element, 'onTouchEnd', event => {
 			const armed = gesture.armed
-			const stop = stopAt(gesture.startY - pageY(event), actions)
+			const up = gesture.startY - pageY(event)
+			const stop = stopAt(up, actions)
 			end()
-			if (!armed) return
+			if (!armed) {
+				// A flick: no hold, and let go well above the button.
+				if (flick && up >= FLICK_DISTANCE) {
+					endFlick(true)
+					setSwipe({ flick: 'done' })
+					if (showPreview(getDraft(), sendFn) && DEBUG) status.flicked++
+				} else {
+					endFlick(false)
+					setSwipe({ flick: 'idle' })
+				}
+				return
+			}
 			// Letting go below the first stop cancels.
 			if (stop === 1) {
 				if (showPreview(getDraft(), sendFn) && DEBUG) status.previewed++
@@ -256,7 +338,11 @@ function swipeProps(
 				sendOnce('raw', sendFn)
 			}
 		}),
-		onTouchCancel: chain(element, 'onTouchCancel', () => end()),
+		onTouchCancel: chain(element, 'onTouchCancel', () => {
+			end()
+			endFlick(false)
+			setSwipe({ flick: 'idle' })
+		}),
 	}
 }
 
@@ -371,29 +457,41 @@ function SwipeButton({
 	element,
 	buttonProps,
 	actions,
+	flick,
 	tapPreview,
 }: {
 	element: ButtonElement
 	buttonProps: ActionButtonProps
 	actions: SwipeActions
+	flick: boolean
 	tapPreview: boolean
 }) {
 	const composer = React.useContext(composerContext())
 	const getDraft = () => readComposer(composer)
 	const swipe = actions.preview || actions.send
 	const send = element.props.onPress
+	const press = tapPreview ? tapProps(send, getDraft).onPress : send
 	return React.cloneElement(
 		element,
 		{
-			...(swipe ? swipeProps(element, send, actions, getDraft) : null),
-			...(tapPreview ? tapProps(send, getDraft) : null),
+			...(swipe || flick
+				? swipeProps(element, send, actions, flick, getDraft)
+				: null),
+			// A touch that went far enough up to be a flick previewed on its own; it must not send too.
+			onPress: flick
+				? (...args: unknown[]) => {
+						if (gesture.maxUp >= FLICK_DISTANCE) return
+						press?.(...args)
+					}
+				: press,
 		},
 		element.props.children,
-		!swipe ? null : (
+		!swipe && !flick ? null : (
 			<SwipeIndicator
 				key="send-tweaks-swipe"
 				Icon={buttonProps.IconComponent}
 				actions={actions}
+				flick={flick}
 				buttonColour={buttonColour(element, buttonProps)}
 				buttonRadius={buttonRadius(element)}
 			/>
@@ -419,13 +517,11 @@ export default function patchSendButton(): () => void {
 		const unpatch = instead(target.host, target.key, function (args, original) {
 			const element = original.apply(this, args)
 			const [props] = args
-			const s = settings()
-			const actions = {
-				preview: !!s.swipePreview,
-				send: !!s.swipeSendUnchanged,
-			}
-			const tapPreview = !!s.tapToPreview
-			if (!active || (!actions.preview && !actions.send && !tapPreview))
+			const { actions, flick, tapPreview } = effectiveActions(settings())
+			if (
+				!active ||
+				(!actions.preview && !actions.send && !flick && !tapPreview)
+			)
 				return element
 			try {
 				if (!React.isValidElement<PressableProps>(element)) return element
@@ -439,6 +535,7 @@ export default function patchSendButton(): () => void {
 						element={element}
 						buttonProps={props ?? {}}
 						actions={actions}
+						flick={flick}
 						tapPreview={tapPreview}
 					/>
 				)

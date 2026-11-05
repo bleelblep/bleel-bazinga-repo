@@ -12,8 +12,7 @@
  * still has its pre-redesign `circle` prop; patches/selectionFrame.ts sets it.
  */
 
-import { createElement } from 'react'
-import { View } from 'react-native'
+import { maskedBackground, pillNameplate } from './youBar'
 import { hookRender } from './hook'
 import { type Rule, rules } from './rounder'
 import { overrideToken, roundCorners, stockCorners } from './tokens'
@@ -78,17 +77,26 @@ export const TARGETS: Target[] = [
 			// 9999, not 28: on the You tab the bar grows into the taller Quests/Shop/Settings bar (same
 			// token), where 28 is only a rounded rectangle. React Native clamps 9999 to a pill at any height.
 			const token = overrideToken('YOU_BAR_BORDER_RADIUS', () => settings().youBar, () => 9999)
-			// YouBarBackground still drew its own shape beside the avatar on 352.6 (2026-10-28): a square
-			// top-left corner and a faint circle cut-out, out of line with the pill. With it not drawn the
-			// bar looked right on the phone (found by accident: a DevTools capture hook returned nothing).
-			// Hidden, not removed: it has to keep rendering. Discord loads its MaskedView and
-			// LinearGradient modules only when something first draws them (YouBarMaskedBackground does),
-			// and other plugins look those up at startup. Returning null left them unloaded and Server
-			// Drawer threw "native carousel mask is unavailable" (1.3.6 and 1.3.7).
+			// The bar's fill is YouBarBackground -> YouBarMaskedBackground: a MaskedView whose mask leaves
+			// out the bottom-left strip under the avatar, with a straight 8 dp fade (352.6, read live
+			// 2026-11-05). Beside a round avatar that straight cut reads as a sharp corner, so the mask is
+			// made whole: the pill runs under the avatar. 1.3.6-1.3.12 hid the layer instead, which
+			// dropped the bar's fill (see-through). The MaskedView itself still renders: other plugins
+			// need its module loaded (Server Drawer, 1.3.6/1.3.7).
+			// With a nameplate, Discord fills the bar with MOBILE_FLOATINGBAR_BACKGROUND_NAMEPLATE, which
+			// most themes don't set (stock grey on a themed bar), so the plain floating bar colour is used.
 			const background = hookRender(`${YOU_BAR}YouBarBackground.tsx`, 'default', tree =>
-				settings().youBar && tree ? createElement(View, { style: { display: 'none' } }, tree) : tree,
+				settings().youBar && tree && typeof tree.type === 'function' ? { ...tree, type: maskedBackground(tree.type) } : tree,
+			)
+			// With a nameplate, its art is a separate layer (YouBarNameplate) that starts right of the
+			// avatar (left = avatarSize) with square left corners, built to meet the cut-out above. With
+			// the cut-out gone it showed as a square edge beside the round avatar (352.6, read live
+			// 2026-11-05), so it spans the whole pill. Its animated style only moves the top-right corner.
+			const nameplate = hookRender(`${YOU_BAR}YouBarNameplate.tsx`, 'default', (tree, props) =>
+				settings().youBar ? pillNameplate(tree, props) : tree,
 			)
 			return () => {
+				nameplate()
 				background()
 				token()
 			}
@@ -144,7 +152,6 @@ export const TARGETS: Target[] = [
 					'MEDIA_KEYBOARD_BUTTON_BORDER_RADIUS',
 					'VOICE_MESSAGE_RECORDING_PILL_BORDER_RADIUS',
 					'VOICE_PANEL_CONTROLS_BORDER_RADIUS',
-					'QUEST_DOCK_BORDER_RADIUS',
 					'button.BORDER_RADIUS',
 					'button.BORDER_RADIUS_LG',
 				],
@@ -154,6 +161,14 @@ export const TARGETS: Target[] = [
 			// and a fully round multi-line box (the profile Bio) curved over its own text (352.6,
 			// 2026-10-28). A ~48 dp single-line field is still a pill at 24, like the message box.
 			const fields: Array<() => void> = []
+			// The quest dock: corner 28, not a pill. The same token shapes the dock when it opens into the
+			// tall "Quest completed!" panel, which fully round turned into a giant half-circle (352.6,
+			// 2026-11-04). 28 still makes the small dock a pill.
+			try {
+				fields.push(overrideToken('QUEST_DOCK_BORDER_RADIUS', active, stock => Math.max(stock, 28)))
+			} catch {
+				/* not on this build */
+			}
 			for (const name of ['INPUT_FIELD_RADIUS_LG', 'INPUT_FIELD_RADIUS_MD', 'INPUT_FIELD_RADIUS_SM']) {
 				try {
 					fields.push(overrideToken(name, active, stock => Math.max(stock, 24)))

@@ -30,6 +30,12 @@ export const DEFAULTS: SendTweaksStorage = {
 	swipeSendUnchanged: true,
 	// Off: it adds a step to every message. The way in for anyone the hold doesn't work for.
 	tapToPreview: false,
+	// Off: a stray flick off the button would open a dialog nobody asked for.
+	flickToPreview: false,
+	// Off: it delays every message, so it is a choice.
+	undoSend: false,
+	undoSendDelay: 5,
+	undoSendFiles: true,
 	applyToEdits: true,
 	debugLogging: false,
 	greetingsUnlocked: false,

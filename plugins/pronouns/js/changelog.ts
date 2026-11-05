@@ -3,10 +3,44 @@ import type { ChangelogEntry } from '../../../shared/changelog'
 /** Newest first. Every version users got gets an entry; see shared/changelog.tsx. */
 export const CHANGELOG: ChangelogEntry[] = [
 	{
+		version: '1.0.8',
+		date: '2026-11-05',
+		title: 'Pronouns on call tiles',
+		changes: [
+			'A small pronouns pill on call tiles: under the avatar, or above the name when their video is on.',
+			'Turn it off with "Show in calls" in the settings.',
+		],
+	},
+	{
+		version: '1.0.7',
+		date: '2026-11-05',
+		title: 'Calls taken out for now',
+		changes: ['Pronouns in calls and under voice channels are gone again while they get fixed. Chat badges work as before.'],
+	},
+	{
+		version: '1.0.6',
+		date: '2026-11-05',
+		title: 'Call pronouns as badges',
+		changes: [
+			"Pronouns in calls and under voice channels are the same badge as in chat, not plain text in the name's font.",
+		],
+	},
+	{
+		version: '1.0.4',
+		date: '2026-11-04',
+		title: 'Pronouns in calls',
+		changes: [
+			"Pronouns now show after people's names on call tiles, and after names under voice channels in the server list.",
+			'Turn it off with "Show in calls" in the settings.',
+		],
+	},
+	{
 		version: '0.5.3',
 		date: '2026-11-01',
 		title: 'Made by',
-		changes: ['A small "Made by bleelblep" line at the foot of the settings page.'],
+		changes: [
+			'A small "Made by bleelblep" line at the foot of the settings page.',
+		],
 	},
 	{
 		version: '0.5.2',

@@ -46,11 +46,96 @@ export function stopAt(up: number, actions: SwipeActions): Stop {
 /** The send button's place on screen (page coordinates), taken from the touch that went down on it. */
 export type Anchor = { x: number; y: number; width: number; height: number }
 
-type State = { armed: boolean; stop: Stop; anchor?: Anchor }
+/**
+ * How far up (dp) a flick (no hold) has to end for it to preview. Far enough that the finger is
+ * clear of the pressable's press-retention area (20dp above it by default) even from the button's
+ * bottom edge.
+ */
+export const FLICK_DISTANCE = 64
 
-let state: State = { armed: false, stop: 0 }
+/** How far up (dp) before the flick's ghost button shows, so a tap's jitter draws nothing. */
+export const FLICK_SHOW = 4
+
+/** How far the ghost floats on past the finger when the flick previews. */
+const FLICK_LIFT = 48
+
+/**
+ * The flick's ghost button (`ui/components/SwipeIndicator.tsx`): `moving` while the finger is on
+ * its way up, `ready` once letting go would preview, `done` when it did, `idle` otherwise.
+ */
+export type FlickPhase = 'idle' | 'moving' | 'ready' | 'done'
+
+type State = { armed: boolean; stop: Stop; anchor?: Anchor; flick: FlickPhase }
+
+let state: State = { armed: false, stop: 0, flick: 'idle' }
 const listeners = new Set<() => void>()
 let drag: Animated.Value | undefined
+let flick: Animated.Value | undefined
+
+/** The flick's finger distance, like `swipeDrag`. Created on first use (coding rule 1). */
+export function flickDrag(): Animated.Value {
+	flick ??= new Animated.Value(0)
+	return flick
+}
+
+export function setFlickDistance(up: number) {
+	flickDrag().setValue(Math.max(0, up))
+}
+
+/*
+ * A flick is over in about a tenth of a second, faster than React can redraw. So the ghost is drawn
+ * entirely from these values, set straight from the touch handlers, and never waits for a render:
+ * the finger's distance (`flickDrag`), whether this touch may show it (`flickShow`), and the float
+ * on past the finger when it previews (`flickLift`). JS-driven throughout, since they are combined
+ * with `flickDrag`, which `setValue` moves.
+ */
+let show: Animated.Value | undefined
+let lift: Animated.Value | undefined
+
+export function flickShow(): Animated.Value {
+	show ??= new Animated.Value(0)
+	return show
+}
+
+export function flickLift(): Animated.Value {
+	lift ??= new Animated.Value(0)
+	return lift
+}
+
+/** A new touch on the button: the ghost follows from here, still hidden until the finger rises. */
+export function startFlick() {
+	flickShow().stopAnimation()
+	flickLift().stopAnimation()
+	flickDrag().setValue(0)
+	flickLift().setValue(0)
+	flickShow().setValue(1)
+}
+
+/** Hides the ghost at once: the hold armed, so the capsule takes over. */
+export function hideFlick() {
+	flickShow().setValue(0)
+}
+
+/** The finger left: float the ghost on and fade it if it previewed, otherwise just fade it. */
+export function endFlick(previewed: boolean) {
+	const fade = Animated.timing(flickShow(), {
+		toValue: 0,
+		duration: previewed ? 220 : 140,
+		useNativeDriver: false,
+	})
+	if (!previewed) {
+		fade.start()
+		return
+	}
+	Animated.parallel([
+		fade,
+		Animated.timing(flickLift(), {
+			toValue: FLICK_LIFT,
+			duration: 220,
+			useNativeDriver: false,
+		}),
+	]).start()
+}
 
 /** Created on first use: `valenced.react` must not be read at module scope (coding rule 1). */
 export function swipeDrag(): Animated.Value {
@@ -63,7 +148,8 @@ export function setSwipe(patch: Partial<State>) {
 	if (
 		next.armed === state.armed &&
 		next.stop === state.stop &&
-		next.anchor === state.anchor
+		next.anchor === state.anchor &&
+		next.flick === state.flick
 	)
 		return
 	state = next
