@@ -329,6 +329,30 @@
         }
       }
     },
+    "bleelblep.picture-links": {
+      "name": "Picture Links",
+      "description": "Tap profile pictures and banners to view them full size, with save and share.",
+      "author": "bleelblep",
+      "icon": "ImageIcon",
+      "channels": {
+        "latest": "0.1.8"
+      },
+      "versions": {
+        "0.1.8": {
+          "url": "https://bleelblep.github.io/bleel-bazinga-repo/pool/bleelblep.picture-links@0.1.8.zip",
+          "sha256": "ec31e5183b876e90508cbdd739a7645730acf10907a0b0ed2553908652f15286",
+          "size": 5450,
+          "dependencies": {
+            "valenced.api": {
+              "version": ">=1 <2"
+            },
+            "discord": {
+              "version": "*"
+            }
+          }
+        }
+      }
+    },
     "bleelblep.pocket-browser": {
       "name": "Pocket Browser",
       "description": "A web browser with tabs and history in a new tab of the emoji picker.",
@@ -701,6 +725,30 @@
         }
       }
     },
+    "bleelblep.speech-bubbles": {
+      "name": "Speech Bubbles",
+      "description": "Chat as speech bubbles, yours on the right and theirs on the left.",
+      "author": "bleelblep",
+      "icon": "ChatIcon",
+      "channels": {
+        "latest": "0.5.30"
+      },
+      "versions": {
+        "0.5.30": {
+          "url": "https://bleelblep.github.io/bleel-bazinga-repo/pool/bleelblep.speech-bubbles@0.5.30.zip",
+          "sha256": "381ff17c0cc565a4c8824204df3a146d82a1d4e1612e176b9c3bf7fa7b3a40c3",
+          "size": 154071,
+          "dependencies": {
+            "valenced.api": {
+              "version": ">=1 <2"
+            },
+            "discord": {
+              "version": ">=352.2"
+            }
+          }
+        }
+      }
+    },
     "bleelblep.staff-tags": {
       "name": "Staff Tags",
       "description": "Shows extra tags for staff members — OWNER, ADMIN, STAFF, MOD, VC Mod, Chat Mod, WEBHOOK.",
@@ -857,6 +905,30 @@
           "url": "https://bleelblep.github.io/bleel-bazinga-repo/pool/bleelblep.timezones@0.2.9.zip",
           "sha256": "927e615e852b07050dc3fe141276efb859d046f99c84356802d403cbdc7be92d",
           "size": 24601,
+          "dependencies": {
+            "valenced.api": {
+              "version": ">=1 <2"
+            },
+            "discord": {
+              "version": "*"
+            }
+          }
+        }
+      }
+    },
+    "bleelblep.ui-tweaks": {
+      "name": "UI Tweaks",
+      "description": "Hide parts of Discord's menus and settings, and choose what double-tap and swipes do.",
+      "author": "bleelblep",
+      "icon": "SlidersIcon",
+      "channels": {
+        "latest": "0.8.4"
+      },
+      "versions": {
+        "0.8.4": {
+          "url": "https://bleelblep.github.io/bleel-bazinga-repo/pool/bleelblep.ui-tweaks@0.8.4.zip",
+          "sha256": "13bc663f79eb2cc8c91960d6cc7bf631dd26cc79a38dd63af1129356219ae945",
+          "size": 41277,
           "dependencies": {
             "valenced.api": {
               "version": ">=1 <2"
