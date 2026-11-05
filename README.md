@@ -40,7 +40,8 @@ account, but these remove the known risky behaviour.
 ## Plugins
 
 Most are JavaScript only, so they work on Android and iOS. Live Markdown, Pocket Browser, Sharp
-Corners and Text Animation have native Android code, so they are Android only.
+Corners, Speech Bubbles, Text Animation and UI Tweaks have native Android code, so they are Android
+only.
 
 ### Character Counter
 
@@ -126,6 +127,16 @@ A sprout next to the names of people who joined the server in the last week, lik
 
 Removes the thin lines between rows in settings and other lists. Nothing to set up: turn it off to
 bring the lines back.
+
+### Picture Links
+
+Tap profile pictures and banners to open them full size, with save and share. Nothing to set up.
+
+- Profile pictures open in Discord's own viewer at full size, with save and share turned on.
+- Tap a banner to view it; long-press for an animated banner.
+- Long-press a server profile picture to see the person's main one.
+
+Credit: a port of redstonekasi's Picture Links (BSD-3-Clause, see `NOTICE.md`), as updated by Rico040.
 
 ### Pocket Browser
 
@@ -214,13 +225,18 @@ icons and pictures. Android only, because chat messages are drawn natively.
 - "Circles too" also squares avatars, status dots and round buttons.
 - Can't run together with Round Corners; it says so if both are on.
 
-### Show Tag
+### Speech Bubbles
 
-Shows usernames next to display names in chat, including in replies. `Display Name (@username)`,
-the username in small, dim text after or (on Android) below the name, or just the username, each
-with a switch.
+Chat as speech bubbles: your messages on the right, everyone else's on the left. Android only.
 
-Credit: a port of Cynosphere's Show Tag for Vendetta.
+- Bubble colours from your theme (or swapped), or your own; optionally a colour per person.
+- Corner roundness from square to pill, tails on the bubbles, breaks between messages sent far
+  apart, and optionally no profile pictures.
+- Message times hidden, shown under the bubble when you tap it, or in a pop-up above it.
+- Reactions as round iMessage-style badges, optionally on the bubble's corner.
+- Experimental, off by default and still buggy: a typing bubble while someone is typing, and
+  invisible ink on spoilers.
+- On in DMs, and optionally in servers.
 
 ### Staff Tags
 
@@ -255,6 +271,17 @@ See someone's local time next to their messages.
   long-press menu (that one can be switched off).
 
 Credit: a port of Aliucord's Timezones by aniimalz.
+
+### UI Tweaks
+
+Hide the parts of Discord you don't use, and choose what double-tap and swipes do. Android only.
+
+- Hide rows in the message long-press menu, items in the long-press + menu and sections of Discord's
+  settings, each from a list of what it has seen; an Edit menu row hides rows right in the menu.
+- Hide the reaction bar, the GIFs or Stickers tab, Message Requests and Quests (display only:
+  quests you started keep going). Keep the picker open after sending a GIF.
+- Double-tap and swipe on a message: reply, edit, react, copy, quote, mention, pin, forward, start a
+  thread, open a profile, mark unread and more. Others' messages can get a second swipe too.
 
 ## Outside services
 

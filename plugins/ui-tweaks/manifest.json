@@ -1,0 +1,24 @@
+{
+	"format": 1,
+	"id": "bleelblep.ui-tweaks",
+	"name": "UI Tweaks",
+	"description": "Hide parts of Discord's menus and settings, and choose what double-tap and swipes do.",
+	"author": "bleelblep",
+	"icon": "SlidersIcon",
+	"version": "0.8.4",
+	"dependencies": {
+		"valenced.api": {
+			"version": ">=1 <2"
+		},
+		"discord": {
+			"version": "*"
+		}
+	},
+	"dist": {
+		"script": "index.js",
+		"android": {
+			"path": "plugin.jar",
+			"class": "com.bleelblep.uitweaks.UiTweaksPlugin"
+		}
+	}
+}
