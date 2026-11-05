@@ -353,6 +353,34 @@
         }
       }
     },
+    "bleelblep.plugin-hub": {
+      "name": "Plugin Hub",
+      "description": "A Plugin Hub section in Discord's settings with shortcuts to the plugins you choose.",
+      "author": "bleelblep",
+      "icon": "AppsIcon",
+      "channels": {
+        "latest": "0.7.15"
+      },
+      "versions": {
+        "0.7.15": {
+          "url": "https://bleelblep.github.io/bleel-bazinga-repo/pool/bleelblep.plugin-hub@0.7.15.zip",
+          "sha256": "019e92fc02a5a0927a82221f18103c144e20c5a9daf162c026acef0aa064a116",
+          "size": 12076,
+          "dependencies": {
+            "valenced.api": {
+              "version": ">=1 <2"
+            },
+            "discord": {
+              "version": "*"
+            },
+            "valenced.api.hidden": {
+              "version": "*",
+              "optional": true
+            }
+          }
+        }
+      }
+    },
     "bleelblep.pocket-browser": {
       "name": "Pocket Browser",
       "description": "A web browser with tabs and history in a new tab of the emoji picker.",
@@ -731,13 +759,26 @@
       "author": "bleelblep",
       "icon": "ChatIcon",
       "channels": {
-        "latest": "0.5.30"
+        "latest": "0.5.31"
       },
       "versions": {
         "0.5.30": {
           "url": "https://bleelblep.github.io/bleel-bazinga-repo/pool/bleelblep.speech-bubbles@0.5.30.zip",
           "sha256": "381ff17c0cc565a4c8824204df3a146d82a1d4e1612e176b9c3bf7fa7b3a40c3",
           "size": 154071,
+          "dependencies": {
+            "valenced.api": {
+              "version": ">=1 <2"
+            },
+            "discord": {
+              "version": ">=352.2"
+            }
+          }
+        },
+        "0.5.31": {
+          "url": "https://bleelblep.github.io/bleel-bazinga-repo/pool/bleelblep.speech-bubbles@0.5.31.zip",
+          "sha256": "eed1125d007c7c92dc69aa3f43516081ab99a4eb4810a465ae6ec7bc9e0f5b9d",
+          "size": 154133,
           "dependencies": {
             "valenced.api": {
               "version": ">=1 <2"
