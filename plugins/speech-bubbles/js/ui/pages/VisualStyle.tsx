@@ -3,26 +3,12 @@
 import { Page } from '@valenced/components'
 import { Design } from '@valenced/discord/design'
 import { ScrollView } from 'react-native'
-import { confirmAction } from '../../../../../shared/ui/confirm'
 import { FieldRow } from '../../../../../shared/ui/fieldGroup'
 import { rowIcon } from '../../../../../shared/ui/icon'
 import { useBottomPadding } from '../../../../../shared/ui/safeArea'
+import { setBuggy } from '../../lib/buggy'
 import { setSettings, useSettings } from '../../state'
 import { ChatPreview } from '../components/ChatPreview'
-
-/** Buggy features: turning one on asks first; turning it off doesn't. */
-function setBuggy(key: 'invisibleInk' | 'typingBubble', name: string, on: boolean) {
-	if (!on) {
-		setSettings({ [key]: false })
-		return
-	}
-	confirmAction({
-		title: `Turn on ${name}?`,
-		body: `${name} is buggy and may misbehave. You can turn it off again here at any time.`,
-		action: 'Turn on',
-		onConfirm: () => setSettings({ [key]: true }),
-	})
-}
 
 export default function VisualStyle() {
 	// Read per-render, never at module scope -- see docs/coding-rules.md rule 1.

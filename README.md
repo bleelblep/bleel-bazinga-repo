@@ -138,6 +138,16 @@ Tap profile pictures and banners to open them full size, with save and share. No
 
 Credit: a port of redstonekasi's Picture Links (BSD-3-Clause, see `NOTICE.md`), as updated by Rico040.
 
+### Plugin Hub
+
+A Plugin Hub section in Discord's settings with shortcuts to the plugins you choose.
+
+- One tap from Discord's settings into any plugin's settings page.
+- Pick and order the plugins on the Hub, and remove ones you no longer use. Entries for plugins
+  that are uninstalled or switched off are marked.
+- Choosing plugins needs Valenced's Developer Mode, which is the only way to list what's installed.
+  Using the Hub doesn't.
+
 ### Pocket Browser
 
 A web browser inside Discord, in a new tab of the emoji picker. Android only.
@@ -234,8 +244,8 @@ Chat as speech bubbles: your messages on the right, everyone else's on the left.
   apart, and optionally no profile pictures.
 - Message times hidden, shown under the bubble when you tap it, or in a pop-up above it.
 - Reactions as round iMessage-style badges, optionally on the bubble's corner.
-- Experimental, off by default and still buggy: a typing bubble while someone is typing, and
-  invisible ink on spoilers.
+- Experimental, off by default and still buggy: a typing bubble while someone is typing,
+  invisible ink on spoilers, a send animation, and a two-finger swipe to see every message's time.
 - On in DMs, and optionally in servers.
 
 ### Staff Tags

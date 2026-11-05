@@ -1,0 +1,24 @@
+{
+	"format": 1,
+	"id": "bleelblep.plugin-hub",
+	"name": "Plugin Hub",
+	"description": "A Plugin Hub section in Discord's settings with shortcuts to the plugins you choose.",
+	"author": "bleelblep",
+	"icon": "AppsIcon",
+	"version": "0.7.15",
+	"dependencies": {
+		"valenced.api": {
+			"version": ">=1 <2"
+		},
+		"discord": {
+			"version": "*"
+		},
+		"valenced.api.hidden": {
+			"version": "*",
+			"optional": true
+		}
+	},
+	"dist": {
+		"script": "index.js"
+	}
+}

@@ -6,6 +6,7 @@ import * as react from '@valenced/react'
 import { ScrollView } from 'react-native'
 import { rowIcon } from '../../../../../shared/ui/icon'
 import { useBottomPadding } from '../../../../../shared/ui/safeArea'
+import { setBuggy } from '../../lib/buggy'
 import { flightStatus } from '../../native'
 import { setSettings, useSettings } from '../../state'
 import type { FlightStatus, SpeechBubblesStorage } from '../../native'
@@ -41,13 +42,11 @@ export default function SendAnimation() {
 				<Stack spacing={24}>
 					<TableRowGroup hasIcons>
 						<TableSwitchRow
-							label="Send animation"
+							label="Send animation (buggy)"
 							subLabel="Your message lifts out of the message box and goes into the chat"
 							icon={rowIcon('SendMessageIcon', 'ic_send')}
 							value={s.sendAnimation}
-							onValueChange={(sendAnimation: boolean) =>
-								setSettings({ sendAnimation })
-							}
+							onValueChange={(on: boolean) => setBuggy('sendAnimation', 'Send animation', on)}
 						/>
 					</TableRowGroup>
 

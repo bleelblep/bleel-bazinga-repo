@@ -115,7 +115,7 @@ export const DEFAULTS: SpeechBubblesStorage = {
 	invisibleInk: false,
 	iosReactions: true,
 	tapbackCorner: true,
-	swipeTimes: true,
+	swipeTimes: false,
 	sendAnimation: false,
 	sendStyle: 'imessage',
 	sendSpeed: 'normal',

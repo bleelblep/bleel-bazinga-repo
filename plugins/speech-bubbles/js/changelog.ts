@@ -3,6 +3,15 @@ import type { ChangelogEntry } from '../../../shared/changelog'
 /** Newest first. Every version users got gets an entry; see shared/changelog.tsx. */
 export const CHANGELOG: ChangelogEntry[] = [
 	{
+		version: '0.5.31',
+		date: '2026-11-05',
+		title: 'Two more marked buggy',
+		changes: [
+			'Send animation and Two-finger swipe are labelled "(buggy)" and ask before turning on, like Typing bubble and Invisible ink.',
+			'Two-finger swipe is now off by default.',
+		],
+	},
+	{
 		version: '0.5.30',
 		date: '2026-11-05',
 		title: 'Corner reactions on top',

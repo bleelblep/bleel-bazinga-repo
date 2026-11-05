@@ -5,6 +5,7 @@ import { Design } from '@valenced/discord/design'
 import { ScrollView } from 'react-native'
 import { rowIcon } from '../../../../../shared/ui/icon'
 import { useBottomPadding } from '../../../../../shared/ui/safeArea'
+import { setBuggy } from '../../lib/buggy'
 import { migrateTimes } from '../../native'
 import { setSettings, useSettings } from '../../state'
 import { ChatPreview } from '../components/ChatPreview'
@@ -53,11 +54,11 @@ export default function Times() {
 
 					<TableRowGroup title="Every time at once" hasIcons>
 						<TableSwitchRow
-							label="Two-finger swipe"
+							label="Two-finger swipe (buggy)"
 							subLabel="Drag the chat left with two fingers to see when each message was sent. One finger still replies."
 							icon={rowIcon('ArrowLargeLeftIcon', 'ClockIcon')}
 							value={s.swipeTimes}
-							onValueChange={(swipeTimes: boolean) => setSettings({ swipeTimes })}
+							onValueChange={(on: boolean) => setBuggy('swipeTimes', 'Two-finger swipe', on)}
 						/>
 					</TableRowGroup>
 				</Stack>
