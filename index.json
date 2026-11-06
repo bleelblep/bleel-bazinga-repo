@@ -709,7 +709,7 @@
       "author": "bleelblep",
       "icon": "AppsIcon",
       "channels": {
-        "latest": "0.1.16"
+        "latest": "0.1.17"
       },
       "versions": {
         "0.1.11": {
@@ -729,6 +729,19 @@
           "url": "https://bleelblep.github.io/bleel-bazinga-repo/pool/bleelblep.sharp-corners@0.1.16.zip",
           "sha256": "3b16f636c742c6bccbd0e7d5ff61f3c839ed98f19d84bda045b52383297a4ec0",
           "size": 32812,
+          "dependencies": {
+            "valenced.api": {
+              "version": ">=1 <2"
+            },
+            "discord": {
+              "version": "*"
+            }
+          }
+        },
+        "0.1.17": {
+          "url": "https://bleelblep.github.io/bleel-bazinga-repo/pool/bleelblep.sharp-corners@0.1.17.zip",
+          "sha256": "5db58f30ebd31528122a97fe1a9799b3ae92c37f983b83885c25c44f3c86a713",
+          "size": 33149,
           "dependencies": {
             "valenced.api": {
               "version": ">=1 <2"
