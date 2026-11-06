@@ -125,6 +125,51 @@ internal object Corners {
 		hook("Path.addRoundRect(RectF, radii)", { Path::class.java.getMethod("addRoundRect", RectF::class.java, FloatArray::class.java, dir) }, zeroAt(intArrayOf(1)))
 		hook("Path.addRoundRect(floats, radii)", { Path::class.java.getMethod("addRoundRect", F, F, F, F, FloatArray::class.java, dir) }, zeroAt(intArrayOf(4)))
 
+		// Discord's own ViewOutlineProviders (fe.b on 352.2: clipToRoundedRectangle, embeds, polls, media)
+		// call Outline.setRoundRect, a tiny framework method that ART may compile straight into
+		// Discord's code, so the hook above never sees the call on some phones. getOutline is called by
+		// the framework, never inlined, so it's squared again afterwards.
+		outlineProviders(finder).forEach { provider ->
+			val getOutline = runCatching {
+				provider.getDeclaredMethod("getOutline", View::class.java, Outline::class.java)
+			}.getOrNull() ?: return@forEach
+			hook("${provider.name}.getOutline", { getOutline }, object : XC_MethodHook() {
+				private val rect = Rect()
+				override fun afterHookedMethod(param: MethodHookParam) {
+					if (!native) return
+					val outline = param.args[1] as? Outline ?: return
+					if (outline.radius > 0f && outline.getRect(rect)) {
+						outline.setRect(rect)
+						nativeCount.incrementAndGet()
+					}
+				}
+			})
+		}
+
+		// Fresco's circle postprocessor (RoundAsCirclePostprocessor, Discord's "Circle" image processor
+		// for chat avatars) cuts the circle into the picture's pixels in C, so no shape hook sees it.
+		// The JNI natives keep their names and can't be inlined; skipping them leaves the picture square.
+		val rounding = runCatching { classLoader.loadClass("com.facebook.imagepipeline.nativecode.NativeRoundingFilter") }.getOrNull()
+		if (rounding != null) {
+			val skip = { enabled: () -> Boolean ->
+				object : XC_MethodHook() {
+					override fun beforeHookedMethod(param: MethodHookParam) {
+						if (!enabled()) return
+						param.result = null
+						ovalCount.incrementAndGet()
+					}
+				}
+			}
+			for (name in listOf("nativeToCircleFilter", "nativeToCircleFastFilter", "nativeToCircleWithBorderFilter")) {
+				hook("NativeRoundingFilter.$name", { rounding.declaredMethods.first { it.name == name } }, skip { ovals })
+			}
+			hook("NativeRoundingFilter.nativeAddRoundedCornersFilter", {
+				rounding.declaredMethods.first { it.name == "nativeAddRoundedCornersFilter" }
+			}, skip { native })
+		} else {
+			warn("NativeRoundingFilter not found")
+		}
+
 		// RN's Pressable ripple (ReactDrawableHelper.getMask, android_ripple.cornerRadius, which Discord's
 		// PressableBase fills from the style's borderRadius) and other ShapeDrawables round through
 		// RoundRectShape's radii arrays, set once in the constructor.
@@ -247,6 +292,20 @@ internal object Corners {
 				ovalCount.incrementAndGet()
 			}
 		})
+	}
+
+	/** Discord's own ViewOutlineProvider subclasses, found once per Discord version and cached. */
+	private fun outlineProviders(finder: DexFinder?): List<Class<*>> {
+		finder ?: return emptyList()
+		return runCatching {
+			finder.findValue<List<String>, List<String>>(
+				"outline-providers",
+				{ it.joinToString("|") },
+				{ if (it.isEmpty()) emptyList() else it.split('|') },
+			) {
+				findClass { matcher { superClass = "android.view.ViewOutlineProvider" } }.map { it.name }
+			}.orEmpty().take(300).mapNotNull { runCatching { finder.classLoader.loadClass(it) }.getOrNull() }
+		}.getOrDefault(emptyList())
 	}
 
 	/** Canvas, plus the hidden BaseRecordingCanvas that hardware drawing actually uses (API 29+). */

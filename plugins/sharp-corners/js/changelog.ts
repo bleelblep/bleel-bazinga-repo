@@ -3,6 +3,17 @@ import type { ChangelogEntry } from '../../../shared/changelog'
 /** Newest first. Every version users got gets an entry; see shared/changelog.tsx. */
 export const CHANGELOG: ChangelogEntry[] = [
 	{
+		version: '0.1.16',
+		date: '2026-11-07',
+		title: 'Square avatars, embeds and checkboxes',
+		changes: [
+			'Fixed: avatars in chat stayed round, because Discord cuts them into a circle inside the picture itself.',
+			'Fixed: embeds and other boxes in chat could stay rounded on some phones.',
+			'Fixed: checkboxes stayed round, like "Trust links from now on" when you open a link. Discord draws them as pictures, so they are redrawn as squares.',
+			'Restart Discord after updating so pictures already loaded are squared too.',
+		],
+	},
+	{
 		version: '0.1.11',
 		date: '2026-11-05',
 		title: 'You bar fill',

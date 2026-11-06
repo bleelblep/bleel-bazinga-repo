@@ -12,6 +12,7 @@ import { reportError, setReporter } from '../../../shared/report'
 import { CHANGELOG } from './changelog'
 import { sendOptions } from './lib/native'
 import { DEFAULTS, setStorage, settings, type CirclesStorage } from './lib/settings'
+import { squareCheckbox } from './lib/checkbox'
 import { squareEmojiRow } from './lib/emojiRow'
 import { squareStatus } from './lib/status'
 import { sharpenTokens } from './lib/tokens'
@@ -40,6 +41,8 @@ export default plugin<{ jsonStorage: CirclesStorage }>({
 				() => sharpenTokens(() => settings().app).cleanup,
 			],
 			['emoji row', () => squareEmojiRow(() => settings().app)],
+			// A round picture, not a shape, so it's swapped like the status dots.
+			['checkboxes', () => squareCheckbox(() => settings().ovals)],
 			// Its round cut-out beside the avatar only clashes once the avatar is square.
 			[
 				'status dots',
