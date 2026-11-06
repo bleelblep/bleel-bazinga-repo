@@ -3,6 +3,12 @@ import type { ChangelogEntry } from '../../../shared/changelog'
 /** Newest first. Every version users got gets an entry; see shared/changelog.tsx. */
 export const CHANGELOG: ChangelogEntry[] = [
 	{
+		version: '0.1.17',
+		date: '2026-11-07',
+		title: 'Square status bubble',
+		changes: ['Fixed: the round bump joining your profile status bubble to your avatar is square now.'],
+	},
+	{
 		version: '0.1.16',
 		date: '2026-11-07',
 		title: 'Square avatars, embeds and checkboxes',

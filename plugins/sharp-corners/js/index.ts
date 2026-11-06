@@ -15,6 +15,7 @@ import { DEFAULTS, setStorage, settings, type CirclesStorage } from './lib/setti
 import { squareCheckbox } from './lib/checkbox'
 import { squareEmojiRow } from './lib/emojiRow'
 import { squareStatus } from './lib/status'
+import { squareStatusBubble } from './lib/statusBubble'
 import { sharpenTokens } from './lib/tokens'
 import Settings from './ui/Settings'
 
@@ -43,6 +44,8 @@ export default plugin<{ jsonStorage: CirclesStorage }>({
 			['emoji row', () => squareEmojiRow(() => settings().app)],
 			// A round picture, not a shape, so it's swapped like the status dots.
 			['checkboxes', () => squareCheckbox(() => settings().ovals)],
+			// The bump joining the profile status bubble to the avatar is a half-circle SVG.
+			['status bubble', () => squareStatusBubble(() => settings().ovals)],
 			// Its round cut-out beside the avatar only clashes once the avatar is square.
 			[
 				'status dots',
