@@ -60,6 +60,15 @@ export default function Times() {
 							value={s.swipeTimes}
 							onValueChange={(on: boolean) => setBuggy('swipeTimes', 'Two-finger swipe', on)}
 						/>
+						{s.swipeTimes && s.hideNames ? (
+							<TableSwitchRow
+								label="Also show names"
+								subLabel="Names are hidden, so the swipe shows who sent each run of messages above its time"
+								icon={rowIcon('TagIcon', 'UserIcon')}
+								value={s.swipeNames}
+								onValueChange={(swipeNames: boolean) => setSettings({ swipeNames })}
+							/>
+						) : null}
 					</TableRowGroup>
 				</Stack>
 			</ScrollView>

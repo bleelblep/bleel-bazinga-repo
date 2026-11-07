@@ -78,6 +78,13 @@ export default function Settings(_props: Props) {
 							value={s.showInCalls}
 							onValueChange={showInCalls => update({ showInCalls })}
 						/>
+						<TableSwitchRow
+							label="In the menu on my messages"
+							subLabel="Show the Pronouns row when you long-press your own message."
+							icon={rowIcon('UserCircleIcon', 'ic_profile_24px')}
+							value={s.ownSheetRow}
+							onValueChange={ownSheetRow => update({ ownSheetRow })}
+						/>
 					</TableRowGroup>
 					<TableRowGroup title="Settings" hasIcons>
 						<TableRow

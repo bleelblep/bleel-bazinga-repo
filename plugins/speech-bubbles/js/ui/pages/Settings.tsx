@@ -20,6 +20,7 @@ import {
 	COLOURS_ROUTE,
 	DEBUG_ROUTE,
 	SEND_ROUTE,
+	SOUNDS_ROUTE,
 	TIMES_ROUTE,
 	VISUAL_ROUTE,
 } from '../routes'
@@ -53,6 +54,9 @@ function visualSummary(s: SpeechBubblesStorage): string {
 		s.iosReactions ? 'iOS reactions' : null,
 		s.typingBubble ? 'typing bubble' : null,
 		s.hideAvatars ? 'avatars hidden' : null,
+		s.ownAvatar ? 'your picture shown' : null,
+		s.hideNames ? 'names hidden' : null,
+		s.editedLabel ? '"Edited" under bubbles' : null,
 	].filter(Boolean)
 	const text = on.length ? on.join(', ') : 'Plain bubbles'
 	return text[0].toUpperCase() + text.slice(1)
@@ -142,6 +146,18 @@ export default function Settings({ api: { jsonStorage } }: Props) {
 							icon={rowIcon('SendMessageIcon', 'ic_send')}
 							arrow
 							onPress={() => navigation.navigate(SEND_ROUTE)}
+						/>
+						<TableRow
+							label="Sounds and haptics"
+							subLabel={
+								[s.sounds ? 'Sounds' : null, s.haptics ? 'haptics' : null]
+									.filter(Boolean)
+									.join(' and ')
+									.replace(/^h/, 'H') || 'Off'
+							}
+							icon={rowIcon('BellIcon', 'SettingsIcon')}
+							arrow
+							onPress={() => navigation.navigate(SOUNDS_ROUTE)}
 						/>
 					</TableRowGroup>
 

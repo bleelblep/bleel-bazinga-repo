@@ -34,6 +34,18 @@ export default function VisualStyle() {
 								onValueChange={(v: number) => setSettings({ bubbleRadius: Math.round(v / 2) * 2 })}
 							/>
 						</FieldRow>
+						<FieldRow
+							label={`Bubble opacity: ${s.bubbleOpacity >= 100 ? 'solid' : `${s.bubbleOpacity}%`}`}
+							description="Lower lets the chat background show through the bubbles and reactions. The text stays solid."
+						>
+							<Slider
+								step={10}
+								value={s.bubbleOpacity}
+								minimumValue={30}
+								maximumValue={100}
+								onValueChange={(v: number) => setSettings({ bubbleOpacity: Math.round(v / 10) * 10 })}
+							/>
+						</FieldRow>
 					</TableRowGroup>
 
 					<TableRowGroup title="Bubbles" hasIcons>
@@ -66,11 +78,18 @@ export default function VisualStyle() {
 							onValueChange={(iosReactions: boolean) => setSettings({ iosReactions })}
 						/>
 						<TableSwitchRow
-							label="Reactions on the corner"
-							subLabel="Reactions sit on the bubble's top corner, like iMessage"
-							icon={rowIcon('ArrowsUpDownIcon', 'ReactionIcon')}
-							value={s.tapbackCorner}
-							onValueChange={(tapbackCorner: boolean) => setSettings({ tapbackCorner })}
+							label="Edited under the bubble"
+							subLabel={'"Edited" under an edited message instead of "(edited)" in its text'}
+							icon={rowIcon('PencilIcon', 'ic_edit_24px')}
+							value={s.editedLabel}
+							onValueChange={(editedLabel: boolean) => setSettings({ editedLabel })}
+						/>
+						<TableSwitchRow
+							label="Show my profile picture"
+							subLabel="Your picture on the right, beside the first of your messages in a row"
+							icon={rowIcon('UserCircleIcon', 'UserIcon')}
+							value={s.ownAvatar}
+							onValueChange={(ownAvatar: boolean) => setSettings({ ownAvatar })}
 						/>
 						<TableSwitchRow
 							label="Hide avatars"
@@ -78,6 +97,13 @@ export default function VisualStyle() {
 							icon={rowIcon('UserCircleIcon', 'UserIcon')}
 							value={s.hideAvatars}
 							onValueChange={(hideAvatars: boolean) => setSettings({ hideAvatars })}
+						/>
+						<TableSwitchRow
+							label="Hide names"
+							subLabel="No name above their bubbles. Best with colour per person, so you can still tell who's who"
+							icon={rowIcon('TagIcon', 'UserIcon')}
+							value={s.hideNames}
+							onValueChange={(hideNames: boolean) => setSettings({ hideNames })}
 						/>
 					</TableRowGroup>
 

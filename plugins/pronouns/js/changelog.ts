@@ -3,6 +3,14 @@ import type { ChangelogEntry } from '../../../shared/changelog'
 /** Newest first. Every version users got gets an entry; see shared/changelog.tsx. */
 export const CHANGELOG: ChangelogEntry[] = [
 	{
+		version: '1.0.9',
+		date: '2026-11-06',
+		title: 'No Pronouns row on your own messages',
+		changes: [
+			'Long-pressing your own message no longer shows the Pronouns row. Turn "In the menu on my messages" on in the settings to get it back.',
+		],
+	},
+	{
 		version: '1.0.8',
 		date: '2026-11-05',
 		title: 'Pronouns on call tiles',

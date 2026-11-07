@@ -5,7 +5,7 @@
 	"description": "People's pronouns as a small tag next to their name in chat, from Discord profiles and PronounDB.",
 	"author": "bleelblep",
 	"icon": "UserCircleIcon",
-	"version": "1.0.8",
+	"version": "1.0.9",
 	"dependencies": {
 		"valenced.api": {
 			"version": ">=1 <2"

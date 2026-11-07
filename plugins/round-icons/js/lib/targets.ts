@@ -151,7 +151,6 @@ export const TARGETS: Target[] = [
 					'MEDIA_KEYBOARD_BAR_BORDER_RADIUS',
 					'MEDIA_KEYBOARD_BUTTON_BORDER_RADIUS',
 					'VOICE_MESSAGE_RECORDING_PILL_BORDER_RADIUS',
-					'VOICE_PANEL_CONTROLS_BORDER_RADIUS',
 					'button.BORDER_RADIUS',
 					'button.BORDER_RADIUS_LG',
 				],
@@ -166,6 +165,14 @@ export const TARGETS: Target[] = [
 			// 2026-11-04). 28 still makes the small dock a pill.
 			try {
 				fields.push(overrideToken('QUEST_DOCK_BORDER_RADIUS', active, stock => Math.max(stock, 28)))
+			} catch {
+				/* not on this build */
+			}
+			// The call controls: corner 28, not a pill, for the same reason. Pulled up, the bar opens into
+			// the tall call menu, which fully round drew as a giant half-circle (reported 2026-11-06).
+			// 28 still makes the bar a pill.
+			try {
+				fields.push(overrideToken('VOICE_PANEL_CONTROLS_BORDER_RADIUS', active, stock => Math.max(stock, 28)))
 			} catch {
 				/* not on this build */
 			}

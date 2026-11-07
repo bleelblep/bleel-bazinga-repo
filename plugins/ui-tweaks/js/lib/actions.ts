@@ -267,11 +267,18 @@ function remove(target: SwipeTarget) {
 		body: 'Delete this message for everyone? This can’t be undone.',
 		action: 'Delete',
 		onConfirm: () => {
-			try {
-				fn(channel.id, message.id, true)
-			} catch (error) {
+			// Discord's delete is async: a refused request rejects later, and a rejection nobody
+			// listened to left the message there with no word why. Reported once, never retried (AS-05).
+			const failed = (error: unknown) => {
 				reportError(`${TAG} delete failed:`, error)
-				showToast(`Couldn't delete: ${(error as Error)?.message ?? error}`, TOAST)
+				const why = (error as any)?.body?.message ?? (error as Error)?.message ?? String(error)
+				showToast(`Couldn't delete: ${why}`, TOAST)
+			}
+			try {
+				const result = fn(channel.id, message.id, true)
+				if (result && typeof result.then === 'function') result.then(undefined, failed)
+			} catch (error) {
+				failed(error)
 			}
 		},
 	})

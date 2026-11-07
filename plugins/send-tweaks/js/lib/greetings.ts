@@ -288,7 +288,8 @@ function channelId(): string | undefined {
 
 export function ruleScopeMatches(scope?: RuleScope): boolean {
 	if (!scope || scope.kind === 'all') return true
-	if (!greetingsUnlocked()) return false
+	// Not tied to the Greetings unlock: "Only in these servers" is in every rule's editor, and a
+	// scope only ever narrows where a rule runs.
 	const current = channel()
 	return scopeMatches(scope, channelId(), current?.guild_id, current?.type)
 }

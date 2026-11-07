@@ -7,7 +7,11 @@ import android.graphics.Path
 import android.graphics.PixelFormat
 import android.graphics.Rect
 import android.graphics.RectF
+import android.graphics.LinearGradient
+import android.graphics.Matrix
+import android.graphics.Shader
 import android.graphics.drawable.Drawable
+import android.view.View
 
 /** Where a message sits in its author's run of messages (Discord's ONLY/START/MIDDLE/END). */
 internal enum class GroupPosition { ONLY, START, MIDDLE, END;
@@ -31,6 +35,12 @@ internal enum class GroupPosition { ONLY, START, MIDDLE, END;
  *
  * Drawn for the right side; the left side is the same picture mirrored.
  *
+ * "Colour shifts as you scroll" ([setGradient]): instead of one colour the body is filled from a
+ * gradient fixed to the window, top colour at the window's top and bottom colour at its bottom, so
+ * each bubble shows the slice of it where it sits and changes as the chat scrolls (iMessage's blue
+ * bubbles). The view's place in the window is read on every draw; the caller invalidates bubbles
+ * when the chat scrolls, because a scroll only moves the rows' recorded drawings.
+ *
  * It can also leave a strip empty under the body ([setBottomGap]) for the message's time ("Tap:
  * under the bubble"), drawn by the row's TimeTag; the text view's bottom padding reserves it.
  */
@@ -53,6 +63,11 @@ internal class BubbleDrawable(
 		private set
 	var joinBottom = false
 		private set
+	/** The same on the side away from the tail, where the neighbour reaches as far. */
+	var joinTopFar = false
+		private set
+	var joinBottomFar = false
+		private set
 	var tails = true
 		private set
 
@@ -73,19 +88,58 @@ internal class BubbleDrawable(
 		invalidateSelf()
 	}
 
+	/** Top and bottom colours of the window-fixed gradient, or null for the plain [setColor] fill. */
+	private var gradient: IntArray? = null
+	private var shader: LinearGradient? = null
+	private var shaderHeight = 0
+	private val shaderMatrix = Matrix()
+	private val loc = IntArray(2)
+
+	fun setGradient(top: Int?, bottom: Int?) {
+		val next = if (top == null || bottom == null) null else intArrayOf(top, bottom)
+		if (next?.contentEquals(gradient) ?: (gradient == null)) return
+		gradient = next
+		shader = null
+		if (next == null) paint.shader = null
+		invalidateSelf()
+	}
+
+	val hasGradient get() = gradient != null
+
+	/** Points the shader at this bubble's slice of the window; false when it can't be placed yet. */
+	private fun placeShader(): Boolean {
+		val colors = gradient ?: return false
+		val view = callback as? View ?: return false
+		val height = view.rootView?.height?.takeIf { it > 0 } ?: return false
+		if (shader == null || shaderHeight != height) {
+			// Alpha comes from the paint (bubble opacity), the colours are solid.
+			shader = LinearGradient(0f, 0f, 0f, height.toFloat(), colors[0] or (0xFF shl 24), colors[1] or (0xFF shl 24), Shader.TileMode.CLAMP)
+			shaderHeight = height
+		}
+		view.getLocationInWindow(loc)
+		shaderMatrix.setTranslate(0f, -(loc[1] - view.scrollY).toFloat())
+		shader!!.setLocalMatrix(shaderMatrix)
+		paint.shader = shader
+		return true
+	}
+
 	/** Side, joins and tails; only redraws (the caller re-measures when tails change). */
-	fun setShape(tailRight: Boolean, joinTop: Boolean, joinBottom: Boolean, tails: Boolean) {
-		if (this.tailRight == tailRight && this.joinTop == joinTop && this.joinBottom == joinBottom && this.tails == tails) return
+	fun setShape(tailRight: Boolean, joinTop: Boolean, joinBottom: Boolean, tails: Boolean, joinTopFar: Boolean = false, joinBottomFar: Boolean = false) {
+		if (this.tailRight == tailRight && this.joinTop == joinTop && this.joinBottom == joinBottom && this.tails == tails &&
+			this.joinTopFar == joinTopFar && this.joinBottomFar == joinBottomFar) return
 		this.tailRight = tailRight
 		this.joinTop = joinTop
 		this.joinBottom = joinBottom
+		this.joinTopFar = joinTopFar
+		this.joinBottomFar = joinBottomFar
 		this.tails = tails
 		rebuild(bounds)
 		invalidateSelf()
 	}
 
 	/** Space left empty above the bubble (under their name); the text's top padding includes it. */
-	private var topGap = 0f
+	var topGap = 0f
+		private set
 
 	fun setTopGap(px: Float) {
 		if (topGap == px) return
@@ -118,14 +172,15 @@ internal class BubbleDrawable(
 		rect.set(b.left.toFloat(), b.top + topGap, b.right - inset, b.bottom - bottomGap)
 		// A pill at most: corners past half the height would overlap.
 		val max = minOf(rect.height(), rect.width()) / 2f
-		val outer = minOf(radius, max)
+		val farTop = minOf(if (joinTopFar) smallRadius else radius, max)
+		val farBottom = minOf(if (joinBottomFar) smallRadius else radius, max)
 		val top = minOf(if (joinTop) smallRadius else radius, max)
 		val bottom = minOf(if (joinBottom) smallRadius else radius, max)
 		// Order: top-left, top-right, bottom-right, bottom-left (x, y each).
-		radii[0] = outer; radii[1] = outer
+		radii[0] = farTop; radii[1] = farTop
 		radii[2] = top; radii[3] = top
 		radii[4] = bottom; radii[5] = bottom
-		radii[6] = outer; radii[7] = outer
+		radii[6] = farBottom; radii[7] = farBottom
 		body.addRoundRect(rect, radii, Path.Direction.CW)
 
 		if (tails && !joinBottom) {
@@ -140,11 +195,15 @@ internal class BubbleDrawable(
 			tail.quadTo(r - w * 0.5f, bt, r - w * 2f, bt - w * 0.8f)
 			tail.lineTo(r - w * 2f, bt - h)
 			tail.close()
+			// One shape: drawn as two, a see-through bubble ("Bubble opacity") showed a darker
+			// seam where the tail overlaps the body.
+			if (body.op(tail, Path.Op.UNION)) tail.reset()
 		}
 	}
 
 	override fun draw(canvas: Canvas) {
 		if (body.isEmpty) return
+		if (gradient != null && !placeShader()) paint.shader = null
 		val save = canvas.save()
 		if (!tailRight) canvas.scale(-1f, 1f, bounds.exactCenterX(), bounds.exactCenterY())
 		canvas.drawPath(body, paint)

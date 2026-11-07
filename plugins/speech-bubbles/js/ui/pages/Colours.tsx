@@ -8,11 +8,12 @@ import { Page } from '@valenced/components'
 import { Design } from '@valenced/discord/design'
 import { ScrollView, View } from 'react-native'
 import { confirmDestructive } from '../../../../../shared/ui/confirm'
+import { FieldRow } from '../../../../../shared/ui/fieldGroup'
 import { dangerIcon, rowIcon } from '../../../../../shared/ui/icon'
 import { useBottomPadding } from '../../../../../shared/ui/safeArea'
 import { hasColorPicker, openColorPicker } from '../../lib/colorPicker'
 import { setSettings, useSettings } from '../../state'
-import { resolveColors, toHex6 } from '../../theme'
+import { effectiveColors, resolveColors, themeHasHue, toHex6 } from '../../theme'
 import ColorInput from '../ColorInput'
 import { ChatPreview } from '../components/ChatPreview'
 import type { SpeechBubblesStorage } from '../../native'
@@ -73,6 +74,7 @@ export default function Colours() {
 		TableRadioGroup,
 		TableRadioRow,
 	} = Design
+	const { Slider } = Design as any
 	const s = useSettings()
 	const theme = resolveColors()
 	const picked = !!(s.ownColor || s.otherColor)
@@ -144,15 +146,77 @@ export default function Colours() {
 						</TableRowGroup>
 					) : null}
 
+					<TableRowGroup title="Scrolling" hasIcons>
+						<TableSwitchRow
+							label="Colour shifts as you scroll"
+							subLabel="Bubbles are lighter near the top of the screen and deeper near the bottom, and change as you scroll, like iMessage. Everyone's bubbles, each from its own colour"
+							icon={rowIcon('ArrowsUpDownIcon', 'PaintPaletteIcon')}
+							value={s.scrollColor}
+							onValueChange={(scrollColor: boolean) => setSettings({ scrollColor })}
+						/>
+						{s.scrollColor && (
+							<FieldRow label={`Strength: ${s.scrollColorStrength}%`}>
+								<Slider
+									step={10}
+									value={s.scrollColorStrength}
+									minimumValue={20}
+									maximumValue={100}
+									onValueChange={(v: number) =>
+										setSettings({ scrollColorStrength: Math.round(v / 10) * 10 })
+									}
+								/>
+							</FieldRow>
+						)}
+					</TableRowGroup>
+
 					<TableRowGroup title="Group chats" hasIcons>
 						<TableSwitchRow
 							label="Colour per person"
-							subLabel="Each person's bubbles get their own colour, so you can tell who's who"
+							subLabel="Each person's bubbles get their own colour, so you can tell who's who. Text turns white or black to stay readable"
 							icon={rowIcon('UsersIcon', 'UserIcon')}
 							value={s.perPerson}
 							onValueChange={perPerson => setSettings({ perPerson })}
 						/>
+						{s.perPerson ? (
+							<TableSwitchRow
+								label="Dark colours only"
+								subLabel="Every person's colour is a dark shade, with white text"
+								icon={rowIcon('MoonIcon', 'ic_theme_24px')}
+								value={s.personDark}
+								onValueChange={personDark => setSettings({ personDark })}
+							/>
+						) : null}
 					</TableRowGroup>
+
+					{s.perPerson ? (
+						<TableRadioGroup
+							title="Colours for each person"
+							value={s.personPalette}
+							onChange={(personPalette: SpeechBubblesStorage['personPalette']) =>
+								setSettings({ personPalette })
+							}
+						>
+							<TableRadioRow
+								label="Taken from your theme"
+								subLabel={
+									themeHasHue(effectiveColors(s))
+										? "Colours next to your theme's own, like violet, plum and indigo on a purple theme. Never your accent, and people next to each other never look alike"
+										: "Your theme is grey, so soft shades are used"
+								}
+								value="theme"
+							/>
+							<TableRadioRow
+								label="Soft shades"
+								subLabel="Their bubble colour in a different shade for each person"
+								value="hues"
+							/>
+							<TableRadioRow
+								label="From their profile picture"
+								subLabel="Each person's bubbles take the main colour of their profile picture. A grey picture gets a soft shade"
+								value="avatar"
+							/>
+						</TableRadioGroup>
+					) : null}
 				</Stack>
 			</ScrollView>
 		</Page>

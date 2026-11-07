@@ -28,6 +28,8 @@ export interface PronounsStorage {
 	showInChat: boolean
 	/** A pill on call tiles: under the avatar, or above the name with video on. */
 	showInCalls: boolean
+	/** The Pronouns rows in the long-press menu on your own messages. */
+	ownSheetRow: boolean
 	/** Discord's own pronouns before PronounDB. Off asks PronounDB first. Moot when pronounDbEnabled is off. */
 	discordFirst: boolean
 	/** Ask pronoundb.org when a profile has no pronouns. Off: Discord's own pronouns only, nothing is fetched. */
@@ -66,6 +68,7 @@ export type ColorMode = 'global' | 'perPerson'
 export const DEFAULTS: PronounsStorage = {
 	showInChat: true,
 	showInCalls: true,
+	ownSheetRow: false,
 	discordFirst: true,
 	pronounDbEnabled: true,
 	validOnly: true,

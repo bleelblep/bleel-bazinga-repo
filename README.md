@@ -239,11 +239,17 @@ icons and pictures. Android only, because chat messages are drawn natively.
 
 Chat as speech bubbles: your messages on the right, everyone else's on the left. Android only.
 
-- Bubble colours from your theme (or swapped), or your own; optionally a colour per person.
-- Corner roundness from square to pill, tails on the bubbles, breaks between messages sent far
-  apart, and optionally no profile pictures.
-- Message times hidden, shown under the bubble when you tap it, or in a pop-up above it.
+- Bubble colours from your theme (or swapped), or your own; optionally a colour per person (from
+  your theme, soft shades or each person's profile picture, with a dark-only option). Bubble
+  opacity, and colours that shift as you scroll.
+- Corner roundness from square to pill, tails on the bubbles, and bubbles in a row joined into one
+  run. Breaks between messages sent far apart, pictures with the bubbles' corners.
+- Optionally no profile pictures, no names above their messages, or your own picture beside your
+  messages.
+- Message times hidden, shown under the bubble when you tap it, or in a pop-up above it. "Edited"
+  under an edited message instead of in its text.
 - Reactions as round iMessage-style badges, optionally on the bubble's corner.
+- Optional sounds and haptics when you send, receive or react, quiet with Do Not Disturb or silent.
 - Experimental, off by default and still buggy: a typing bubble while someone is typing,
   invisible ink on spoilers, a send animation, and a two-finger swipe to see every message's time.
 - On in DMs, and optionally in servers.

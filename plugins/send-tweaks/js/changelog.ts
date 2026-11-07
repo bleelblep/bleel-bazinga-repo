@@ -3,6 +3,14 @@ import type { ChangelogEntry } from '../../../shared/changelog'
 /** Newest first. Every public version gets an entry; see shared/changelog.tsx. */
 export const CHANGELOG: ChangelogEntry[] = [
 	{
+		version: '1.1.7',
+		date: '2026-11-06',
+		title: 'Only in these servers',
+		changes: [
+			'Fixed: a rule set to work only in some servers never ran, even in those servers.',
+		],
+	},
+	{
 		version: '1.1.6',
 		date: '2026-11-04',
 		title: 'Undo send',

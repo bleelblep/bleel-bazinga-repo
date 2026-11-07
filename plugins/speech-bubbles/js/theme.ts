@@ -247,12 +247,9 @@ export function chatBackground(): string {
 	return resolve(CHAT_BACKGROUND)[0]
 }
 
-/**
- * "Colour per person": their bubble colour turned to one of eight hues, as native does it
- * (SpeechBubblesPlugin.personColor). Brightness stays; a grey gets a little saturation.
- */
-export function personColor(base: string, slot: number): string {
-	const n = Number.parseInt(base.slice(1, 7), 16)
+/** `#RRGGBB(AA)` to hue (0-360), saturation and value (0-1). */
+function toHsv(hex: string): [number, number, number] {
+	const n = Number.parseInt(hex.slice(1, 7), 16)
 	const r = ((n >> 16) & 0xff) / 255
 	const g = ((n >> 8) & 0xff) / 255
 	const b = (n & 0xff) / 255
@@ -264,11 +261,14 @@ export function personColor(base: string, slot: number): string {
 		else if (max === g) h = 60 * ((b - r) / d + 2)
 		else h = 60 * ((r - g) / d + 4)
 	}
-	const sat = Math.max(max === 0 ? 0 : d / max, 0.35)
-	h = (h + slot * 45) % 360
-	const c = max * sat
+	return [h, max === 0 ? 0 : d / max, max]
+}
+
+/** Hue, saturation and value back to `#RRGGBB` plus [alpha] (two hex digits). */
+function fromHsv(h: number, sat: number, v: number, alpha = 'FF'): string {
+	const c = v * sat
 	const x = c * (1 - Math.abs(((h / 60) % 2) - 1))
-	const m = max - c
+	const m = v - c
 	const [r1, g1, b1] =
 		h < 60
 			? [c, x, 0]
@@ -281,7 +281,123 @@ export function personColor(base: string, slot: number): string {
 						: h < 300
 							? [x, 0, c]
 							: [c, 0, x]
-	return `#${hex2((r1 + m) * 255)}${hex2((g1 + m) * 255)}${hex2((b1 + m) * 255)}${base.slice(7, 9) || 'FF'}`
+	return `#${hex2((r1 + m) * 255)}${hex2((g1 + m) * 255)}${hex2((b1 + m) * 255)}${alpha}`
+}
+
+/**
+ * "Colour shifts as you scroll", as native works it out (Config.scrollEnds): from [base], a top
+ * colour lighter and a touch toward cyan, a bottom one deeper and a touch toward violet, then the
+ * colour [t] of the way down (0 the top of the screen, 1 the bottom). [strength] is the setting's
+ * 20 to 100. `#RRGGBB` out.
+ */
+export function scrollShade(base: string, strength: number, t: number): string {
+	const k = Math.min(Math.max(strength / 50, 0.2), 2)
+	const [h, sat, v] = toHsv(toHex6(base))
+	const clamp = (x: number) => Math.min(Math.max(x, 0), 1)
+	const shift = (dh: number, ds: number, dv: number) =>
+		fromHsv(
+			sat > 0.08 ? (((h + dh * k) % 360) + 360) % 360 : h,
+			clamp(sat + ds * k),
+			clamp(v + dv * k),
+		)
+	const top = shift(-12, -0.1, 0.12)
+	const bottom = shift(10, 0.06, -0.14)
+	return toHex6(mix(top, bottom, Math.min(Math.max(t, 0), 1)))
+}
+
+/**
+ * "Colour per person", generated: their bubble colour turned to one of eight hues. Brightness
+ * stays; a grey gets a little saturation so the hues show at all.
+ */
+export function personColor(base: string, slot: number): string {
+	const [h, sat, v] = toHsv(base)
+	return fromHsv((h + slot * 45) % 360, Math.max(sat, 0.35), v, base.slice(7, 9) || 'FF')
+}
+
+/** "Dark colours only": brightness capped and a little colour kept, so white text reads on it. */
+export function darkened(hex: string): string {
+	const [h, sat, v] = toHsv(hex)
+	return fromHsv(h, Math.max(sat, 0.3), Math.min(v, 0.42), hex.slice(7, 9) || 'FF')
+}
+
+/**
+ * "Taken from your theme": the hues next to the theme's own, on both sides, 24 to 72 degrees off
+ * (0.5.36's palette, which the user liked best). The closest is 24 off, so nobody looks like your
+ * accent. Greens and cyans are left out unless the theme itself is one (on a purple theme they
+ * looked foreign, 2026-11-06); blues and violets stay.
+ *
+ * Telling people apart is native's job: it gives each person their own slot (by id) unless that
+ * colour is close to one of the people just before them in the chat (SpeechBubblesPlugin.bgFor).
+ */
+const NEIGHBOUR_OFFSETS = [24, -24, 40, -40, 56, -56, 72, -72]
+/** Hues counted as green to cyan, left out of a theme that isn't green or cyan itself. */
+const GREEN_FROM = 80
+const GREEN_TO = 200
+/** Below this saturation a colour counts as grey and has no hue to build on. */
+const GREY = 0.15
+const PERSON_COLOURS = 8
+
+const greenish = (h: number) => h >= GREEN_FROM && h <= GREEN_TO
+
+/** The theme's own hue: the accent's, else their bubble's, else the chat background's. */
+function themeHue(
+	colors: Pick<BubbleColors, 'ownBg' | 'otherBg' | 'chatBg'>,
+): number | undefined {
+	for (const c of [colors.ownBg, colors.otherBg, colors.chatBg ?? chatBackground()]) {
+		const [h, sat] = toHsv(c)
+		if (sat >= GREY) return h
+	}
+	return undefined
+}
+
+/**
+ * The colours "Colour per person" hands out, `#RRGGBBAA`.
+ *
+ * - Taken from your theme (default): the neighbouring hues above, about as colourful and bright as
+ *   your accent, then lifted off the chat background like their bubble. A grey theme has no hue,
+ *   so it gets the soft shades.
+ * - Soft shades: their bubble colour turned in eight hue steps (0.5.31).
+ * - From their profile picture is worked out on the phone (SpeechBubblesPlugin.avatarColor); the
+ *   soft shades are its fallback.
+ *
+ * Each is darkened with "Dark colours only". Text is picked per colour (textFor, native's too).
+ */
+export function personPalette(
+	s: { personPalette: string; personDark: boolean },
+	colors: Pick<BubbleColors, 'ownBg' | 'otherBg' | 'chatBg'>,
+): string[] {
+	const centre = s.personPalette === 'theme' ? themeHue(colors) : undefined
+	let out: string[]
+	if (centre !== undefined) {
+		const [, accentSat, accentV] = toHsv(colors.ownBg)
+		const sat = Math.min(Math.max(accentSat * 0.9, 0.4), 0.8)
+		const v = Math.min(Math.max(accentV * 0.92, 0.45), 0.9)
+		const chat = colors.chatBg ?? chatBackground()
+		out = NEIGHBOUR_OFFSETS.map(d => (centre + d + 360) % 360)
+			.filter(h => greenish(centre) || !greenish(h))
+			.map(h => liftedFromBackground(fromHsv(h, sat, v), chat))
+	} else {
+		out = Array.from({ length: PERSON_COLOURS }, (_, i) => personColor(colors.otherBg, i))
+	}
+	return s.personDark ? out.map(darkened) : out
+}
+
+/** Whether the theme has a hue for "Taken from your theme" to build on (for the settings page). */
+export function themeHasHue(
+	colors: Pick<BubbleColors, 'ownBg' | 'otherBg' | 'chatBg'>,
+): boolean {
+	return themeHue(colors) !== undefined
+}
+
+/**
+ * A profile picture's main colour made into a bubble colour, as native does it (toneAvatar):
+ * saturation and brightness kept within readable limits, then darkened with "Dark colours only".
+ * Only the settings preview uses this one.
+ */
+export function avatarBubble(hex: string, dark: boolean): string {
+	const [h, sat, v] = toHsv(hex)
+	const out = fromHsv(h, Math.min(Math.max(sat, 0.35), 0.8), Math.min(Math.max(v, 0.35), 0.8))
+	return dark ? darkened(out) : out
 }
 
 /** Others get the accent colours and you get the surface ones; tokens move with their colours. */

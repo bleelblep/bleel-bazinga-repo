@@ -9,6 +9,7 @@ import { useBottomPadding } from '../../../../../shared/ui/safeArea'
 import { setBuggy } from '../../lib/buggy'
 import { flightStatus } from '../../native'
 import { setSettings, useSettings } from '../../state'
+import { SendPreview } from '../components/SendPreview'
 import type { FlightStatus, SpeechBubblesStorage } from '../../native'
 
 export default function SendAnimation() {
@@ -40,6 +41,8 @@ export default function SendAnimation() {
 		<Page>
 			<ScrollView contentContainerStyle={{ paddingBottom: useBottomPadding() }}>
 				<Stack spacing={24}>
+					<SendPreview s={s} />
+
 					<TableRowGroup hasIcons>
 						<TableSwitchRow
 							label="Send animation (buggy)"

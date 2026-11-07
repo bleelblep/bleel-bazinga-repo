@@ -77,6 +77,13 @@ export function avatarSource(
 	return typeof avatar === 'number' ? avatar : undefined
 }
 
+/** Your own profile picture, for the settings preview ("Show my profile picture"). */
+export function selfAvatarSource(): { uri: string } | number | undefined {
+	const avatar = userStore()?.getCurrentUser()?.getAvatarURL(null, 64)
+	if (typeof avatar === 'string') return { uri: avatar }
+	return typeof avatar === 'number' ? avatar : undefined
+}
+
 /** Calls [fn] with the open channel whenever it changes (and now); returns the unsubscribe. */
 export function onSelectedChannel(
 	fn: (channel: BasicChannel) => void,

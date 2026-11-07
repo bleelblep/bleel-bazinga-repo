@@ -27,13 +27,27 @@ export interface SpeechBubblesStorage {
 	hideAvatars: boolean
 	/** In chats with two or more other people, each person's bubbles get their own colour. */
 	perPerson: boolean
+	/**
+	 * Where "Colour per person" gets its colours: hues next to the theme's own (default), soft
+	 * shades turned from their bubble colour, or the main colour of each person's profile picture.
+	 */
+	personPalette: PersonPalette
+	/** "Dark colours only": every person colour is darkened, so white text reads on all of them. */
+	personDark: boolean
+	/** Other people's names above their bubbles hidden (avatars stay, unless hidden too). */
+	hideNames: boolean
+	/** With [hideNames]: the two-finger swipe shows each person's name above their time. */
+	swipeNames: boolean
 	/** A small centred time above the first message after an hour's quiet. */
 	timeBreaks: boolean
 	/** Hidden spoilers drawn as moving specks; tap or rub to reveal. */
 	invisibleInk: boolean
 	/** Discord's reaction chips as round pills in the bubble colours (yours in yours), like iOS. */
 	iosReactions: boolean
-	/** Reactions on the bubble's top corner, like iMessage tapbacks, instead of under the message. */
+	/**
+	 * Reactions on the bubble's top corner, like iMessage tapbacks, instead of under the message.
+	 * Retired in 0.5.32 (the user asked for the old style back): always sent to native as false.
+	 */
 	tapbackCorner: boolean
 	/** Two fingers dragging the chat left slide your bubbles aside and show every message's time. */
 	swipeTimes: boolean
@@ -46,12 +60,30 @@ export interface SpeechBubblesStorage {
 	sendHaptic: boolean
 	/** Bubbles' corner roundness in dp (18 is iMessage's); past half a bubble's height draws a pill. */
 	bubbleRadius: number
+	/** "Bubble opacity" in percent, 30 to 100: below 100 the chat shows through the bubbles. */
+	bubbleOpacity: number
+	/** Every bubble's colour shifts down the screen and changes as you scroll, like iMessage's blue. */
+	scrollColor: boolean
+	/** How strong that shift is, 20 to 100 (50 is the default look). */
+	scrollColorStrength: number
+	/** Our own sounds: a whoosh when you send, a pop when a message comes into the open chat, a tick when you react. */
+	sounds: boolean
+	/** A light vibration when you send or react. */
+	haptics: boolean
+	/** Sound volume in percent, 10 to 100. */
+	soundVolume: number
+	/** Discord's "(edited)" in the text replaced by "Edited" under the bubble. */
+	editedLabel: boolean
+	/** Your profile picture on the right, beside the first bubble of each run. */
+	ownAvatar: boolean
 }
 
 export type SendStyle = 'imessage' | 'pop'
 export type SendSpeed = 'quick' | 'normal' | 'relaxed'
 
 export type ColorMode = 'theme' | 'swapped' | 'own'
+
+export type PersonPalette = 'theme' | 'hues' | 'avatar'
 
 /** The stored keys before 0.4.0, read only to migrate them. */
 interface OldColorKeys {
@@ -71,12 +103,18 @@ export function migrateColors(
 ):
 	| Pick<SpeechBubblesStorage, 'colors' | 'ownColor' | 'otherColor'>
 	| undefined {
-	const old = stored ?? {}
+	// Nothing to migrate unless a pre-0.4.0 switch is actually stored. Before 0.5.32 an unread
+	// file (cache not loaded yet) or a missing key "migrated" to the theme's colours and wrote that
+	// over the saved choice, so picked colours were lost on every restart.
+	if (!stored) return undefined
+	const old = stored
 	if (
 		old.colors === 'theme' ||
 		old.colors === 'swapped' ||
 		old.colors === 'own'
 	)
+		return undefined
+	if (old.swapColors === undefined && old.customColors === undefined)
 		return undefined
 	const own = typeof old.ownColor === 'string' ? old.ownColor : ''
 	const other = typeof old.otherColor === 'string' ? old.otherColor : ''
@@ -111,16 +149,28 @@ export const DEFAULTS: SpeechBubblesStorage = {
 	typingBubble: false,
 	hideAvatars: false,
 	perPerson: true,
+	personPalette: 'theme',
+	personDark: false,
+	hideNames: false,
+	swipeNames: true,
 	timeBreaks: true,
 	invisibleInk: false,
 	iosReactions: true,
-	tapbackCorner: true,
+	tapbackCorner: false,
 	swipeTimes: false,
 	sendAnimation: false,
 	sendStyle: 'imessage',
 	sendSpeed: 'normal',
 	sendHaptic: true,
 	bubbleRadius: 18,
+	bubbleOpacity: 100,
+	scrollColor: true,
+	scrollColorStrength: 50,
+	sounds: false,
+	haptics: true,
+	soundVolume: 60,
+	editedLabel: true,
+	ownAvatar: false,
 }
 
 /** What native is told: the settings plus the theme's colours as `#RRGGBBAA` (already swapped). */
@@ -136,10 +186,25 @@ export type BubbleConfig = Pick<
 	| 'iosReactions'
 	| 'tapbackCorner'
 	| 'swipeTimes'
+	| 'hideNames'
+	| 'swipeNames'
+	| 'editedLabel'
+	| 'ownAvatar'
 > &
 	BubbleColors & {
 		custom: boolean
 		bubbleRadius: number
+		/** 0.3 to 1. */
+		bubbleOpacity: number
+		/** "Colour per person" soft shades, `#RRGGBBAA`; native picks one per person by their id. */
+		personColors: string[]
+		/** Where the colours come from; 'theme' slots go out in the order people show up. */
+		personSource: PersonPalette
+		/** "Dark colours only", for the avatar colours native works out itself. */
+		personDark: boolean
+		scrollColor: boolean
+		/** 0.4 to 2; 1 is the default look. */
+		scrollColorStrength: number
 	}
 
 /** What the native side reports for the settings page's diagnostics. Never holds message text. */
@@ -234,7 +299,7 @@ export function chatMetrics(): Promise<ChatMetrics> {
 }
 
 /** Multiplies the 300 ms base duration. */
-const SEND_SPEEDS: Record<SendSpeed, number> = {
+export const SEND_SPEEDS: Record<SendSpeed, number> = {
 	quick: 0.7,
 	normal: 1,
 	relaxed: 1.5,
@@ -296,6 +361,43 @@ export function flightStatus(): Promise<FlightStatus | undefined> {
 		.catch(() => undefined)
 }
 
+/** Sounds and haptics on or off, and the volume. Never throws. */
+export function configureFeedback(
+	s: Pick<SpeechBubblesStorage, 'sounds' | 'haptics' | 'soundVolume'>,
+): void {
+	callNativeMethod('bleelblep.speech-bubbles.feedbackConfigure', [
+		{
+			sounds: s.sounds === true,
+			haptics: s.haptics === true,
+			volume: Math.min(Math.max(s.soundVolume ?? 60, 10), 100) / 100,
+		},
+	]).catch(error => reportError('[SpeechBubbles] sounds configure failed:', error))
+}
+
+/**
+ * A sound and/or tick for [kind]; [haptic] false plays the sound only. [test] (the settings page's
+ * "Try" rows) plays both whatever the switches say. Never throws.
+ */
+export function feedback(kind: FeedbackKind, haptic = true, test = false): void {
+	callNativeMethod('bleelblep.speech-bubbles.feedback', [kind, haptic, test]).catch(() => {})
+}
+
+export interface FeedbackStatus {
+	played?: number
+	vibrated?: number
+	/** Why the last sound or vibration didn't happen. */
+	skip?: string | null
+	error?: string | null
+}
+
+export function feedbackStatus(): Promise<FeedbackStatus | undefined> {
+	return callNativeMethod('bleelblep.speech-bubbles.feedbackStatus', [])
+		.then(v => (v && typeof v === 'object' ? (v as FeedbackStatus) : undefined))
+		.catch(() => undefined)
+}
+
+export type FeedbackKind = 'send' | 'receive' | 'react'
+
 declare module '@valenced/modules/native' {
 	interface NativeMethods {
 		'bleelblep.speech-bubbles.channel': [[id: string, group: boolean], null]
@@ -314,5 +416,15 @@ declare module '@valenced/modules/native' {
 		'bleelblep.speech-bubbles.flightSettle': [[nonce: string, id: string], null]
 		'bleelblep.speech-bubbles.flightReplay': [[slowBy: number], null]
 		'bleelblep.speech-bubbles.flightStatus': [[], FlightStatus]
+		'bleelblep.speech-bubbles.layoutProbe': [[], Record<string, unknown>]
+		'bleelblep.speech-bubbles.feedbackConfigure': [
+			[config: Record<string, unknown>],
+			null,
+		]
+		'bleelblep.speech-bubbles.feedback': [
+			[kind: FeedbackKind, haptic: boolean, test: boolean],
+			null,
+		]
+		'bleelblep.speech-bubbles.feedbackStatus': [[], FeedbackStatus]
 	}
 }

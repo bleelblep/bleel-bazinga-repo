@@ -3,6 +3,160 @@ import type { ChangelogEntry } from '../../../shared/changelog'
 /** Newest first. Every version users got gets an entry; see shared/changelog.tsx. */
 export const CHANGELOG: ChangelogEntry[] = [
 	{
+		version: '0.7.16',
+		date: '2026-11-07',
+		title: 'Quiet with Do Not Disturb',
+		changes: ['Sounds and haptics stay off while Do Not Disturb is on or your phone is on silent. On vibrate you still get the haptics.'],
+	},
+	{
+		version: '0.7.15',
+		date: '2026-11-07',
+		title: 'Tidy up',
+		changes: ['Behind the scenes: removed the extra checks used to fix joined corners.'],
+	},
+	{
+		version: '0.7.14',
+		date: '2026-11-07',
+		title: 'Joined corners, rebuilt',
+		changes: [
+			'Rebuilt how bubbles join: two bubbles of the same person join when they sit right on top of each other on screen. A name, reply, reactions, a picture or a time between them keeps them apart.',
+			'Corners now stay right while you scroll, send and receive.',
+		],
+	},
+	{
+		version: '0.7.13',
+		date: '2026-11-07',
+		title: 'Their runs join too',
+		changes: [
+			"Fixed: with Hide names on, the first and second message of someone's run didn't join (round corners under the first, small ones on top of the second).",
+		],
+	},
+	{
+		version: '0.7.12',
+		date: '2026-11-07',
+		title: 'Your messages make one run',
+		changes: [
+			'Your messages one after another join into one run even when Discord starts a new group after a pause (not with Show my profile picture on).',
+			'Fixed: bubbles you scrolled back to kept their old corners until the chat reloaded them.',
+		],
+	},
+	{
+		version: '0.7.11',
+		date: '2026-11-07',
+		title: 'Bubbles in a row join properly',
+		changes: [
+			'Fixed: a bubble in the middle of a run sometimes kept full round corners while the bubbles above and below it joined to it.',
+			'Where the bubble above or below is as wide or wider, the corners on the other side join too, so a run of long messages has no notches.',
+		],
+	},
+	{
+		version: '0.7.10',
+		date: '2026-11-07',
+		title: 'Checking joined corners',
+		changes: ['Behind the scenes: a closer look at why bubbles in a row keep their round corners.'],
+	},
+	{
+		version: '0.7.9',
+		date: '2026-11-07',
+		title: 'Joined corners, normal link previews',
+		changes: [
+			"iMessage link previews are gone for now: link previews look like Discord's again.",
+			'Fixed: your messages in a row often kept full round corners on the right instead of joining, mostly right after sending.',
+		],
+	},
+	{
+		version: '0.7.8',
+		date: '2026-11-07',
+		title: 'Still checking link previews',
+		changes: ['Behind the scenes: a closer look at link previews on screen.'],
+	},
+	{
+		version: '0.7.7',
+		date: '2026-11-06',
+		title: 'Checking link previews',
+		changes: ["Behind the scenes: more detail for tracking down link previews that keep Discord's look."],
+	},
+	{
+		version: '0.7.6',
+		date: '2026-11-06',
+		title: 'Previews show the new switches',
+		changes: [
+			'The preview at the top of Visual style now has a link preview, an edited message and your profile picture, and changes with their switches.',
+			'Every preview shows Colour shifts as you scroll: bubbles higher up are lighter, lower down deeper.',
+		],
+	},
+	{
+		version: '0.7.5',
+		date: '2026-11-06',
+		title: 'Room for your picture',
+		changes: [
+			'Fixed: with Show my profile picture on, your picture covered the corner of wide pictures and link previews you sent. They now move left to make room.',
+		],
+	},
+	{
+		version: '0.7.4',
+		date: '2026-11-06',
+		title: 'Your picture, if you want it',
+		changes: [
+			'New: Show my profile picture, under Visual style. Your picture sits on the right, beside the first of your messages in a row.',
+		],
+	},
+	{
+		version: '0.7.3',
+		date: '2026-11-06',
+		title: 'Colour shift for everyone',
+		changes: [
+			"Colour shifts as you scroll now works on everyone's bubbles, not only yours. Each bubble shifts from its own colour.",
+			'The 0.7.2 changes to it are undone.',
+		],
+	},
+	{
+		version: '0.7.2',
+		date: '2026-11-06',
+		title: 'Colour that follows the scroll',
+		changes: [
+			'Fixed: with "Colour shifts as you scroll", short bubbles kept the colour they first had. Every bubble now changes colour as it moves up or down the screen.',
+			'The difference between the top and the bottom of the screen is stronger.',
+		],
+	},
+	{
+		version: '0.7.1',
+		date: '2026-11-06',
+		title: 'Sounds and haptics fixed',
+		changes: [
+			"Fixed: haptics did nothing. They now use the phone's own click.",
+			'Fixed: sounds could stay silent until a chat had been opened. They now use your notification volume.',
+			"The Try rows play even with the switches off, and a Working line says why the last one didn't play.",
+		],
+	},
+	{
+		version: '0.7.0',
+		date: '2026-11-06',
+		title: 'More like iMessage',
+		changes: [
+			"New: your bubbles' colour shifts as you scroll, lighter near the top of the screen and deeper near the bottom. Under Colours.",
+			'New: link previews look like iMessage: the picture on top, then the title and the website.',
+			'New: "Edited" under an edited message, instead of "(edited)" in its text.',
+			'Pictures get the same rounded corners as the bubbles.',
+			'New: Sounds and haptics. A whoosh when you send, a pop when a message comes in, a tick when you react. The sounds are off until you turn them on.',
+		],
+	},
+	{
+		version: '0.6.2',
+		date: '2026-11-06',
+		title: 'Colours that stay, and more choices',
+		changes: [
+			'Fixed: your own bubble colours went back to the theme colours every time Discord restarted.',
+			'Reactions are back under the message.',
+			'Colour per person takes its colours from your theme: colours next to its own, never your accent, and people talking next to each other never get look-alike colours. Or pick soft shades, or each person\'s profile picture. There is also a "Dark colours only" option, and text turns white or black to stay readable on each colour.',
+			'New: Hide names, under Visual style. With Two-finger swipe on, the swipe can show the names instead.',
+			"Their replies' curved line hooks onto the bubble again when avatars are hidden.",
+			'With names hidden, the space between people is smaller, since there is no name to make room for. Names in the swipe show in full.',
+			'Send animation has a preview: tap it to play the animation again.',
+			'New: Bubble opacity, under Visual style. Turn it down to see the chat background through the bubbles and reactions.',
+		],
+	},
+	{
 		version: '0.5.31',
 		date: '2026-11-05',
 		title: 'Two more marked buggy',

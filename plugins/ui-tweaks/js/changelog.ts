@@ -3,6 +3,12 @@ import type { ChangelogEntry } from '../../../shared/changelog'
 /** Newest first. Every version users got gets an entry; see shared/changelog.tsx. */
 export const CHANGELOG: ChangelogEntry[] = [
 	{
+		version: '0.8.5',
+		date: '2026-11-07',
+		title: 'Delete tells you why',
+		changes: ["If Discord refuses a swipe or double-tap delete, a message now says why instead of the message just staying."],
+	},
+	{
 		version: '0.8.4',
 		date: '2026-11-03',
 		title: 'Credit',

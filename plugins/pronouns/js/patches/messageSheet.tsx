@@ -12,6 +12,7 @@
 import { getAssetIdByName } from '@valenced/assets'
 import { ActionSheetActionCreators } from '@valenced/discord/actions'
 import { Design } from '@valenced/discord/design'
+import { Stores } from '@valenced/discord/flux'
 import { after, before } from '@valenced/patcher'
 import { isValidElement } from 'react'
 import { findMessageSheetGroupParent } from '../../../../shared/messageSheet'
@@ -86,10 +87,20 @@ function promptOverrideFor(message: SheetMessage) {
 	promptOverride(authorId, authorName(message, 'this person'))
 }
 
+function myId(): string | undefined {
+	try {
+		return (Stores as any).UserStore?.getCurrentUser?.()?.id
+	} catch {
+		return undefined
+	}
+}
+
 function buildRow(message: SheetMessage) {
 	const { ActionSheetRow } = Design
 	const authorId = String(message.author?.id ?? '')
 	if (!authorId) return null
+	// Your own messages get no row unless "In the menu on my messages" is on.
+	if (!settings().ownSheetRow && authorId === myId()) return null
 
 	const existing = settings().overrides?.[authorId]
 	const label =

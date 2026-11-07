@@ -55,6 +55,8 @@ import java.util.WeakHashMap
  * Purely local UI: no network, no dispatch, no store writes. Logs and status never hold message text.
  */
 
+/** Bubbles of one person this close (or overlapping) join; anything between them adds more room. */
+private const val JOIN_GAP_DP = 8f
 private const val MESSAGE_VIEW = "com.discord.chat.presentation.message.MessageView"
 private const val MESSAGE = "com.discord.chat.bridge.Message"
 private const val ACCESSORIES_VIEW = "com.discord.chat.presentation.message.MessageAccessoriesView"
@@ -69,6 +71,14 @@ private const val TAPBACK_OVERLAP_DP = 14f
 private const val TAPBACK_ROW_Z = 1f
 /** Two-finger swipe: the most the bubbles slide left (they slide as far as the widest time needs). */
 private const val SWIPE_MAX_DP = 160f
+/** With names in the swipe ("Also show names"), it may slide this share of the chat's width to fit a whole name. */
+private const val SWIPE_NAME_MAX_SHARE = 0.6f
+/** "Hide names": the first bubble sits this far under the reply quote. */
+private const val NAME_GAP_REPLY_DP = 2f
+/** "Hide names": the space above a new person's run, instead of Discord's 16 dp for the name. */
+private const val NAME_RUN_GAP_DP = 8f
+/** Discord's space between message groups (an item decoration's bottom offset on a run's last row). */
+private const val GROUP_GAP_DP = 16f
 private const val SWIPE_BACK_MS = 220L
 private const val SWIPE_TIME_PAD_DP = 12f
 
@@ -94,6 +104,8 @@ private const val TIME_TEXT_SP = 11f
 private const val TIME_GAP_DP = 2f
 private const val TIME_INSET_DP = 4f
 private const val MAX_SHOWN_TIMES = 200
+/** Message ids of bubble rows remembered for the text and link-card binds that follow the row bind. */
+private const val MAX_BUBBLE_IDS = 400
 /** Space between their name and their first bubble. */
 private const val NAME_GAP_DP = 6f
 /** Discord snowflakes count milliseconds from 2015-01-01T00:00:00Z. */
@@ -102,6 +114,14 @@ private const val DISCORD_EPOCH = 1420070400000L
 private const val AVATAR_MARGIN_DP = 12f
 /** "Colour per person": how many hues people are spread over. */
 private const val PERSON_HUES = 8
+/** [avatarColors] value for a picture with no colour in it (grey, black, white): soft shade instead. */
+private const val NO_AVATAR_COLOR = 0
+/** "Taken from your theme": how many of the people just before a new one their colour must differ from. */
+private const val RECENT_PEOPLE = 3
+/** [colorGap] from which two bubble colours count as clearly different. */
+private const val APART = 22f
+/** Tries per person to read a colour off their avatar while it loads. */
+private const val AVATAR_TRIES = 4
 /** Time breaks: the text size, the gap above and below it, and the rules' inset from the row's edges. */
 private const val BREAK_TEXT_SP = 12f
 private const val BREAK_PAD_DP = 12f
@@ -135,12 +155,37 @@ private class Config(
 	val iosReactions: Boolean = true,
 	/** The chat background (for the ring around reaction badges), or null when JS didn't send one. */
 	val chatBg: Int? = null,
-	/** "On the bubble's corner": reactions moved to the bubble's top corner, like iMessage tapbacks. */
-	val tapbackCorner: Boolean = true,
+	/**
+	 * "On the bubble's corner": reactions moved to the bubble's top corner, like iMessage tapbacks.
+	 * Retired in 0.5.32 (JS always sends false); the code stays so it can come back.
+	 */
+	val tapbackCorner: Boolean = false,
+	/** "Hide names": other people's name header hidden above their bubbles. */
+	val hideNames: Boolean = false,
+	/** "Also show names": with [hideNames], the two-finger swipe shows each run's name above its time. */
+	val swipeNames: Boolean = true,
+	/** "Colour per person" soft shades from JS (maybe darkened); empty = hue turn here. */
+	val personColors: List<Int> = emptyList(),
+	/** "From their profile picture": each person's colour is their avatar's main colour ([avatarColor]). */
+	val personFromAvatar: Boolean = false,
+	/** "Taken from your theme": a person's colour avoids the colours of the people just before them. */
+	val personInOrder: Boolean = false,
+	/** "Dark colours only", applied here to avatar colours. */
+	val personDark: Boolean = false,
 	/** "Swipe for times": two fingers dragging the chat left show every message's time. */
 	val swipeTimes: Boolean = true,
+	/** "Bubble opacity": 1 is solid; down to 0.3, the chat shows through the bubbles (not the text). */
+	val bubbleAlpha: Float = 1f,
 	/** Bubbles' "Roundness": the outer corner radius in dp (the joined corners scale with it). */
 	val bubbleRadiusDp: Float = RADIUS_DP,
+	/** "Colour shifts as you scroll": your bubbles take their slice of a window-fixed gradient. */
+	val scrollColor: Boolean = false,
+	/** How far the gradient's ends move from your bubble colour; 1 is the default look. */
+	val scrollColorStrength: Float = 1f,
+	/** "Edited under the bubble": Discord's "(edited)" in the text goes, "Edited" shows under the bubble. */
+	val editedLabel: Boolean = true,
+	/** "Show my profile picture": your picture on the right, beside the first bubble of each run. */
+	val ownAvatar: Boolean = false,
 	val ownBg: Int = OWN_BG,
 	val ownText: Int = OWN_TEXT,
 	val otherBg: Int = OTHER_BG,
@@ -150,6 +195,25 @@ private class Config(
 	val ownColors: ColorStateList = ColorStateList.valueOf(ownText)
 	val otherColors: ColorStateList = ColorStateList.valueOf(otherText)
 	fun bg(mode: Mode) = if (mode == Mode.OWN) ownBg else otherBg
+	/**
+	 * Top and bottom of the scroll gradient for a bubble of colour [base] (yours, theirs, or a
+	 * person's own colour): lighter and a touch toward cyan at the top, deeper and a touch toward
+	 * violet at the bottom, as iMessage's blue does. Null while the setting is off.
+	 */
+	fun scrollEnds(base: Int): Pair<Int, Int>? {
+		if (!scrollColor) return null
+		val k = scrollColorStrength.coerceIn(0.2f, 2f)
+		fun shift(dh: Float, ds: Float, dv: Float): Int {
+			val hsv = FloatArray(3)
+			Color.colorToHSV(base, hsv)
+			// A grey bubble has no hue to turn; only its lightness moves.
+			if (hsv[1] > 0.08f) hsv[0] = ((hsv[0] + dh * k) % 360f + 360f) % 360f
+			hsv[1] = (hsv[1] + ds * k).coerceIn(0f, 1f)
+			hsv[2] = (hsv[2] + dv * k).coerceIn(0f, 1f)
+			return Color.HSVToColor(hsv)
+		}
+		return shift(-12f, -0.10f, 0.12f) to shift(10f, 0.06f, -0.14f)
+	}
 	fun text(mode: Mode) = if (mode == Mode.OWN) ownColors else otherColors
 }
 
@@ -188,13 +252,6 @@ private class RowState(val accessories: ViewGroup?, val listener: View.OnLayoutC
 	/** The bind's group-position supplier (a Discord `Function0`), read again for stale tails. */
 	var supplier: Any? = null
 	var position = GroupPosition.ONLY
-	/**
-	 * What the rows next to this one say about joining, from the last on-screen pass
-	 * ([checkNeighbours]): false when the row above ends (or the row below starts) with something
-	 * that isn't a bubble. Null when that row isn't on screen, so the group position decides.
-	 */
-	var aboveJoins: Boolean? = null
-	var belowJoins: Boolean? = null
 	/** Author id as text, for the run's time template (TimeTemplates). */
 	var authorKey: String? = null
 	/** The bound message's id and Discord's own formatted time, for "Show on tap". */
@@ -207,6 +264,13 @@ private class RowState(val accessories: ViewGroup?, val listener: View.OnLayoutC
 	var sentAt: Long? = null
 	/** Discord's time in an other-person row's header, hidden by us under "Show on tap". */
 	var otherTimeHidden: View? = null
+	/** "Hide names": their name (author_name) we set GONE on this bind; Discord re-sets it on the next. */
+	var otherNameHidden: View? = null
+	/** "Hide names": the header's visibility before we hid it on a row of theirs. */
+	var otherHeaderSaved: Int? = null
+	/** "Hide names": the accessories' top margin as Discord set it, and the one we set instead. */
+	var nameGapBase: Int? = null
+	var nameGapOurs: Int? = null
 	/** The long form of the time ("Tuesday, October 27, 2026 11:58 PM") for the pop-up. */
 	var fullTime: String? = null
 	/** The time shown under this row's bubble ("Tap: under the bubble"), in the row's overlay. */
@@ -221,6 +285,8 @@ private class RowState(val accessories: ViewGroup?, val listener: View.OnLayoutC
 	val replyMoved = HashMap<View, Pair<Float, Float>>()
 	/** Their avatar (and decoration) is moved down beside the first bubble (alignAvatar). */
 	var avatarMoved = false
+	/** "Show my profile picture": the avatar (and decoration) is moved across to the right side. */
+	var avatarMovedX = false
 	/** This row's avatar views (author_avatar, author_avatar_decoration), found once. */
 	var avatarViews: List<View>? = null
 	/** A pre-draw alignment of the avatar is waiting on this row (scheduleRowAlign). */
@@ -229,6 +295,8 @@ private class RowState(val accessories: ViewGroup?, val listener: View.OnLayoutC
 	var breakPadded: View? = null
 	var breakPadding = 0
 	var breakTag: TimeTag? = null
+	/** The message has been edited (Discord's `getEdited` label is set). */
+	var edited = false
 }
 
 internal class BubbleHooks(private val scope: PluginScope) {
@@ -267,6 +335,11 @@ internal class BubbleHooks(private val scope: PluginScope) {
 		it.parameterTypes.isEmpty() && it.returnType == String::class.java && (it.name == "getId" || it.name.startsWith("getId-"))
 	}
 
+	/** Discord's "edited" label text, set once a message has been edited. Optional. */
+	private val editedGetter: Method? = messageClass.methods.firstOrNull {
+		it.parameterTypes.isEmpty() && it.returnType == String::class.java && it.name == "getEdited"
+	}
+
 	/** Discord's formatted time ("Today at 3:04 PM"), the text its own timestamp view shows. */
 	private val timestampGetter: Method? = messageClass.methods.firstOrNull {
 		it.parameterTypes.isEmpty() && it.returnType == String::class.java && it.name == "getTimestamp"
@@ -298,8 +371,8 @@ internal class BubbleHooks(private val scope: PluginScope) {
 	@Volatile private var styledRows = 0
 	@Volatile private var config = Config()
 	@Volatile private var lastError: String? = null
-	/** The last on-screen pass of [checkNeighbours], top to bottom, for the status report. */
-	@Volatile private var joinSnapshot: List<Map<String, Any?>> = emptyList()
+	/** The last join pass ([joinPass]): bubbles on screen and how many joined, for the status report. */
+	@Volatile private var joinStats: String? = null
 	@Volatile private var seenTypesSnapshot: List<String> = emptyList()
 	private val positionCounts = java.util.concurrent.ConcurrentHashMap<String, Int>()
 	/** Other people's END rows: avatar URL present (network URL) or not. */
@@ -329,6 +402,9 @@ internal class BubbleHooks(private val scope: PluginScope) {
 
 	val signature: String = bind.toGenericString()
 
+	/** The last chat list seen, on screen or not (Feedback's haptics and its app context). */
+	fun chatListView(): View? = chatList?.get()
+
 	fun status(): Map<String, Any?> = mapOf(
 		"hooked" to true,
 		"method" to signature,
@@ -341,6 +417,8 @@ internal class BubbleHooks(private val scope: PluginScope) {
 		"linkRecolours" to linkRecolours,
 		"custom" to config.custom,
 		"hideAvatars" to config.hideAvatars,
+		"hideNames" to config.hideNames,
+		"personColors" to config.personColors.size,
 		"tapToggles" to tapToggles,
 		"roomsMade" to roomsMade,
 		"timesPlaced" to timesPlaced,
@@ -366,7 +444,12 @@ internal class BubbleHooks(private val scope: PluginScope) {
 		"positions" to HashMap(positionCounts),
 		"authorGetter" to authorIdGetter?.name,
 		"error" to lastError,
-		"joins" to joinSnapshot,
+		"joins" to joinStats,
+		"edited" to mapOf(
+			"binds" to contentBinds.map { it.first.name + "/" + it.second },
+			"idIndex" to contentIdIndex,
+			"nulled" to editedNulled,
+		),
 	)
 
 	/**
@@ -391,23 +474,36 @@ internal class BubbleHooks(private val scope: PluginScope) {
 			iosReactions = map["iosReactions"] as? Boolean ?: old.iosReactions,
 			chatBg = parseColor(map["chatBg"]) ?: old.chatBg,
 			tapbackCorner = map["tapbackCorner"] as? Boolean ?: old.tapbackCorner,
+			hideNames = map["hideNames"] as? Boolean ?: old.hideNames,
+			swipeNames = map["swipeNames"] as? Boolean ?: old.swipeNames,
+			personColors = (map["personColors"] as? List<*>)?.mapNotNull(::parseColor) ?: old.personColors,
+			personFromAvatar = (map["personSource"] as? String)?.let { it == "avatar" } ?: old.personFromAvatar,
+			personInOrder = (map["personSource"] as? String)?.let { it == "theme" } ?: old.personInOrder,
+			personDark = map["personDark"] as? Boolean ?: old.personDark,
 			swipeTimes = map["swipeTimes"] as? Boolean ?: old.swipeTimes,
 			bubbleRadiusDp = (map["bubbleRadius"] as? Number)?.toFloat() ?: old.bubbleRadiusDp,
+			scrollColor = map["scrollColor"] as? Boolean ?: old.scrollColor,
+			editedLabel = map["editedLabel"] as? Boolean ?: old.editedLabel,
+			ownAvatar = map["ownAvatar"] as? Boolean ?: old.ownAvatar,
+			scrollColorStrength = (map["scrollColorStrength"] as? Number)?.toFloat() ?: old.scrollColorStrength,
+			bubbleAlpha = (map["bubbleOpacity"] as? Number)?.toFloat()?.coerceIn(0.3f, 1f) ?: old.bubbleAlpha,
 			ownBg = parseColor(map["ownBg"]) ?: old.ownBg,
 			ownText = parseColor(map["ownText"]) ?: old.ownText,
 			otherBg = parseColor(map["otherBg"]) ?: old.otherBg,
 			otherText = parseColor(map["otherText"]) ?: old.otherText,
 			tokens = (map["tokens"] as? Map<*, *>)?.entries?.associate { (k, v) -> k.toString() to v?.toString() } ?: old.tokens,
 		)
-		val timesChanged = old.tapTimes != config.tapTimes || old.timesBelow != config.timesBelow
+		val timesChanged = old.tapTimes != config.tapTimes || old.timesBelow != config.timesBelow || old.editedLabel != config.editedLabel
+		val namesChanged = old.hideNames != config.hideNames
 		val tailsChanged = old.tails != config.tails
 		// Measured positions move with these; measured again on the next layout.
 		if (old.tails != config.tails || old.hideAvatars != config.hideAvatars) bubbleLeftPx = -1f
 		val avatarsChanged = old.hideAvatars != config.hideAvatars
+		val ownAvatarChanged = old.ownAvatar != config.ownAvatar
 		val inkChanged = old.invisibleInk != config.invisibleInk
 		val reactionsChanged = old.iosReactions != config.iosReactions || old.ownBg != config.ownBg ||
 			old.otherBg != config.otherBg || old.ownText != config.ownText || old.otherText != config.otherText ||
-			old.chatBg != config.chatBg || old.tapbackCorner != config.tapbackCorner
+			old.chatBg != config.chatBg || old.tapbackCorner != config.tapbackCorner || old.bubbleAlpha != config.bubbleAlpha
 		main.post {
 			try {
 				if (timesChanged && !(config.tapTimes && config.timesBelow)) shownTimes.clear()
@@ -429,8 +525,22 @@ internal class BubbleHooks(private val scope: PluginScope) {
 						state.accessories?.let { applyTexts(row, it, state) }
 					}
 					if (inkChanged && row.isAttachedToWindow) state.accessories?.let { applyInk(it, state) }
+					// Your picture shown or hidden: visibility (INVISIBLE keeps sizes) and moves only.
+					if (ownAvatarChanged && state.mode == Mode.OWN) {
+						showOwnAvatar(row, state)
+						if (!config.ownAvatar) unalignAvatar(row, state)
+						if (row.isAttachedToWindow) {
+							state.accessories?.let {
+								remeasureTexts(it)
+								applyTexts(row, it, state)
+							}
+							alignRow(row, state)
+						}
+					}
 					if (reactionsChanged && row.isAttachedToWindow) state.accessories?.let { placeAccessories(row, it, state) }
 					syncOtherTime(row, state)
+					syncOtherName(row, state)
+					if (config.personFromAvatar && state.mode == Mode.OTHER && row.isAttachedToWindow) sampleAvatar(row, state)
 					updateTimeTag(row, state)
 				}
 				if (old.bubbleRadiusDp != config.bubbleRadiusDp) {
@@ -442,8 +552,15 @@ internal class BubbleHooks(private val scope: PluginScope) {
 						if (row.isAttachedToWindow) state.accessories?.let { placeAccessories(row, it, state) }
 					}
 				}
-				if (old.otherBg != config.otherBg) personColors.clear()
+				if (old.otherBg != config.otherBg || old.personColors != config.personColors || old.personInOrder != config.personInOrder) {
+					personColors.clear()
+					recentPeople.clear()
+				}
+				if (old.personDark != config.personDark) avatarToned.clear()
+				if (config.scrollColor) chatList?.get()?.let(::watchScroll)
 				if (old.timeBreaks != config.timeBreaks) relayoutBreaks { true }
+				// The run gaps come from the list's decorations, which only ask again when told to.
+				if (namesChanged) chatList?.get()?.let(::invalidateDecorations)
 				for ((text, saved) in texts.entries.toList()) {
 					val mode = rowOf(text)?.mode ?: continue
 					if (mode != Mode.NONE) recolor(text, saved, mode)
@@ -592,12 +709,23 @@ internal class BubbleHooks(private val scope: PluginScope) {
 		unhookListDraw?.unhook()
 		unhookListDraw = null
 		for (u in unhookChipMe) runCatching { u.unhook() }
+		main.post { unwatchScroll(); unwatchJoins() }
 		unhookFlexMeasure?.unhook()
 
 		unhookDraw.unhook()
+		for (u in unhookEdited) runCatching { u.unhook() }
 		main.post {
+			bubbleIds.clear()
 			for (u in spanHooks.values) runCatching { u.unhook() }
 			spanHooks.clear()
+			for (u in decoHooks.values) runCatching { u.unhook() }
+			decoHooks.clear()
+			avatarColors.clear()
+			avatarTries.clear()
+			avatarToned.clear()
+			decoList = null
+			decoCount = -1
+			chatList?.get()?.let { list -> runCatching { invalidateDecorations(list) } }
 			drawing = null
 			pendingTap?.let(main::removeCallbacks)
 			pendingTap = null
@@ -612,6 +740,7 @@ internal class BubbleHooks(private val scope: PluginScope) {
 			for ((row, state) in rows.entries.toList()) runCatching {
 				state.mode = Mode.NONE
 				syncOtherTime(row, state)
+				syncOtherName(row, state)
 				state.timeTag?.let { row.overlay.remove(it) }
 				state.timeTag = null
 				unshiftRow(state)
@@ -696,7 +825,12 @@ internal class BubbleHooks(private val scope: PluginScope) {
 		try {
 			if (appContext == null) appContext = row.context.applicationContext
 			val state = rows[row] ?: newRow(row).also { rows[row] = it }
-			(row.parent as? ViewGroup)?.let { if (chatList?.get() !== it) chatList = java.lang.ref.WeakReference(it) }
+			(row.parent as? ViewGroup)?.let {
+				if (chatList?.get() !== it) chatList = java.lang.ref.WeakReference(it)
+				hookDecorations(it)
+				if (config.scrollColor) watchScroll(it)
+				watchJoins(it)
+			}
 			val message = param.args.getOrNull(0)
 			if (message != null) readMessage(message, state) else state.bubbleType = false
 			state.supplier = param.args.getOrNull(supplierIndex)
@@ -704,10 +838,20 @@ internal class BubbleHooks(private val scope: PluginScope) {
 			positionCounts.merge(state.position.name, 1, Int::plus)
 			val mode = decide(state)
 			val changed = state.mode != mode
+			state.messageId?.let { id ->
+				if (mode != Mode.NONE) {
+					bubbleIds.remove(id)
+					bubbleIds.add(id)
+					if (bubbleIds.size > MAX_BUBBLE_IDS) bubbleIds.remove(bubbleIds.first())
+				} else bubbleIds.remove(id)
+			}
 			setMode(row, state, mode, binding = true)
 			// Discord has just set its own time visible for this message, so nothing to put back.
 			state.otherTimeHidden = null
 			syncOtherTime(row, state)
+			// Same for their name: Discord has just set it for this message.
+			state.otherNameHidden = null
+			syncOtherName(row, state)
 			updateTimeTag(row, state)
 			if (mode == Mode.OTHER) placeAvatar(row, state, binding = true)
 			if (mode == Mode.OWN) watchOwnAvatars(row)
@@ -766,14 +910,24 @@ internal class BubbleHooks(private val scope: PluginScope) {
 					state.position = pos
 					reshape[other] = state
 				}
-				// Who touches whom on screen, after this frame's layout.
-				(list as? ViewGroup)?.let { for ((other, state) in checkNeighbours(it)) reshape[other] = state }
 				for ((other, state) in reshape) if (state.mode != Mode.NONE) state.accessories?.let { reshapeTexts(it, state) }
+				(list as? ViewGroup)?.let { l ->
+					// A message that carries on your run (or stops doing so) changes the gap above it,
+					// which the decorations only give on a new layout.
+					val merging = rows.entries.filter { (r, st) -> r.parent === l && nextMergingRow(r, st) != null }.mapNotNull { it.value.messageId }.toSet()
+					if (merging != lastMerging) {
+						lastMerging = merging
+						runCatching { invalidateDecorations(l) }
+					}
+				}
 			} catch (e: Throwable) {
 				fail("stale", e)
 			}
 		}
 	}
+
+	/** Messages whose next one carried on the run at the last pass, to re-ask the gaps on a change. */
+	private var lastMerging: Set<String> = emptySet()
 
 	private fun avatarViewsOf(row: ViewGroup, state: RowState): List<View> =
 		state.avatarViews ?: AVATAR_VIEWS.mapNotNull { row.findViewById<View>(id(row, it)) }.also { state.avatarViews = it }
@@ -807,6 +961,7 @@ internal class BubbleHooks(private val scope: PluginScope) {
 	}
 
 	private fun keepOwnAvatarsHidden() {
+		if (config.ownAvatar) return
 		for ((row, state) in rows.entries.toList()) {
 			if (state.mode != Mode.OWN || !row.isAttachedToWindow) continue
 			for (v in avatarViewsOf(row, state)) if (v.visibility == View.VISIBLE) {
@@ -847,6 +1002,7 @@ internal class BubbleHooks(private val scope: PluginScope) {
 		state.timestamp = readTime(message)
 		state.fullTime = readFullTime(message)
 		state.authorKey = runCatching { authorIdGetter?.invoke(message)?.toString() }.getOrNull()
+		state.edited = !runCatching { editedGetter?.invoke(message) as? String }.getOrNull().isNullOrBlank()
 		readRunTime(message, state)
 		state.own = isOwn.invoke(message) == true
 		state.inGuild = guildId.invoke(message) != null
@@ -944,7 +1100,7 @@ internal class BubbleHooks(private val scope: PluginScope) {
 		state.mode = mode
 		if (mode != Mode.OTHER) unshiftRow(state)
 		if (mode != Mode.OWN) unalignReply(state)
-		if (mode != Mode.OTHER) unalignAvatar(row, state)
+		if (mode == Mode.NONE || (mode == Mode.OWN && !config.ownAvatar)) unalignAvatar(row, state)
 		if (mode == Mode.OWN) styleRow(row, state)
 		else restoreRow(row, state, stopping = wasOwn && !binding)
 	}
@@ -968,6 +1124,39 @@ internal class BubbleHooks(private val scope: PluginScope) {
 		} else if (hidden != null) {
 			if (hidden.visibility == View.GONE) hidden.visibility = View.VISIBLE
 			state.otherTimeHidden = null
+		}
+	}
+
+	/**
+	 * "Hide names": their name above the first bubble of a run goes, with the header it sits in
+	 * (its tags too). Like [syncOtherTime], only a value we gave is put back. Own rows hide the
+	 * header themselves (styleRow), so this only touches rows in OTHER mode.
+	 */
+	private fun syncOtherName(row: ViewGroup, state: RowState) {
+		val hide = state.mode == Mode.OTHER && config.hideNames
+		if (hide) {
+			if (state.otherNameHidden == null) {
+				row.findViewById<View>(id(row, "author_name"))?.let { name ->
+					if (name.visibility == View.VISIBLE) {
+						name.visibility = View.GONE
+						state.otherNameHidden = name
+					}
+				}
+			}
+			// Checked every time: a mode change (restoreRow) may have shown the header again.
+			row.findViewById<View>(id(row, "header"))?.let { header ->
+				if (state.otherHeaderSaved == null) state.otherHeaderSaved = header.visibility
+				if (header.visibility != View.GONE) header.visibility = View.GONE
+			}
+		} else {
+			state.otherNameHidden?.let { if (it.visibility == View.GONE) it.visibility = View.VISIBLE }
+			state.otherNameHidden = null
+			state.otherHeaderSaved?.let { saved ->
+				// An own row keeps the header styleRow hid; restoreRow puts that one back.
+				if (state.mode != Mode.OWN) row.findViewById<View>(id(row, "header"))?.visibility = saved
+			}
+			state.otherHeaderSaved = null
+			untightenName(state)
 		}
 	}
 
@@ -1000,12 +1189,9 @@ internal class BubbleHooks(private val scope: PluginScope) {
 		}
 		// Discord sets these on every bind (MessageView.b/c), so this bind's value is the one to keep.
 		state.hidden.clear()
-		for ((name, hide) in listOf(
-			"author_name" to View.GONE,
-			"timestamp" to View.GONE,
-			"author_avatar" to View.INVISIBLE,
-			"author_avatar_decoration" to View.INVISIBLE,
-		)) {
+		val hides = listOf("author_name" to View.GONE, "timestamp" to View.GONE) +
+			if (config.ownAvatar) emptyList() else AVATAR_VIEWS.map { it to View.INVISIBLE }
+		for ((name, hide) in hides) {
 			val v = row.findViewById<View>(id(row, name)) ?: continue
 			// A grouped row has the avatar GONE already; keep that (the gutter comes from constraints).
 			if (v.visibility == View.VISIBLE) {
@@ -1302,19 +1488,36 @@ internal class BubbleHooks(private val scope: PluginScope) {
 		}
 	}
 
-	/** How far the bubbles slide: the widest time on screen plus a gap, within limits. */
+	/**
+	 * The name for a row's swipe label: only with "Hide names" and "Also show names", and only on
+	 * the rows whose name we hid (a run's first message), read off Discord's own name view.
+	 */
+	private fun swipeNameFor(state: RowState): String? {
+		if (!config.hideNames || !config.swipeNames || state.mode != Mode.OTHER) return null
+		return (state.otherNameHidden as? TextView)?.text?.toString()?.trim()?.takeIf { it.isNotEmpty() }
+	}
+
+	/** How far the bubbles slide: the widest time (or name) on screen plus a gap, within limits. */
 	private fun swipeMax(list: ViewGroup): Float {
 		val paint = TextPaint()
 		paint.textSize = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_SP, TIME_TEXT_SP, list.resources.displayMetrics)
 		var widest = 0f
+		var names = false
 		for (i in 0 until list.childCount) {
 			val state = rows[list.getChildAt(i) as? ViewGroup ?: continue] ?: continue
 			if (state.mode == Mode.NONE) continue
-			val label = timesFor(state).second ?: continue
-			widest = maxOf(widest, paint.measureText(label))
+			timesFor(state).second?.let { widest = maxOf(widest, paint.measureText(it)) }
+			swipeNameFor(state)?.let {
+				names = true
+				// Names are bold in the swipe (SwipeTimes), so measured bold.
+				paint.typeface = android.graphics.Typeface.DEFAULT_BOLD
+				widest = maxOf(widest, paint.measureText(it))
+				paint.typeface = android.graphics.Typeface.DEFAULT
+			}
 		}
 		val pad = dp(list, SWIPE_TIME_PAD_DP) * 2f
-		return (widest + pad).coerceIn(dp(list, 56f).toFloat(), dp(list, SWIPE_MAX_DP).toFloat())
+		val cap = if (names) maxOf(dp(list, SWIPE_MAX_DP).toFloat(), list.width * SWIPE_NAME_MAX_SHARE) else dp(list, SWIPE_MAX_DP).toFloat()
+		return (widest + pad).coerceIn(dp(list, 56f).toFloat(), cap)
 	}
 
 	/**
@@ -1332,7 +1535,7 @@ internal class BubbleHooks(private val scope: PluginScope) {
 			swipeShifted.remove(row)
 		}
 		val max = swipeMax(list)
-		val labels = ArrayList<Triple<String, Float, Boolean>>()
+		val labels = ArrayList<SwipeLabel>()
 		for (i in 0 until list.childCount) {
 			val row = list.getChildAt(i) as? ViewGroup ?: continue
 			val state = rows[row] ?: continue
@@ -1348,7 +1551,7 @@ internal class BubbleHooks(private val scope: PluginScope) {
 				row.offsetDescendantRectToMyCoords(text, r)
 				row.top + r.exactCenterY()
 			} else row.top + row.height / 2f
-			labels += Triple(label, y, state.mode == Mode.OWN)
+			labels += SwipeLabel(label, y, swipeNameFor(state))
 		}
 		val tag = swipeTimesTag ?: SwipeTimes().also {
 			it.setBounds(0, 0, Int.MAX_VALUE / 2, Int.MAX_VALUE / 2)
@@ -1357,7 +1560,7 @@ internal class BubbleHooks(private val scope: PluginScope) {
 		}
 		val size = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_SP, TIME_TEXT_SP, list.resources.displayMetrics)
 		val base = if (config.custom) 0xFFDBDEE1.toInt() else config.text(Mode.OTHER).defaultColor
-		tag.set(labels, list.width - dp(list, SWIPE_TIME_PAD_DP).toFloat() - (max - offset), size, base, (offset / max).coerceIn(0f, 1f))
+		tag.set(labels, list.width - dp(list, SWIPE_TIME_PAD_DP).toFloat() - (max - offset), size, base, (offset / max).coerceIn(0f, 1f), max - dp(list, SWIPE_TIME_PAD_DP) * 2f)
 		if (offset <= 0f) {
 			runCatching { list.overlay.remove(tag) }
 			swipeTimesTag = null
@@ -1450,25 +1653,48 @@ internal class BubbleHooks(private val scope: PluginScope) {
 		return off
 	}
 
-	/** The times drawn at the chat's right edge during a two-finger swipe. */
+	/** One row's swipe label: its time, lined up at [y], and the name above it ("Also show names"). */
+	private class SwipeLabel(val time: String, val y: Float, val name: String?)
+
+	/** The times (and names) drawn at the chat's right edge during a two-finger swipe. */
 	private class SwipeTimes : Drawable() {
 		private val paint = TextPaint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply { textAlign = android.graphics.Paint.Align.RIGHT }
-		private var labels: List<Triple<String, Float, Boolean>> = emptyList()
+		private val namePaint = TextPaint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply {
+			textAlign = android.graphics.Paint.Align.RIGHT
+			typeface = android.graphics.Typeface.DEFAULT_BOLD
+		}
+		private var labels: List<SwipeLabel> = emptyList()
 		private var right = 0f
+		private var width = 0f
 
-		fun set(labels: List<Triple<String, Float, Boolean>>, right: Float, size: Float, color: Int, alpha: Float) {
+		fun set(labels: List<SwipeLabel>, right: Float, size: Float, color: Int, alpha: Float, width: Float) {
 			this.labels = labels
 			this.right = right
+			this.width = width
 			paint.textSize = size
 			paint.color = color
 			paint.alpha = (android.graphics.Color.alpha(color) * alpha * 0.8f).toInt()
+			namePaint.textSize = size
+			namePaint.color = color
+			namePaint.alpha = (android.graphics.Color.alpha(color) * alpha).toInt()
 			invalidateSelf()
 		}
 
 		override fun draw(canvas: Canvas) {
 			val fm = paint.fontMetrics
 			val shift = -(fm.ascent + fm.descent) / 2f
-			for ((label, y, _) in labels) canvas.drawText(label, right, y + shift, paint)
+			val line = fm.descent - fm.ascent
+			for (l in labels) {
+				val name = l.name
+				if (name == null) {
+					canvas.drawText(l.time, right, l.y + shift, paint)
+					continue
+				}
+				// Two lines, centred on the bubble together: the name, then the time.
+				val shown = android.text.TextUtils.ellipsize(name, namePaint, width.coerceAtLeast(1f), android.text.TextUtils.TruncateAt.END)
+				canvas.drawText(shown, 0, shown.length, right, l.y + shift - line / 2f, namePaint)
+				canvas.drawText(l.time, right, l.y + shift + line / 2f, paint)
+			}
 		}
 
 		override fun setAlpha(alpha: Int) {}
@@ -1566,10 +1792,16 @@ internal class BubbleHooks(private val scope: PluginScope) {
 
 	/** The time to draw under this row's bubble, or null. */
 	private fun timeLabel(state: RowState): String? {
-		if (!config.tapTimes || !config.timesBelow || state.mode == Mode.NONE) return null
-		val id = state.messageId ?: return null
+		if (state.mode == Mode.NONE) return null
+		val edited = config.editedLabel && state.edited
+		val id = state.messageId
 		// The whole text, Timezones' "· 3:02 AM Tue" included, on later messages of a run too.
-		return if (id in shownTimes) timesFor(state).second else null
+		val time = if (config.tapTimes && config.timesBelow && id != null && id in shownTimes) timesFor(state).second else null
+		return when {
+			edited && !time.isNullOrBlank() -> "Edited · $time"
+			edited -> "Edited"
+			else -> time
+		}
 	}
 
 	private val timePaint = android.graphics.Paint()
@@ -1618,7 +1850,9 @@ internal class BubbleHooks(private val scope: PluginScope) {
 		// On the chat background, not a bubble: the theme's normal text colour, a little faded.
 		// With custom colours the text colours are picked for the bubbles, so plain light grey then.
 		val base = if (config.custom) 0xFFDBDEE1.toInt() else config.text(Mode.OTHER).defaultColor
-		val color = (base and 0x00FFFFFF) or (0xB3 shl 24)
+		// "Edited" is in your bubble colour, as iMessage writes it in blue.
+		val color = if (config.editedLabel && state.edited) config.ownBg or (0xFF shl 24)
+		else (base and 0x00FFFFFF) or (0xB3 shl 24)
 		tag.set(label, color, size, (if (own) rect.right - inset else rect.left + inset).toFloat(), rect.bottom - tag.descent(), rightAligned = own)
 		timesPlaced++
 		lastTimeSkip = if (rect.bottom > row.height) "outsideRow ${rect.bottom}/${row.height}" else null
@@ -1664,7 +1898,9 @@ internal class BubbleHooks(private val scope: PluginScope) {
 			val row = text.parent?.parent as? View
 			val rowWidth = row?.width?.takeIf { it > 0 } ?: text.resources.displayMetrics.widthPixels
 			val max = (rowWidth * MAX_WIDTH_FRACTION).toInt()
-			val limit = if (available > 0) minOf(available, max) else max
+			var limit = if (available > 0) minOf(available, max) else max
+			// "Show my profile picture": a wide bubble of yours mustn't reach under your picture.
+			if (state.mode == Mode.OWN && config.ownAvatar) limit = minOf(limit, rowWidth - 2 * guidelinePx(text))
 			remeasuring = true
 			try {
 				onMeasure.invoke(text, View.MeasureSpec.makeMeasureSpec(limit, View.MeasureSpec.AT_MOST), heightSpec)
@@ -1685,10 +1921,14 @@ internal class BubbleHooks(private val scope: PluginScope) {
 		val mode = state.mode
 		val shift = mode == Mode.OTHER && config.hideAvatars
 		if (shift) shiftRow(row, accessories, state) else unshiftRow(state)
-		if (mode == Mode.OWN) alignReply(row, accessories, state) else unalignReply(state)
+		if (mode == Mode.OWN) alignReply(row, accessories, state)
+		else if (shift) hookOtherReply(row, state)
+		else unalignReply(state)
+		if (mode == Mode.OTHER && state.otherHeaderSaved != null) tightenName(row, accessories, state) else untightenName(state)
 		scheduleRowAlign(row, state)
 		placeAccessories(row, accessories, state)
 		if (mode == Mode.OTHER) noteChatMetrics(row, accessories)
+		if (mode == Mode.OTHER) sampleAvatar(row, state)
 		for (i in 0 until accessories.childCount) {
 			val child = accessories.getChildAt(i) as? TextView ?: continue
 			if (!contentClass.isInstance(child)) continue
@@ -1696,7 +1936,7 @@ internal class BubbleHooks(private val scope: PluginScope) {
 			if (mode == Mode.OWN) {
 				if (child.width > 0 && accessories.width > 0) {
 					// The tail's tip is the bubble's right edge.
-					val target = accessories.width - accessories.paddingRight - dp(child, RIGHT_GAP_DP)
+					val target = accessories.width - accessories.paddingRight - ownRightGap(row, accessories)
 					val dx = (target - child.right).coerceAtLeast(0).toFloat()
 					if (child.translationX != dx) child.translationX = dx
 				}
@@ -1718,7 +1958,7 @@ internal class BubbleHooks(private val scope: PluginScope) {
 			if (!contentClass.isInstance(child)) continue
 			val on = config.invisibleInk && mode != Mode.NONE && texts[child] != null
 			try {
-				ink.update(child, on, bgFor(state, mode), config.text(mode).defaultColor)
+				ink.update(child, on, bgFor(state, mode), textFor(state, mode).defaultColor)
 			} catch (e: Throwable) {
 				ink.remove(child)
 				fail("ink", e)
@@ -1830,7 +2070,7 @@ internal class BubbleHooks(private val scope: PluginScope) {
 		// Where own bubbles end (their tail tip): the target applyTexts pushes them to, not the
 		// bubble's current edge, which on a freshly recycled row is still its left-side position
 		// (0.2.13-0.2.20 put the line and quote 99px short on those rows).
-		val bubbleRight = accessories.left + accessories.width - accessories.paddingRight - dp(row, RIGHT_GAP_DP)
+		val bubbleRight = accessories.left + accessories.width - accessories.paddingRight - ownRightGap(row, accessories)
 		// The line comes down a little inside the bubble's top-right corner, past its tail.
 		val inset = (if (config.tails) dp(row, TAIL_W_DP) else 0) + dp(row, minOf(config.bubbleRadiusDp, RADIUS_DP) * 0.75f)
 		val lineRight = bubbleRight - inset - preview.left
@@ -1846,6 +2086,77 @@ internal class BubbleHooks(private val scope: PluginScope) {
 		move(state, spline, (lineRight - spline.width - spline.left).toFloat(), -1f)
 		move(state, quote, dx.toFloat(), null)
 		leading?.let { move(state, it, dx.toFloat(), null) }
+	}
+
+	/**
+	 * "Hide names": with the header GONE, the space Discord keeps above the first item (its top
+	 * margin under the header barrier) was left as a gap (0.5.32/0.5.33). Measured after each layout,
+	 * the accessories list's top margin is cut so the first item sits [NAME_GAP_REPLY_DP] under a reply
+	 * quote, or right at the row's top. Discord sets that margin on every bind, so its value is kept as
+	 * the base and our cut is applied on top; put back by [untightenName].
+	 */
+	private fun tightenName(row: ViewGroup, accessories: ViewGroup, state: RowState) {
+		val lp = accessories.layoutParams as? ViewGroup.MarginLayoutParams ?: return
+		// A bind (or anyone else) set a new margin: that is Discord's base now.
+		if (state.nameGapOurs == null || lp.topMargin != state.nameGapOurs) {
+			state.nameGapBase = lp.topMargin
+			state.nameGapOurs = null
+		}
+		val base = state.nameGapBase ?: return
+		val first = (0 until accessories.childCount).map(accessories::getChildAt).firstOrNull { it.visibility == View.VISIBLE && it.height > 0 } ?: return
+		val reply = row.findViewById<View>(id(row, "reply_preview_view"))?.takeIf { it.visibility == View.VISIBLE && it.height > 0 }
+		val anchor = reply?.bottom ?: row.paddingTop
+		val wanted = if (reply != null) dp(row, NAME_GAP_REPLY_DP) else 0
+		val cut = base - lp.topMargin
+		val gap = accessories.top + first.top - anchor + cut
+		val target = base - (gap - wanted).coerceAtLeast(0)
+		if (target == lp.topMargin) return
+		lp.topMargin = target
+		state.nameGapOurs = target
+		accessories.layoutParams = lp
+	}
+
+	private fun untightenName(state: RowState) {
+		val ours = state.nameGapOurs ?: run { state.nameGapBase = null; return }
+		val base = state.nameGapBase
+		state.nameGapOurs = null
+		state.nameGapBase = null
+		val accessories = state.accessories ?: return
+		val lp = accessories.layoutParams as? ViewGroup.MarginLayoutParams ?: return
+		if (base != null && lp.topMargin == ours) {
+			lp.topMargin = base
+			accessories.layoutParams = lp
+		}
+	}
+
+	/**
+	 * Their replies with "Hide avatars": [shiftRow] moves the reply preview left with the bubbles,
+	 * but its curved line was laid out to hook down into the avatar column, so it ended up off the
+	 * row's left edge as a stray stub (0.5.31 and before). The line is put back so it hooks down a
+	 * little inside the bubble's top-left corner, past its tail, and the quote (name chip and text)
+	 * starts right after it: [alignReply] without the mirror. Positions are in row coordinates, so
+	 * the preview's own shift is counted. translationX only, put back by [unalignReply].
+	 */
+	private fun hookOtherReply(row: ViewGroup, state: RowState) {
+		val preview = row.findViewById<View>(id(row, "reply_preview_view")) as? ViewGroup
+		val spline = preview?.findViewById<View>(id(row, "reply_spline"))
+		val quote = preview?.findViewById<TextView>(id(row, "reply_text"))
+		val leading = preview?.findViewById<View>(id(row, "reply_leading_views"))
+		if (preview == null || spline == null || quote == null || preview.width == 0 || spline.width == 0) {
+			unalignReply(state)
+			return
+		}
+		// The bubble's body starts here once shifted: the column edge, past the tail.
+		val bubbleLeft = dp(row, AVATAR_MARGIN_DP) + (if (config.tails) dp(row, TAIL_W_DP) else 0)
+		val inset = dp(row, minOf(config.bubbleRadiusDp, RADIUS_DP) * 0.75f)
+		val origin = preview.left + preview.translationX
+		val gap = (quote.left - spline.right).coerceAtLeast(0)
+		val lineLeft = bubbleLeft + inset
+		move(state, spline, lineLeft - (origin + spline.left), null)
+		val contentLeft = minOf(quote.left, leading?.takeIf { it.width > 0 }?.left ?: quote.left)
+		val dx = (lineLeft + spline.width + gap) - (origin + contentLeft)
+		move(state, quote, dx, null)
+		leading?.let { move(state, it, dx, null) }
 	}
 
 	/**
@@ -1871,13 +2182,15 @@ internal class BubbleHooks(private val scope: PluginScope) {
 		}
 		// A bubble's body starts below the gap kept under their name.
 		val isBubble = first is TextView && texts[first] != null
-		val gap = if (isBubble && (state.position == GroupPosition.START || state.position == GroupPosition.ONLY)) dp(row, NAME_GAP_DP) else 0
+		val gap = if (state.mode == Mode.OTHER && isBubble && (state.position == GroupPosition.START || state.position == GroupPosition.ONLY)) dp(row, NAME_GAP_DP) else 0
 		val firstTop = accessories.top + first.top + gap
 		val wanted = (firstTop - avatar.top).coerceAtLeast(0)
 		val dy = wanted.coerceAtMost(row.height - avatar.bottom).coerceAtLeast(0).toFloat()
 		avatarsAligned++
 		lastAvatarAlign = "dy=$dy firstTop=$firstTop bubble=$isBubble avatarTop=${avatar.top} rowH=${row.height} ty=${avatar.translationY}"
 		setAvatarY(row, state, dy)
+		// Yours: mirrored to the right edge, as far in from it as theirs is from the left.
+		setAvatarX(row, state, if (state.mode == Mode.OWN) (row.width - avatar.left - avatar.right).toFloat() else 0f)
 	}
 
 	/**
@@ -1911,7 +2224,8 @@ internal class BubbleHooks(private val scope: PluginScope) {
 	}
 
 	private fun alignRow(row: ViewGroup, state: RowState) {
-		if (state.mode == Mode.OTHER && !config.hideAvatars) alignAvatar(row, state) else unalignAvatar(row, state)
+		if ((state.mode == Mode.OTHER && !config.hideAvatars) || (state.mode == Mode.OWN && config.ownAvatar)) alignAvatar(row, state)
+		else unalignAvatar(row, state)
 		state.accessories?.let { placeAccessories(row, it, state) }
 		placeBreak(row, state)
 	}
@@ -2050,7 +2364,7 @@ internal class BubbleHooks(private val scope: PluginScope) {
 	 */
 	private fun placeAccessories(row: ViewGroup, accessories: ViewGroup, state: RowState) {
 		val own = state.mode == Mode.OWN
-		val target = accessories.width - accessories.paddingRight - dp(row, RIGHT_GAP_DP)
+		val target = accessories.width - accessories.paddingRight - ownRightGap(row, accessories)
 		for (i in 0 until accessories.childCount) {
 			val child = accessories.getChildAt(i)
 			if (child is TextView && contentClass.isInstance(child)) continue
@@ -2060,14 +2374,20 @@ internal class BubbleHooks(private val scope: PluginScope) {
 				restoreTapback(child)
 			}
 			roundCard(row, child, state.mode != Mode.NONE)
+			roundPictures(row, child, state.mode != Mode.NONE)
 			if (!own || child.width == 0 || child !is ViewGroup) {
 				movedAccessories.remove(child)?.let { if (child.translationX != it) child.translationX = it }
 				continue
 			}
-			val contentRight = (0 until child.childCount).map(child::getChildAt)
+			val shown = (0 until child.childCount).map(child::getChildAt)
 				.filter { it.width > 0 && it.visibility == View.VISIBLE }
-				.maxOfOrNull { it.right } ?: child.width
-			val dx = (target - (child.left + contentRight)).coerceAtLeast(0).toFloat()
+			val contentRight = shown.maxOfOrNull { it.right } ?: child.width
+			val contentLeft = shown.minOfOrNull { it.left } ?: 0
+			// Pushed right to your side. With "Show my profile picture", something too wide for the
+			// room left of your picture (a picture, a link card) slides left instead, into the empty
+			// avatar column on the left, but no closer to the edge than AVATAR_MARGIN_DP.
+			val minDx = if (config.ownAvatar) (dp(row, AVATAR_MARGIN_DP) - (accessories.left + child.left + contentLeft)).coerceAtMost(0) else 0
+			val dx = (target - (child.left + contentRight)).coerceAtLeast(minDx).toFloat()
 			val original = movedAccessories.getOrPut(child) { child.translationX }
 			if (child.translationX != original + dx) child.translationX = original + dx
 		}
@@ -2424,10 +2744,12 @@ internal class BubbleHooks(private val scope: PluginScope) {
 			val vert = 1
 			val dots = bg
 			val ring = config.chatBg
+			// "Bubble opacity" fades the whole badge (ring and dots too), like the bubbles.
+			val alpha = (config.bubbleAlpha * 255f).toInt().coerceIn(0, 255)
 			val badge = (chip.background as? PillDrawable)?.takeIf {
-				it.color == bg && it.dotColor == dots && it.side == side && it.vert == vert && it.ring == ring
+				it.color == bg && it.dotColor == dots && it.side == side && it.vert == vert && it.ring == ring && it.layerAlpha == alpha
 			}
-			if (badge == null) chip.background = PillDrawable(bg, dots, side, vert, ring, density)
+			if (badge == null) chip.background = PillDrawable(bg, dots, side, vert, ring, density, alpha)
 			val fg = config.text(mode)
 			for (t in texts) if (t.textColors != fg) t.setTextColor(fg)
 		}
@@ -2469,6 +2791,8 @@ internal class BubbleHooks(private val scope: PluginScope) {
 		val vert: Int,
 		val ring: Int?,
 		private val density: Float,
+		/** "Bubble opacity": the whole badge is drawn into one layer at this alpha (255 = solid). */
+		val layerAlpha: Int = 255,
 	) : Drawable() {
 		private val paint = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG)
 		private val rect = android.graphics.RectF()
@@ -2500,6 +2824,13 @@ internal class BubbleHooks(private val scope: PluginScope) {
 				rect.left = c - r
 				rect.right = c + r
 			}
+			// See-through: drawn solid into one faded layer, so the ring under the badge doesn't show
+			// through it. The layer is the badge plus room for the dots hanging off it.
+			val faded = layerAlpha < 255
+			val save = if (faded) {
+				val pad = rect.height()
+				canvas.saveLayerAlpha(rect.left - pad, rect.top - pad, rect.right + pad, rect.bottom + pad, layerAlpha)
+			} else -1
 			// Ring round everything, then the dots, then the badge with its own ring over them, so
 			// the differently coloured dots sit cut out just under the badge.
 			val g = 1.5f * density
@@ -2516,6 +2847,7 @@ internal class BubbleHooks(private val scope: PluginScope) {
 			}
 			paint.color = color
 			pill(canvas, 0f)
+			if (faded) canvas.restoreToCount(save)
 		}
 
 		override fun setAlpha(alpha: Int) { paint.alpha = alpha }
@@ -2546,7 +2878,7 @@ internal class BubbleHooks(private val scope: PluginScope) {
 		container.clipToOutline = clip
 	}
 
-	private class RoundedOutline(private val radius: Float) : android.view.ViewOutlineProvider() {
+	private class RoundedOutline(val radius: Float) : android.view.ViewOutlineProvider() {
 		override fun getOutline(view: View, outline: android.graphics.Outline) {
 			outline.setRoundRect(0, 0, view.width, view.height, radius)
 		}
@@ -2561,8 +2893,43 @@ internal class BubbleHooks(private val scope: PluginScope) {
 	}
 
 	private fun unalignAvatar(row: ViewGroup, state: RowState) {
-		if (!state.avatarMoved) return
-		setAvatarY(row, state, 0f)
+		if (state.avatarMoved) setAvatarY(row, state, 0f)
+		if (state.avatarMovedX) setAvatarX(row, state, 0f)
+	}
+
+	private fun setAvatarX(row: ViewGroup, state: RowState, dx: Float) {
+		state.avatarMovedX = dx != 0f
+		for (name in AVATAR_VIEWS) {
+			val v = row.findViewById<View>(id(row, name)) ?: continue
+			if (v.translationX != dx) v.translationX = dx
+		}
+	}
+
+	/** The switch went on: the own-row avatar views we hid come back (only the INVISIBLE we gave). */
+	private fun showOwnAvatar(row: ViewGroup, state: RowState) {
+		val views = avatarViewsOf(row, state)
+		if (config.ownAvatar) {
+			for (v in views) {
+				val ours = state.hidden.remove(v) ?: continue
+				if (v.visibility == ours) v.visibility = View.VISIBLE
+			}
+		} else {
+			for (v in views) if (v.visibility == View.VISIBLE) {
+				state.hidden[v] = View.INVISIBLE
+				v.visibility = View.INVISIBLE
+			}
+		}
+	}
+
+	/**
+	 * Room your bubbles keep on the right: a small gap, or with "Show my profile picture" the same
+	 * column their side has on the left (Discord's start guideline), so your picture fits there.
+	 */
+	private fun ownRightGap(row: View, accessories: View): Int {
+		val small = dp(row, RIGHT_GAP_DP)
+		if (!config.ownAvatar) return small
+		val outside = (row.width - accessories.right).coerceAtLeast(0) + accessories.paddingRight
+		return (guidelinePx(row) - outside).coerceAtLeast(small)
 	}
 
 	/** Sets [v]'s translationX (and scaleX, when given), first saving what it had. */
@@ -2594,27 +2961,6 @@ internal class BubbleHooks(private val scope: PluginScope) {
 	}
 
 	/**
-	 * Which ends of this bubble touch another bubble of the same group (small corner there, and no
-	 * tail under a joined bottom). Discord's group position only says the next or previous message
-	 * is by the same person; it also counts runs with something else in between. So an end joins
-	 * only when, besides the position, nothing else of this row sits on that side of the bubble
-	 * (a picture, an embed, reactions, the reply quote, a time break, the time under it) and the
-	 * neighbouring row, when it's on screen, has a bubble on the facing side.
-	 */
-	private fun joins(text: TextView, state: RowState, timeShown: Boolean): Pair<Boolean, Boolean> {
-		val accessories = text.parent as? ViewGroup ?: return false to false
-		val row = accessories.parent as? ViewGroup ?: return false to false
-		val items = (0 until accessories.childCount).map(accessories::getChildAt)
-			.filter { it.visibility == View.VISIBLE && (it.height > 0 || it === text) }
-		val pos = state.position
-		val top = (pos == GroupPosition.MIDDLE || pos == GroupPosition.END) &&
-			items.firstOrNull() === text && !interruptedAbove(row, state) && state.aboveJoins != false
-		val bottom = (pos == GroupPosition.START || pos == GroupPosition.MIDDLE) &&
-			items.lastOrNull() === text && !timeShown && state.belowJoins != false
-		return top to bottom
-	}
-
-	/**
 	 * Something of the row's own above its first item: the reply quote, a time break, or the
 	 * author's name (Discord shows it again after a pause even when the group position still says
 	 * the run goes on). The name counts while we hide it too ([RowState.hidden]).
@@ -2623,85 +2969,59 @@ internal class BubbleHooks(private val scope: PluginScope) {
 		if (state.breakPadded != null) return true
 		if (row.findViewById<View>(id(row, "reply_preview_view"))?.visibility == View.VISIBLE) return true
 		val name = row.findViewById<View>(id(row, "author_name")) ?: return false
-		return name.visibility == View.VISIBLE || state.hidden.containsKey(name)
+		// Only a name Discord shows counts: on a row inside a run the name itself can be VISIBLE
+		// with a container around it hidden (and "Hide names" then hid it again), which made every
+		// bubble after the first one of their run look cut off from the one above.
+		if (!discordShows(name, row, state)) return false
+		if (name.visibility == View.VISIBLE) return true
+		// A name we hid still marks where Discord started a new group, except where runs merge.
+		return (state.hidden.containsKey(name) || state.otherNameHidden === name) && !mergesRuns(state)
 	}
 
-	/** The row's first or last laid-out item is a bubble (null when nothing is laid out yet). */
-	private fun edgeIsBubble(state: RowState, first: Boolean): Boolean? {
-		val accessories = state.accessories ?: return null
-		val items = (0 until accessories.childCount).map(accessories::getChildAt).filter { it.visibility == View.VISIBLE && it.height > 0 }
-		val edge = (if (first) items.firstOrNull() else items.lastOrNull()) ?: return null
-		val saved = (edge as? TextView)?.let { texts[it] } ?: return false
-		return edge.background === saved.bubble
+	/** Every container between [v] and [row] is visible, counting the header as Discord left it. */
+	private fun discordShows(v: View, row: ViewGroup, state: RowState): Boolean {
+		val header = id(row, "header")
+		var p = v.parent as? View
+		while (p != null && p !== row) {
+			val vis = if (p.id == header && header != 0) state.otherHeaderSaved ?: state.headerSaved ?: p.visibility else p.visibility
+			if (vis != View.VISIBLE) return false
+			p = p.parent as? View
+		}
+		return true
 	}
 
 	/**
-	 * Fills [RowState.aboveJoins] / [RowState.belowJoins] from the rows on screen: each pair of
-	 * touching rows joins only when the upper one ends with a bubble and the lower one starts
-	 * with one, with no quote or time break on top of it. A different view touching the row (a
-	 * date divider, a "new messages" line) blocks the join too; at the list's edge nothing is
-	 * known and the group position decides. Returns the rows whose verdict changed.
+	 * Your messages one after another make one run even where Discord starts a new group (a pause
+	 * of a few minutes): your name is hidden anyway, so nothing shows the break. Not with "Show my
+	 * profile picture" (it sits beside each group's first bubble), and not for other people, whose
+	 * name and picture mark their groups.
 	 */
-	private fun checkNeighbours(list: ViewGroup): List<Pair<ViewGroup, RowState>> {
-		val slack = dp(list, 2f)
-		// Where each row is on screen, not in the list's own coordinates: the chat list can be
-		// drawn flipped (newest at the bottom), which turns its tops and bottoms around.
-		val boxes = LinkedHashMap<View, android.graphics.Rect>()
-		for (i in 0 until list.childCount) {
-			val child = list.getChildAt(i)
-			if (child.visibility != View.VISIBLE || child.height == 0) continue
-			val box = android.graphics.Rect()
-			if (child.getGlobalVisibleRect(box)) boxes[child] = box
+	private fun mergesRuns(state: RowState) = state.mode == Mode.OWN && !config.ownAvatar
+
+	/**
+	 * The bound row of the next message in [row]'s list, when it's the same person's and joins on:
+	 * same chat, no reply quote and no time break above it. Rows of every kind are in [rows], so a
+	 * message by someone else in between is found first.
+	 */
+	private fun nextMergingRow(row: ViewGroup, state: RowState): RowState? {
+		if (!mergesRuns(state)) return null
+		val id = state.messageId?.toLongOrNull() ?: return null
+		val list = row.parent ?: return null
+		var bestRow: ViewGroup? = null
+		var best: RowState? = null
+		var bestId = Long.MAX_VALUE
+		for ((other, s) in rows.entries) {
+			if (other === row || other.parent !== list) continue
+			val oid = s.messageId?.toLongOrNull() ?: continue
+			if (oid in (id + 1) until bestId) { bestId = oid; best = s; bestRow = other }
 		}
-		val changed = ArrayList<Pair<ViewGroup, RowState>>()
-		val snapshot = ArrayList<Map<String, Any?>>()
-		for ((child, box) in boxes) {
-			val row = child as? ViewGroup ?: continue
-			val state = rows[row] ?: continue
-			val above = boxes.entries.firstOrNull { it.key !== row && kotlin.math.abs(it.value.bottom - box.top) <= slack }?.key
-			val below = boxes.entries.firstOrNull { it.key !== row && kotlin.math.abs(it.value.top - box.bottom) <= slack }?.key
-			val aboveJoins = above?.let { v ->
-				val other = (v as? ViewGroup)?.let { rows[it] }
-				if (other == null || other.mode == Mode.NONE) false else edgeIsBubble(other, first = false)
-			}
-			val belowJoins = below?.let { v ->
-				val other = (v as? ViewGroup)?.let { rows[it] }
-				if (other == null || other.mode == Mode.NONE || interruptedAbove(v as ViewGroup, other)) false else edgeIsBubble(other, first = true)
-			}
-			if (aboveJoins != state.aboveJoins || belowJoins != state.belowJoins) {
-				state.aboveJoins = aboveJoins
-				state.belowJoins = belowJoins
-				changed += row to state
-			}
-			if (state.mode != Mode.NONE) snapshot += joinFacts(row, state, box)
-		}
-		joinSnapshot = snapshot.sortedBy { it["y"] as Int }
-		return changed
+		val next = best ?: return null
+		if (next.mode != state.mode || next.authorKey == null || next.authorKey != state.authorKey || next.channelKey != state.channelKey) return null
+		if (interruptedAbove(bestRow!!, next)) return null
+		return next
 	}
 
-	/** One row of the "joins" diagnostics: where it is, what decides its corners. No message text. */
-	private fun joinFacts(row: ViewGroup, state: RowState, box: android.graphics.Rect): Map<String, Any?> {
-		val items = state.accessories?.let { acc ->
-			(0 until acc.childCount).map(acc::getChildAt).filter { it.visibility == View.VISIBLE }.map { v ->
-				val bubble = (v as? TextView)?.let { texts[it] }?.bubble
-				val kind = if (bubble != null && v.background === bubble) "bubble" else v.javaClass.simpleName
-				val joined = bubble?.let { "${if (it.joinTop) "T" else "-"}${if (it.joinBottom) "B" else "-"}" }
-				listOfNotNull(kind, "h=${v.height}", joined).joinToString(" ")
-			}
-		}
-		return mapOf(
-			"y" to box.top,
-			"h" to box.height(),
-			"mode" to state.mode.name,
-			"pos" to state.position.name,
-			"interrupted" to interruptedAbove(row, state),
-			"above" to state.aboveJoins,
-			"below" to state.belowJoins,
-			"items" to items,
-		)
-	}
-
-	/** Tail and corners for the row's position on texts already styled; a redraw, never a resize. */
+	/** Side and tails on texts already styled (a re-measure when they change); corners come from [joinPass]. */
 	private fun reshapeTexts(accessories: ViewGroup, state: RowState) {
 		if (state.mode == Mode.NONE) return
 		for (i in 0 until accessories.childCount) {
@@ -2711,10 +3031,6 @@ internal class BubbleHooks(private val scope: PluginScope) {
 			// The tail side's padding is reserved, so only a side switch (own <-> other) or a tails
 			// switch re-measures; the new padding goes on in beforeMeasure.
 			if (saved.bubble.tailRight != tailRight || saved.bubble.tails != config.tails) child.requestLayout()
-			else {
-				val (joinTop, joinBottom) = joins(child, state, saved.bubble.bottomGap > 0f)
-				saved.bubble.setShape(tailRight, joinTop, joinBottom, config.tails)
-			}
 		}
 	}
 
@@ -2770,10 +3086,12 @@ internal class BubbleHooks(private val scope: PluginScope) {
 
 		val tailRight = mode == Mode.OWN
 		val tails = config.tails
-		val (joinTop, joinBottom) = joins(text, state, timeShown)
 		val density = text.resources.displayMetrics.density
 		saved.bubble.setRadii(config.bubbleRadiusDp * density, joinedRadiusDp() * density)
-		saved.bubble.setShape(tailRight, joinTop, joinBottom, tails)
+		// Corners are the join pass's (before the next frame); this keeps them and sets side and tails.
+		val b = saved.bubble
+		b.setShape(tailRight, b.joinTop, b.joinBottom, tails, b.joinTopFar, b.joinBottomFar)
+		joinEpoch++
 		if (text.background !== saved.bubble) text.background = saved.bubble
 		// Runs before measure only: the tail side keeps room for the tail whatever the position.
 		val h = dp(text, PAD_H_DP)
@@ -2832,7 +3150,7 @@ internal class BubbleHooks(private val scope: PluginScope) {
 		val state = rowOf(text) ?: return
 		val mode = state.mode
 		if (mode == Mode.NONE) return
-		drawing = Drawing(bgFor(state, mode), config.text(mode).defaultColor)
+		drawing = Drawing(bgFor(state, mode), textFor(state, mode).defaultColor)
 	}
 
 	/** Hooks `updateDrawState` of every ClickableSpan class in [text] not hooked yet. */
@@ -2872,10 +3190,447 @@ internal class BubbleHooks(private val scope: PluginScope) {
 
 	/** Bubble and text colour for [mode] from the current config. Never changes a size. */
 	private fun recolor(text: TextView, saved: SavedText, mode: Mode) {
-		saved.bubble.setColor(bgFor(rowOf(text), mode))
-		val colors = config.text(mode)
+		val state = rowOf(text)
+		val bg = bgFor(state, mode)
+		saved.bubble.setColor(
+			if (config.bubbleAlpha >= 1f) bg
+			else (bg and 0x00FFFFFF) or ((Color.alpha(bg) * config.bubbleAlpha).toInt().coerceIn(0, 255) shl 24),
+		)
+		// Every bubble, yours and theirs, from its own colour.
+		val ends = config.scrollEnds(bg)
+		saved.bubble.setGradient(ends?.first, ends?.second)
+		val colors = textFor(state, mode)
 		if (text.textColors !== colors) text.setTextColor(colors)
 		saved.ourColors = colors
+	}
+
+	// ---- "Edited under the bubble" ----
+
+	/** Ids of messages whose row is a bubble row, newest last (main thread). */
+	private val bubbleIds = LinkedHashSet<String>()
+	@Volatile private var editedNulled = 0
+
+	/**
+	 * Discord appends " (edited)" to the message text in `MessageContentView`'s static bind (small,
+	 * coloured, tappable for the edit time) when it's given a label; given null it adds nothing. The
+	 * label and its time are the two String parameters right before the Integer colour, found by
+	 * type. For messages of bubble rows (the row bind runs first and records the id) both are
+	 * nulled, and the row's tag under the bubble says "Edited" instead ([timeLabel]).
+	 */
+	private val contentBinds: List<Pair<Method, Int>> = contentClass.declaredMethods.mapNotNull { m ->
+		val p = m.parameterTypes
+		if (!java.lang.reflect.Modifier.isStatic(m.modifiers) || p.size < 30 || p[0] != contentClass) return@mapNotNull null
+		val at = (4 until p.size - 2).firstOrNull { i ->
+			p[i] == String::class.java && p[i + 1] == String::class.java && p[i + 2] == Int::class.javaObjectType
+		} ?: return@mapNotNull null
+		m to at
+	}
+	/** The message id: the bind's first String parameter. */
+	private val contentIdIndex: Int = contentBinds.firstOrNull()?.first?.parameterTypes?.indexOfFirst { it == String::class.java } ?: -1
+	private val unhookEdited: List<Unhook> = contentBinds.map { (m, at) ->
+		hookMethod(m, before = { param -> beforeContentBind(param, at) })
+	}
+
+	private fun beforeContentBind(param: HookParam, at: Int) {
+		if (!config.editedLabel) return
+		try {
+			val args = param.args
+			val id = args.getOrNull(contentIdIndex) as? String ?: return
+			if (id !in bubbleIds || args[at] == null) return
+			args[at] = null
+			args[at + 1] = null
+			editedNulled++
+		} catch (e: Throwable) {
+			fail("edited", e)
+		}
+	}
+
+	// ---- Pictures with the bubbles' corners ----
+
+	/** A message's pictures (Discord's `mosaic` grid) get the bubble's corner radius on bubble rows. */
+	private fun roundPictures(row: ViewGroup, container: View, on: Boolean) {
+		val mosaic = container.findViewById<View>(id(row, "mosaic")) ?: return
+		if (!on) {
+			restoreCard(mosaic)
+			return
+		}
+		val radius = config.bubbleRadiusDp * mosaic.resources.displayMetrics.density
+		val current = mosaic.outlineProvider as? RoundedOutline
+		if (current != null && current.radius == radius) return
+		if (current == null) roundedCards[mosaic] = mosaic.outlineProvider to mosaic.clipToOutline
+		mosaic.outlineProvider = RoundedOutline(radius)
+		mosaic.clipToOutline = true
+		mosaic.invalidateOutline()
+	}
+
+	// ---- "Colour shifts as you scroll" ----
+
+	/**
+	 * A scroll moves the rows' recorded drawings without drawing them again, so a bubble's gradient
+	 * slice would stay put. The chat list's tree observer hears every scroll (RecyclerView reports
+	 * it through onScrollChanged); each attached bubble with a gradient is then invalidated, which
+	 * redraws only those text views. Main thread; one listener per observer.
+	 */
+	private val scrollWatchers = WeakHashMap<ViewTreeObserver, ViewTreeObserver.OnScrollChangedListener>()
+
+	private fun watchScroll(list: ViewGroup) {
+		if (!list.isAttachedToWindow) return
+		val observer = list.viewTreeObserver
+		if (!observer.isAlive || scrollWatchers.containsKey(observer)) return
+		val listener = ViewTreeObserver.OnScrollChangedListener {
+			if (!config.scrollColor) return@OnScrollChangedListener
+			try {
+				for ((text, saved) in texts.entries) {
+					if (saved.bubble.hasGradient && text.isAttachedToWindow && text.background === saved.bubble) text.invalidate()
+				}
+			} catch (e: Throwable) {
+				fail("scrollColor", e)
+			}
+		}
+		observer.addOnScrollChangedListener(listener)
+		scrollWatchers[observer] = listener
+	}
+
+	// ---- Joined corners ----
+
+	/**
+	 * Which bubbles join, from where they are on screen and nothing else: two bubbles next to each
+	 * other (top to bottom) join when they're the same person's and less than [JOIN_GAP_DP] apart.
+	 * Anything between them (their name, a reply quote, reactions, a picture, a time break, the time
+	 * under a bubble, a new day) is room, so it keeps them apart without being looked for. The joined
+	 * end gets small corners on the tail side and no tail; the side away from the tail joins too
+	 * where the other bubble reaches at least as far.
+	 *
+	 * Runs before each frame of the chat's window, but works only when the rows moved against each
+	 * other, changed size, or a bubble was styled ([joinEpoch]): a scroll alone changes nothing.
+	 * Shapes only change what's drawn, never sizes, so a pre-draw is a safe place for it.
+	 */
+	private val joinWatchers = WeakHashMap<ViewTreeObserver, ViewTreeObserver.OnPreDrawListener>()
+	private var joinEpoch = 0
+	private var joinSig = IntArray(0)
+
+	private fun watchJoins(list: ViewGroup) {
+		if (!list.isAttachedToWindow) {
+			list.post { if (list.isAttachedToWindow) watchJoins(list) }
+			return
+		}
+		val observer = list.viewTreeObserver
+		if (!observer.isAlive || joinWatchers.containsKey(observer)) return
+		val listener = ViewTreeObserver.OnPreDrawListener {
+			try {
+				chatList?.get()?.let { if (it.isAttachedToWindow) joinPass(it) }
+			} catch (e: Throwable) {
+				fail("joins", e)
+			}
+			true
+		}
+		observer.addOnPreDrawListener(listener)
+		joinWatchers[observer] = listener
+	}
+
+	private fun unwatchJoins() {
+		for ((observer, listener) in joinWatchers.entries.toList()) runCatching {
+			if (observer.isAlive) observer.removeOnPreDrawListener(listener)
+		}
+		joinWatchers.clear()
+	}
+
+	private class Placed(val saved: SavedText, val state: RowState, val top: Int, val bottom: Int, val left: Int, val right: Int)
+
+	private fun joinPass(list: ViewGroup) {
+		val n = list.childCount
+		val sig = IntArray(n * 3 + 2)
+		val base = if (n > 0) list.getChildAt(0).y.toInt() else 0
+		for (i in 0 until n) {
+			val c = list.getChildAt(i)
+			sig[i * 3] = System.identityHashCode(c)
+			sig[i * 3 + 1] = c.y.toInt() - base
+			sig[i * 3 + 2] = if (c.visibility == View.VISIBLE) c.height else -1
+		}
+		sig[n * 3] = joinEpoch
+		sig[n * 3 + 1] = System.identityHashCode(list)
+		if (sig.contentEquals(joinSig)) return
+		joinSig = sig
+
+		val loc = IntArray(2)
+		val placed = ArrayList<Placed>()
+		for (i in 0 until n) {
+			val row = list.getChildAt(i) as? ViewGroup ?: continue
+			if (row.visibility != View.VISIBLE) continue
+			val state = rows[row] ?: continue
+			if (state.mode == Mode.NONE) continue
+			val acc = state.accessories ?: continue
+			for (k in 0 until acc.childCount) {
+				val text = acc.getChildAt(k) as? TextView ?: continue
+				val saved = texts[text] ?: continue
+				if (text.background !== saved.bubble || text.visibility != View.VISIBLE || text.height == 0) continue
+				text.getLocationOnScreen(loc)
+				val b = saved.bubble
+				placed += Placed(saved, state, loc[1] + b.topGap.toInt(), loc[1] + text.height - b.bottomGap.toInt(), loc[0], loc[0] + text.width)
+			}
+		}
+		placed.sortBy { it.top }
+		val gap = dp(list, JOIN_GAP_DP)
+		val slack = dp(list, 3f)
+		val top = BooleanArray(placed.size)
+		val bottom = BooleanArray(placed.size)
+		val topFar = BooleanArray(placed.size)
+		val bottomFar = BooleanArray(placed.size)
+		for (i in 0 until placed.size - 1) {
+			val a = placed[i]
+			val b = placed[i + 1]
+			if (a.state.mode != b.state.mode) continue
+			if (a.state.authorKey == null || a.state.authorKey != b.state.authorKey) continue
+			if (b.top - a.bottom > gap) continue
+			top[i + 1] = true
+			bottom[i] = true
+			val own = a.state.mode == Mode.OWN
+			// Far side: your bubbles grow to the left, theirs to the right.
+			topFar[i + 1] = if (own) a.left <= b.left + slack else a.right >= b.right - slack
+			bottomFar[i] = if (own) b.left <= a.left + slack else b.right >= a.right - slack
+		}
+		var joined = 0
+		for ((i, p) in placed.withIndex()) {
+			val b = p.saved.bubble
+			b.setShape(b.tailRight, top[i], bottom[i], b.tails, topFar[i], bottomFar[i])
+			if (top[i]) joined++
+		}
+		joinStats = "bubbles=${placed.size} joined=$joined"
+	}
+
+	private fun unwatchScroll() {
+		for ((observer, listener) in scrollWatchers.entries.toList()) runCatching {
+			if (observer.isAlive) observer.removeOnScrollChangedListener(listener)
+		}
+		scrollWatchers.clear()
+	}
+
+	// ---- Run gaps with "Hide names" ----
+
+	/**
+	 * Discord's space between message groups (16 dp above a run's first row, there for the name) is
+	 * an item decoration's offset, not a margin or padding (layout probe, 352.2: rows have none, the
+	 * list has 3 decorations). With the name hidden it's an empty band, so each decoration class's
+	 * `getItemOffsets(Rect, View, RecyclerView, State)` is hooked once and that top offset is cut to
+	 * [NAME_RUN_GAP_DP] on rows whose name we hid. Only the offset changes; nothing else is touched.
+	 */
+	private val decoHooks = HashMap<Method, Unhook>()
+	@Volatile private var decoCuts = 0
+	private var decoLastTop: Int? = null
+
+	/**
+	 * The list and decoration count last looked at. Discord adds its decorations after the first
+	 * rows are bound, so a list is looked at again whenever its count changes (0.5.39 looked once,
+	 * saw none yet and never hooked anything).
+	 */
+	private var decoList: java.lang.ref.WeakReference<ViewGroup>? = null
+	private var decoCount = -1
+	/** What the last look found, for the layout probe. */
+	private var decoSeen: List<String> = emptyList()
+	private var decoError: String? = null
+
+	private fun hookDecorations(list: ViewGroup) {
+		val countMethod = runCatching { list.javaClass.getMethod("getItemDecorationCount") }.getOrNull()
+		val count = runCatching { countMethod?.invoke(list) as? Int }.getOrNull()
+		if (count == null) {
+			decoError = "no getItemDecorationCount on ${list.javaClass.name}"
+			return
+		}
+		if (decoList?.get() === list && count == decoCount) return
+		decoList = java.lang.ref.WeakReference(list)
+		decoCount = count
+		if (count == 0) return
+		// getItemDecorationAt is renamed on 352.6 (0.5.40's probe), so the decorations are read off
+		// the list's own field instead: an ArrayList as long as the count whose items all have a
+		// getItemOffsets-shaped method (Rect, View, this list, state).
+		val decorations = decorationsOf(list, count)
+		if (decorations == null) {
+			decoError = "no decorations field"
+			return
+		}
+		val seen = ArrayList<String>()
+		for (deco in decorations) {
+			seen += deco.javaClass.name
+			val m = offsetsMethodOf(deco, list) ?: continue
+			if (!decoHooks.containsKey(m)) decoHooks[m] = hookMethod(m, after = ::afterItemOffsets)
+			seen[seen.size - 1] = "${deco.javaClass.name} -> ${m.declaringClass.name}.${m.name}"
+		}
+		decoSeen = seen
+		decoError = null
+		// Rows already laid out keep their old offsets until asked again.
+		if (decoHooks.isNotEmpty()) main.post { invalidateDecorations(list) }
+	}
+
+	/** The last offsets seen, for the layout probe: decoration, row position, top, bottom (px). */
+	private val decoLog = ArrayDeque<String>()
+
+	private fun afterItemOffsets(param: HookParam) {
+		try {
+			val rect = param.args.getOrNull(0) as? android.graphics.Rect ?: return
+			val row = param.args.getOrNull(1) as? ViewGroup ?: return
+			val state = rows[row] ?: return
+			if (rect.top != 0 || rect.bottom != 0) {
+				decoLog.addLast("${param.thisObject?.javaClass?.simpleName} ${state.mode}/${state.position} name=${state.otherNameHidden != null} top=${rect.top} bottom=${rect.bottom}")
+				while (decoLog.size > 24) decoLog.removeFirst()
+			}
+			// The group gap is the BOTTOM offset of a run's last row (352.6: decoration kg.b gives END
+			// and ONLY rows 16 dp below; top is always 0), so it sits under the run before the next
+			// speaker's name. With names hidden it is cut on every bubble row; other sizes (the
+			// 58 dp above the message box) are left alone.
+			if (state.mode == Mode.NONE) return
+			val group = dp(row, GROUP_GAP_DP)
+			val slack = dp(row, 1f)
+			// Your next message carries on the run (mergesRuns): no group gap between the two.
+			if (rect.bottom in (group - slack)..(group + slack) && nextMergingRow(row, state) != null) {
+				rect.bottom = 0
+				decoCuts++
+				return
+			}
+			if (!config.hideNames) return
+			decoLastTop = rect.bottom
+			if (rect.bottom in (group - slack)..(group + slack)) {
+				rect.bottom = dp(row, NAME_RUN_GAP_DP)
+				decoCuts++
+			}
+		} catch (e: Throwable) {
+			fail("decoration", e)
+		}
+	}
+
+	/** [deco]'s getItemOffsets(Rect, View, RecyclerView, State), or null. */
+	private fun offsetsMethodOf(deco: Any, list: ViewGroup): Method? {
+		var c: Class<*>? = deco.javaClass
+		while (c != null && c != Any::class.java) {
+			c.declaredMethods.firstOrNull {
+				val p = it.parameterTypes
+				p.size == 4 && p[0] == android.graphics.Rect::class.java && p[1] == View::class.java && p[2].isInstance(list)
+			}?.let { return it }
+			c = c.superclass
+		}
+		return null
+	}
+
+	/** The list's decorations: the ArrayList field of [count] items that all have an offsets method. */
+	private fun decorationsOf(list: ViewGroup, count: Int): List<Any>? {
+		var c: Class<*>? = list.javaClass
+		while (c != null && c != ViewGroup::class.java) {
+			for (f in c.declaredFields) {
+				if (java.lang.reflect.Modifier.isStatic(f.modifiers) || !java.util.List::class.java.isAssignableFrom(f.type)) continue
+				val value = runCatching { f.isAccessible = true; f.get(list) as? List<*> }.getOrNull() ?: continue
+				if (value.size != count) continue
+				val items = value.filterNotNull()
+				if (items.size == count && items.all { offsetsMethodOf(it, list) != null }) return items
+			}
+			c = c.superclass
+		}
+		return null
+	}
+
+	/** RecyclerView.invalidateItemDecorations, by name (the class is obfuscated, its methods aren't). */
+	private fun invalidateDecorations(list: ViewGroup) {
+		runCatching { list.javaClass.getMethod("invalidateItemDecorations").invoke(list) }.onFailure {
+			// Renamed: every child's offsets are asked again when it is marked dirty and laid out.
+			for (i in 0 until list.childCount) list.getChildAt(i).requestLayout()
+			list.requestLayout()
+		}
+	}
+
+	// ---- Layout probe (diagnostics) ----
+
+	/**
+	 * Read-only diagnostics for spacing work: the first few of their rows on screen, each with its
+	 * direct children's ids, visibility, bounds, translations and margins (dp), and which sibling
+	 * ids the layout params point at (ConstraintLayout constraints, found by value since the field
+	 * names are obfuscated). Never message text. Runs on the main thread; JS awaits it.
+	 */
+	fun layoutProbe(): Map<String, Any?> {
+		if (android.os.Looper.myLooper() == android.os.Looper.getMainLooper()) {
+			return try { layoutProbeNow() } catch (e: Throwable) { mapOf("error" to e.toString()) }
+		}
+		val latch = java.util.concurrent.CountDownLatch(1)
+		var result: Map<String, Any?> = mapOf("error" to "timeout")
+		main.post {
+			result = try { layoutProbeNow() } catch (e: Throwable) { mapOf("error" to e.toString()) }
+			latch.countDown()
+		}
+		latch.await(2, java.util.concurrent.TimeUnit.SECONDS)
+		return result
+	}
+
+	private fun layoutProbeNow(): Map<String, Any?> {
+		val list = chatList?.get() ?: return mapOf("error" to "no chat list yet")
+		val density = list.resources.displayMetrics.density
+		fun d(px: Number): Float = Math.round(px.toFloat() / density * 10f) / 10f
+		fun name(v: View): String? = if (v.id == View.NO_ID) null else runCatching { v.resources.getResourceEntryName(v.id) }.getOrNull()
+		val out = ArrayList<Any?>()
+		for (i in 0 until list.childCount) {
+			val row = list.getChildAt(i) as? ViewGroup ?: continue
+			val state = rows[row] ?: continue
+			val ids = (0 until row.childCount).map(row::getChildAt).associateBy { it.id }
+			val kids = ArrayList<Any?>()
+			for (j in 0 until row.childCount) {
+				val v = row.getChildAt(j)
+				val lp = v.layoutParams
+				val m = lp as? ViewGroup.MarginLayoutParams
+				// Int fields of the params whose value is a sibling's id: the constraints.
+				val links = HashMap<String, String?>()
+				var c: Class<*>? = lp?.javaClass
+				while (c != null && c != Any::class.java) {
+					for (f in c.declaredFields) {
+						if (f.type != Int::class.javaPrimitiveType || java.lang.reflect.Modifier.isStatic(f.modifiers)) continue
+						val value = runCatching { f.isAccessible = true; f.getInt(lp) }.getOrNull() ?: continue
+						val target = ids[value] ?: continue
+						if (value != View.NO_ID && value != 0) links[f.name] = name(target) ?: target.javaClass.simpleName
+					}
+					c = c.superclass
+				}
+				// A Barrier/helper: the ids it references (a no-arg method returning int[]).
+				val refs = v.javaClass.methods.firstOrNull { it.parameterCount == 0 && it.returnType == IntArray::class.java }
+					?.let { mth -> runCatching { (mth.invoke(v) as? IntArray)?.map { id -> ids[id]?.let(::name) ?: id.toString() } }.getOrNull() }
+				kids += mapOf(
+					"id" to name(v),
+					"cls" to v.javaClass.simpleName,
+					"vis" to when (v.visibility) { View.VISIBLE -> "V"; View.INVISIBLE -> "I"; else -> "G" },
+					"t" to d(v.top), "b" to d(v.bottom), "l" to d(v.left), "r" to d(v.right),
+					"tx" to d(v.translationX), "ty" to d(v.translationY),
+					"m" to m?.let { listOf(d(it.leftMargin), d(it.topMargin), d(it.rightMargin), d(it.bottomMargin)) },
+					"links" to links.takeIf { it.isNotEmpty() },
+					"refs" to refs,
+				)
+			}
+			val acc = state.accessories
+			val first = acc?.let { a -> (0 until a.childCount).map(a::getChildAt).firstOrNull { it.visibility == View.VISIBLE && it.height > 0 } }
+			out += mapOf(
+				"mode" to state.mode.name,
+				"pos" to state.position.name,
+				"rowTop" to d(row.top), "rowH" to d(row.height), "pad" to listOf(d(row.paddingTop), d(row.paddingBottom)),
+				"rowTy" to d(row.translationY),
+				"firstItemTop" to first?.let { d(it.top) },
+				"nameHidden" to (state.otherNameHidden != null),
+				"headerSaved" to state.otherHeaderSaved,
+				"gap" to listOf(state.nameGapBase?.let(::d), state.nameGapOurs?.let(::d)),
+				"kids" to kids,
+			)
+			if (out.size >= 8) break
+		}
+		val items = (0 until list.childCount).map(list::getChildAt).map { v ->
+			val m = v.layoutParams as? ViewGroup.MarginLayoutParams
+			mapOf(
+				"cls" to v.javaClass.simpleName, "row" to (rows[v as? ViewGroup] != null),
+				"t" to d(v.top), "b" to d(v.bottom), "ty" to d(v.translationY),
+				"m" to m?.let { listOf(d(it.topMargin), d(it.bottomMargin)) },
+				"pad" to listOf(d(v.paddingTop), d(v.paddingBottom)),
+			)
+		}
+		val decorations = runCatching { list.javaClass.getMethod("getItemDecorationCount").invoke(list) }.getOrNull()
+		return mapOf(
+			"density" to density, "hideNames" to config.hideNames, "hideAvatars" to config.hideAvatars,
+			"listCls" to list.javaClass.name, "decorations" to decorations, "items" to items, "rows" to out,
+			"decoHooks" to decoHooks.keys.map { "${it.declaringClass.name}.${it.name}" }, "decoCuts" to decoCuts, "decoLastTop" to decoLastTop?.let(::d),
+			"decoSeen" to decoSeen, "decoCount" to decoCount, "decoError" to decoError,
+			"avatarsRead" to avatarsRead, "avatarColors" to avatarColors.size, "avatarError" to avatarError,
+			"decoLog" to decoLog.toList(),
+		)
 	}
 
 	// ---- Colour per person ----
@@ -2908,11 +3663,180 @@ internal class BubbleHooks(private val scope: PluginScope) {
 		if (state.mode != Mode.OTHER) return
 		val channel = state.channelKey ?: return
 		val author = state.authorKey ?: return
-		val people = channelPeople.getOrPut(channel) { HashSet() }
+		val people = channelPeople.getOrPut(channel) { LinkedHashSet() }
 		if (!people.add(author) || people.size != 2 || !config.perPerson) return
 		for ((text, saved) in texts.entries.toList()) {
 			val row = rowOf(text) ?: continue
 			if (row.mode == Mode.OTHER && row.channelKey == channel) recolor(text, saved, Mode.OTHER)
+		}
+	}
+
+	// ---- "From their profile picture" ----
+
+	/** Author id -> their avatar's main colour, or [NO_AVATAR_COLOR]. Main thread, bounded. */
+	private val avatarColors = object : LinkedHashMap<String, Int>(64, 0.75f, true) {
+		override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, Int>?) = size > 500
+	}
+	private val avatarTries = HashMap<String, Int>()
+	/** Raw avatar colour -> bubble colour (toneAvatar), cleared when "Dark colours only" changes. */
+	private val avatarToned = HashMap<Int, Int>()
+	private var avatarError: String? = null
+	@Volatile private var avatarsRead = 0
+
+	/**
+	 * Reads the main colour of the avatar on [row] once per person: the avatar view Discord already
+	 * drew is drawn again into a 24 px bitmap here (no download, no request). While the picture is
+	 * still loading there's nothing to read, so it tries again a little later, [AVATAR_TRIES] times.
+	 * Once found, every bubble of that person recolours.
+	 */
+	private fun sampleAvatar(row: ViewGroup, state: RowState) {
+		if (!config.perPerson || !config.personFromAvatar || state.mode != Mode.OTHER) return
+		val author = state.authorKey ?: return
+		if (avatarColors.containsKey(author)) return
+		val tries = avatarTries[author] ?: 0
+		if (tries >= AVATAR_TRIES) return
+		val avatar = row.findViewById<View>(id(row, "author_avatar")) ?: return
+		if (avatar.width <= 0 || avatar.height <= 0 || avatar.visibility == View.GONE) return
+		avatarTries[author] = tries + 1
+		val color = try {
+			avatarColor(avatar)
+		} catch (e: Throwable) {
+			avatarError = e.toString().take(160)
+			null
+		}
+		if (color == null) {
+			main.postDelayed({
+				val again = rows[row]
+				if (again != null && row.isAttachedToWindow && again.authorKey == author) sampleAvatar(row, again)
+			}, 600L * (tries + 1))
+			return
+		}
+		avatarColors[author] = color
+		avatarTries.remove(author)
+		avatarsRead++
+		for ((text, saved) in texts.entries.toList()) {
+			val r = rowOf(text) ?: continue
+			if (r.mode == Mode.OTHER && r.authorKey == author) recolor(text, saved, Mode.OTHER)
+		}
+	}
+
+	/**
+	 * The picture's main colour: its colourful pixels grouped into twelve hue bands, weighted by how
+	 * colourful and bright each is; the heaviest band's average. [NO_AVATAR_COLOR] when the picture
+	 * has hardly any colour; null when it isn't drawn yet (mostly see-through or one flat colour, as
+	 * a loading placeholder is).
+	 */
+	private fun avatarColor(view: View): Int? {
+		val size = 24
+		val bmp = android.graphics.Bitmap.createBitmap(size, size, android.graphics.Bitmap.Config.ARGB_8888)
+		try {
+			val canvas = Canvas(bmp)
+			canvas.scale(size / view.width.toFloat(), size / view.height.toFloat())
+			view.draw(canvas)
+			val px = IntArray(size * size)
+			bmp.getPixels(px, 0, size, 0, 0, size, size)
+			val weight = FloatArray(12)
+			val r = FloatArray(12)
+			val g = FloatArray(12)
+			val b = FloatArray(12)
+			val hsv = FloatArray(3)
+			var opaque = 0
+			var colourful = 0
+			val distinct = HashSet<Int>()
+			for (p in px) {
+				if (Color.alpha(p) < 200) continue
+				opaque++
+				distinct += p and 0xF0F0F0
+				Color.colorToHSV(p, hsv)
+				if (hsv[1] < 0.25f || hsv[2] < 0.18f) continue
+				colourful++
+				val band = (hsv[0] / 30f).toInt().coerceIn(0, 11)
+				val w = hsv[1] * hsv[2]
+				weight[band] += w
+				r[band] += Color.red(p) * w
+				g[band] += Color.green(p) * w
+				b[band] += Color.blue(p) * w
+			}
+			// Not drawn yet: mostly see-through, or a flat placeholder.
+			if (opaque < px.size / 3 || distinct.size < 4) return null
+			if (colourful < opaque / 12) return NO_AVATAR_COLOR
+			val best = weight.indices.maxByOrNull { weight[it] } ?: return NO_AVATAR_COLOR
+			val w = weight[best]
+			if (w <= 0f) return NO_AVATAR_COLOR
+			val c = Color.rgb((r[best] / w).toInt(), (g[best] / w).toInt(), (b[best] / w).toInt())
+			// 0 is our "no colour" marker; a real colour is never fully transparent.
+			return if (c == NO_AVATAR_COLOR) NO_AVATAR_COLOR else c
+		} finally {
+			bmp.recycle()
+		}
+	}
+
+	/** An avatar colour made into a bubble colour: readable limits, then "Dark colours only" (theme.ts avatarBubble). */
+	private fun toneAvatar(raw: Int): Int {
+		val hsv = FloatArray(3)
+		Color.colorToHSV(raw, hsv)
+		hsv[1] = hsv[1].coerceIn(0.35f, 0.8f)
+		hsv[2] = hsv[2].coerceIn(0.35f, 0.8f)
+		if (config.personDark) {
+			hsv[1] = maxOf(hsv[1], 0.3f)
+			hsv[2] = minOf(hsv[2], 0.42f)
+		}
+		return Color.HSVToColor(hsv)
+	}
+
+	/**
+	 * Per channel, the people most recently given a colour, newest first. Rows are bound in the
+	 * order they come on screen, so these are the people talking near the new one.
+	 */
+	private val recentPeople = HashMap<String, ArrayList<String>>()
+
+	/**
+	 * A person's colour: their own slot ([preferred], by id) unless it looks like the colour of one
+	 * of the people just before them ([near]); then the next slot that doesn't, or failing that the
+	 * one furthest from all of them. Two people on the same chat screen then never look alike, while
+	 * 8 colours are plenty (no need for "20 unique colours", the user's call 2026-11-06).
+	 */
+	private fun pickApart(palette: List<Int>, preferred: Int, near: List<Int>): Int {
+		if (near.isEmpty()) return palette[preferred]
+		var best = palette[preferred]
+		var bestGap = -1f
+		for (i in palette.indices) {
+			val c = palette[(preferred + i) % palette.size]
+			val gap = near.minOf { colorGap(c, it) }
+			if (gap >= APART) return c
+			if (gap > bestGap) {
+				bestGap = gap
+				best = c
+			}
+		}
+		return best
+	}
+
+	/** How different two bubble colours look: hue apart (degrees, weighted by colour) plus brightness apart. */
+	private fun colorGap(a: Int, b: Int): Float {
+		val x = FloatArray(3)
+		val y = FloatArray(3)
+		Color.colorToHSV(a, x)
+		Color.colorToHSV(b, y)
+		val dh = Math.abs(x[0] - y[0]).let { minOf(it, 360f - it) }
+		val sat = minOf(x[1], y[1])
+		return dh * sat + Math.abs(x[2] - y[2]) * 120f
+	}
+
+	/** Text colours per bubble colour, for "Colour per person" (white or near-black, as JS's textFor). */
+	private val adaptiveText = HashMap<Int, ColorStateList>()
+
+	/**
+	 * The text colour for this row: the theme's (or JS's) for the plain bubble colours, else white
+	 * unless white reads under 3:1 on its own colour, then near-black. The same list object comes
+	 * back for the same colour, since callers compare by identity.
+	 */
+	private fun textFor(state: RowState?, mode: Mode): ColorStateList {
+		val bg = bgFor(state, mode)
+		if (bg == config.bg(mode)) return config.text(mode)
+		return adaptiveText.getOrPut(bg) {
+			val onWhite = 1.05 / (luminance(bg) + 0.05)
+			ColorStateList.valueOf(if (onWhite >= 3.0) 0xFFFFFFFF.toInt() else 0xFF111214.toInt())
 		}
 	}
 
@@ -2924,6 +3848,22 @@ internal class BubbleHooks(private val scope: PluginScope) {
 		// A server channel or group DM from the start (JS says which); else once two people showed up.
 		val group = state.inGuild || groupChannels[channel] == true || (channelPeople[channel]?.size ?: 0) >= 2
 		if (!group) return config.bg(mode)
+		if (config.personFromAvatar) {
+			val raw = avatarColors[author]
+			if (raw != null && raw != NO_AVATAR_COLOR) return avatarToned.getOrPut(raw) { toneAvatar(raw) }
+		}
+		val palette = config.personColors
+		if (config.personInOrder && palette.isNotEmpty()) {
+			val key = "$channel|$author"
+			personColors[key]?.let { return it }
+			val recent = recentPeople.getOrPut(channel) { ArrayList() }
+			val color = pickApart(palette, Math.floorMod(author.hashCode(), palette.size), recent.mapNotNull { personColors["$channel|$it"] })
+			personColors[key] = color
+			recent.remove(author)
+			recent.add(0, author)
+			while (recent.size > RECENT_PEOPLE) recent.removeAt(recent.size - 1)
+			return color
+		}
 		return personColors.getOrPut(author) { personColor(config.otherBg, author) }
 	}
 
@@ -2933,6 +3873,8 @@ internal class BubbleHooks(private val scope: PluginScope) {
 	 * the hues show at all.
 	 */
 	private fun personColor(base: Int, author: String): Int {
+		val palette = config.personColors
+		if (palette.isNotEmpty()) return palette[Math.floorMod(author.hashCode(), palette.size)]
 		val hsv = FloatArray(3)
 		Color.colorToHSV(base, hsv)
 		val slot = Math.floorMod(author.hashCode(), PERSON_HUES)
@@ -2968,13 +3910,20 @@ val speechBubblesPlugin = plugin {
 	var flights: Flights? = null
 	var flightError: String? = null
 	var flightConfig = FlightConfig()
+	var feedback: Feedback? = null
+	var appContext: android.content.Context? = null
 
 	start {
+		withAppContext {
+			appContext = it.applicationContext ?: it
+			feedback?.app = appContext
+		}
 		registerNativeMethod("${manifest.id}.configure") { args ->
 			(args.firstOrNull() as? Map<*, *>)?.let { hooks?.configure(it) }
 			null
 		}
 		registerNativeMethod("${manifest.id}.probe") { _ -> hooks?.probe() ?: emptyMap<String, Any?>() }
+		registerNativeMethod("${manifest.id}.layoutProbe") { _ -> hooks?.layoutProbe() ?: emptyMap<String, Any?>() }
 		registerNativeMethod("${manifest.id}.metrics") { _ -> hooks?.chatMetrics() ?: emptyMap<String, Any?>() }
 		registerNativeMethod("${manifest.id}.breaks") { args ->
 			val channel = args.getOrNull(0) as? String
@@ -2989,6 +3938,29 @@ val speechBubblesPlugin = plugin {
 		}
 		registerNativeMethod("${manifest.id}.status") { _ ->
 			hooks?.status() ?: mapOf("hooked" to false, "styledRows" to 0, "error" to startError)
+		}
+
+		// "Sounds and haptics" (Feedback.kt): JS says when, native plays.
+		registerNativeMethod("${manifest.id}.feedbackConfigure") { args ->
+			val map = args.firstOrNull() as? Map<*, *>
+			if (map != null) {
+				val fb = feedback ?: Feedback { hooks?.chatListView() }.also {
+					it.app = appContext
+					feedback = it
+				}
+				fb.sounds = map["sounds"] == true
+				fb.haptics = map["haptics"] == true
+				fb.volume = ((map["volume"] as? Number)?.toFloat() ?: 0.6f).coerceIn(0f, 1f)
+			}
+			null
+		}
+		registerNativeMethod("${manifest.id}.feedback") { args ->
+			val kind = args.getOrNull(0) as? String
+			if (kind != null) feedback?.play(kind, args.getOrNull(1) != false, args.getOrNull(2) == true)
+			null
+		}
+		registerNativeMethod("${manifest.id}.feedbackStatus") { _ ->
+			feedback?.status() ?: mapOf("played" to 0)
 		}
 
 		// The send animation (Flights.kt). Its hook goes in only while the setting is on, and a
@@ -3046,6 +4018,8 @@ val speechBubblesPlugin = plugin {
 	}
 
 	stop {
+		feedback?.dispose()
+		feedback = null
 		flights?.dispose()
 		flights = null
 		flightError = null

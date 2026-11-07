@@ -2,12 +2,15 @@
  * A small made-up chat drawn the way the plugin draws the real one, one per settings page, each
  * showing only what that page changes:
  *
- * - Visual style: a time break, Alex's run (avatar, name, joined corners, tail), your reply, and
- *   the typing bubble (or Discord's "…is typing" line).
+ * - Visual style: a time break, Alex's run (avatar, name, joined corners, tail) ending in a link
+ *   with its preview (iMessage's card or Discord's), your edited reply ("Edited" under it or
+ *   "(edited)" in it) with your picture when that's on, and the typing bubble (or Discord's
+ *   "…is typing" line).
  * - Colours: Alex, Sam and you, one message each, so colour per person shows.
  * - Message times: one bubble each side; tapping shows its time the way "Message times" is set.
  *
- * Every setting is read live.
+ * Every setting is read live. "Colour shifts as you scroll" shades each bubble by where it sits in
+ * the preview, top lighter, bottom deeper, as the real chat does by where it sits on the screen.
  *
  * Sizes and colours copy the native drawing (SpeechBubblesPlugin.kt, BubbleDrawable.kt,
  * TimeTag.kt, TimePopup.kt), so the two should change together. It sits on the theme's chat
@@ -25,9 +28,13 @@ import * as ReactNative from 'react-native'
 import {
 	chatBackground,
 	effectiveColors,
-	personColor,
+	avatarBubble,
+	personPalette,
+	scrollShade,
+	textFor,
 	toHex6,
 } from '../../theme'
+import { selfAvatarSource } from '../../typing/stores'
 import { Dots } from '../../typing/TypingBubble'
 import type { SpeechBubblesStorage } from '../../native'
 
@@ -58,11 +65,34 @@ interface Message {
 	text: string
 	/** How long ago it was sent, for its time. */
 	minutesAgo: number
+	/** It has been edited ("Edited" under it, or Discord's "(edited)" in it). */
+	edited?: boolean
+	/** A link preview under it. */
+	card?: Card
 }
 
-const PEOPLE: Record<Exclude<Who, 'me'>, { name: string; slot: number }> = {
-	alex: { name: 'Alex', slot: 2 },
-	sam: { name: 'Sam', slot: 5 },
+interface Card {
+	site: string
+	title: string
+	description: string
+	/** The made-up picture: a colour with an emoji on it. */
+	picture: string
+	emoji: string
+}
+
+const PIZZA: Card = {
+	site: 'Slice',
+	title: 'Slice: pizza by the slice',
+	description: 'Fresh pizza, open late. Order ahead and skip the queue.',
+	picture: '#C0392B',
+	emoji: '🍕',
+}
+
+/** [picture]: the made-up main colour of their profile picture, for "From their profile picture". */
+/** [slot]: their soft shade (by id); [order]: when they show up, for theme colours. */
+const PEOPLE: Record<Exclude<Who, 'me'>, { name: string; slot: number; order: number; picture: string }> = {
+	alex: { name: 'Alex', slot: 2, order: 0, picture: '#E67E22' },
+	sam: { name: 'Sam', slot: 5, order: 1, picture: '#1ABC9C' },
 }
 
 export type PreviewPage = 'visual' | 'colours' | 'times'
@@ -70,8 +100,14 @@ export type PreviewPage = 'visual' | 'colours' | 'times'
 const SCENES: Record<PreviewPage, Message[]> = {
 	visual: [
 		{ id: 'a1', who: 'alex', text: 'Still up for tonight?', minutesAgo: 9 },
-		{ id: 'a2', who: 'alex', text: 'Thinking pizza at 7 🍕', minutesAgo: 9 },
-		{ id: 'm1', who: 'me', text: 'Yes! See you there', minutesAgo: 2 },
+		{
+			id: 'a2',
+			who: 'alex',
+			text: 'Thinking here at 7: slice.pizza',
+			minutesAgo: 9,
+			card: PIZZA,
+		},
+		{ id: 'm1', who: 'me', text: 'Yes! See you there', minutesAgo: 2, edited: true },
 	],
 	colours: [
 		{ id: 'a1', who: 'alex', text: 'Still up for tonight?', minutesAgo: 9 },
@@ -205,6 +241,92 @@ function Popup({
 	)
 }
 
+/** Your own picture (or your initial if it can't be had), on the right like theirs on the left. */
+function SelfAvatar({ bg, fg }: { bg: string; fg: string }) {
+	const { View, Image } = ReactNative
+	const { Text } = Design
+	const source = selfAvatarSource()
+	return (
+		<View
+			style={{
+				position: 'absolute',
+				right: AVATAR_MARGIN,
+				top: 0,
+				width: AVATAR,
+				height: AVATAR,
+				borderRadius: AVATAR / 2,
+				overflow: 'hidden',
+				backgroundColor: bg,
+				alignItems: 'center',
+				justifyContent: 'center',
+			}}
+		>
+			{source ? (
+				<Image source={source as never} style={{ width: AVATAR, height: AVATAR }} />
+			) : (
+				<Text variant="text-sm/semibold" style={{ color: fg }}>
+					Y
+				</Text>
+			)}
+		</View>
+	)
+}
+
+/** A link preview as Discord draws it: the colour strip on the left, the site, title and description, the picture under them. */
+function LinkCard({
+	card,
+	radius,
+	onChat,
+	inset,
+}: {
+	card: Card
+	radius: number
+	onChat: string
+	inset: number
+}) {
+	const { View } = ReactNative
+	const { Text } = Design
+	const strip = withAlpha(onChat, '1F')
+	const picture = (height: number, corner: number) => (
+		<View
+			style={{
+				height,
+				borderRadius: corner,
+				backgroundColor: card.picture,
+				alignItems: 'center',
+				justifyContent: 'center',
+			}}
+		>
+			<Text style={{ fontSize: height * 0.45 }}>{card.emoji}</Text>
+		</View>
+	)
+	return (
+		<View
+			style={{
+				width: '72%',
+				marginTop: 4,
+				marginLeft: inset,
+				borderRadius: radius,
+				overflow: 'hidden',
+				backgroundColor: strip,
+				flexDirection: 'row',
+			}}
+		>
+			<View style={{ width: 4, backgroundColor: card.picture }} />
+			<View style={{ flex: 1, padding: 10, gap: 4 }}>
+				<Text style={{ fontSize: 11, color: withAlpha(onChat, '99') }}>{card.site}</Text>
+				<Text variant="text-sm/semibold" color="text-link" numberOfLines={1}>
+					{card.title}
+				</Text>
+				<Text variant="text-xs/normal" color="text-default" numberOfLines={2}>
+					{card.description}
+				</Text>
+				<View style={{ marginTop: 4 }}>{picture(72, 4)}</View>
+			</View>
+		</View>
+	)
+}
+
 function hint(page: PreviewPage, s: SpeechBubblesStorage): string {
 	if (page === 'visual') return 'Changes as you flip the switches below.'
 	if (page === 'colours')
@@ -269,19 +391,41 @@ export function ChatPreview({
 	const colors = effectiveColors(s)
 	// Opaque, so the tail's cut-out matches what is behind it.
 	const chat = toHex6(chatBackground())
+	// The colour per person as native hands it out: the palette's colour at the person's slot, with
+	// white or black text picked for it.
+	const palette = personPalette(s, colors)
+	const personBg = (who: Exclude<Who, 'me'>) =>
+		s.personPalette === 'avatar'
+			? avatarBubble(PEOPLE[who].picture, s.personDark)
+			: palette[
+					(s.personPalette === 'theme' ? PEOPLE[who].order * 3 : PEOPLE[who].slot) %
+						palette.length
+				]
 	const bgOf = (who: Who) => {
 		if (who === 'me') return toHex6(colors.ownBg)
-		const base = colors.otherBg
-		return toHex6(s.perPerson ? personColor(base, PEOPLE[who].slot) : base)
+		return toHex6(s.perPerson ? personBg(who) : colors.otherBg)
 	}
-	const fgOf = (who: Who) =>
-		toHex6(who === 'me' ? colors.ownText : colors.otherText)
+	const fgOf = (who: Who) => {
+		if (who === 'me') return toHex6(colors.ownText)
+		return toHex6(s.perPerson ? textFor(personBg(who)) : colors.otherText)
+	}
 	// Text on the chat background (times, breaks): the theme's text colour, or light grey with
 	// own colours, whose text colours are picked for the bubbles (as native does).
 	const onChat = s.colors === 'own' ? '#DBDEE1' : toHex6(colors.otherText)
 	const avatars = !s.hideAvatars
 	const left = avatars ? AVATAR_MARGIN + AVATAR + AVATAR_GAP : AVATAR_MARGIN
+	// "Show my profile picture": your side keeps the same column on the right.
+	const ownRight = s.ownAvatar ? AVATAR_MARGIN + AVATAR + AVATAR_GAP : RIGHT_GAP
 	const tailInset = s.tails ? TAIL_W : 0
+	// "Colour shifts as you scroll": how far down the preview each message sits, 0 to 1.
+	const shade = (hex: string, i: number) =>
+		s.scrollColor
+			? scrollShade(
+					hex,
+					s.scrollColorStrength,
+					MESSAGES.length > 1 ? 0.15 + (0.7 * i) / (MESSAGES.length - 1) : 0.5,
+				)
+			: hex
 
 	const first = MESSAGES[0]
 	const label = (m: Message) => `Today at ${clock(sentAt(m))}`
@@ -292,16 +436,26 @@ export function ChatPreview({
 		const right = m.who === 'me'
 		const startsRun = prev?.who !== m.who
 		const endsRun = next?.who !== m.who
-		const timeHere = below.includes(m.id)
+		const timeShown = below.includes(m.id)
+		const editedHere = !!m.edited && s.editedLabel
+		// Anything under the bubble (its time, "Edited", a link preview) splits the run there.
+		const timeHere = timeShown || editedHere || !!m.card
 		// A time under a bubble splits the run there: both bubbles get full corners (0.3.4).
-		const joinTop = !startsRun && !below.includes(prev.id)
+		const joinTop =
+			!startsRun && !below.includes(prev.id) && !(prev.edited && s.editedLabel) && !prev.card
 		const joinBottom = !endsRun && !timeHere
 		// The "Roundness" setting, as native draws it (joined corners a third of it, at most 6).
 		const radius = s.bubbleRadius
 		const small = Math.min(SMALL_RADIUS, radius / 3)
 		const top = joinTop ? small : radius
 		const bottom = joinBottom ? small : radius
-		const bg = bgOf(m.who)
+		const solid = shade(bgOf(m.who), i)
+		// "Bubble opacity": the bubble's colour with the alpha native gives it.
+		const alpha = Math.round((Math.min(Math.max(s.bubbleOpacity, 30), 100) / 100) * 255)
+			.toString(16)
+			.padStart(2, '0')
+			.toUpperCase()
+		const bg = `${solid}${alpha}`
 		const fg = fgOf(m.who)
 		const person = right ? undefined : PEOPLE[m.who as Exclude<Who, 'me'>]
 
@@ -333,6 +487,9 @@ export function ChatPreview({
 				>
 					<Text variant="text-md/normal" style={{ color: fg }}>
 						{m.text}
+						{m.edited && !s.editedLabel ? (
+							<Text style={{ color: withAlpha(fg, 'A6'), fontSize: 12 }}> (edited)</Text>
+						) : null}
 					</Text>
 				</View>
 				{popup === m.id ? (
@@ -353,7 +510,7 @@ export function ChatPreview({
 				style={{
 					marginTop: i === 0 ? 0 : startsRun ? 12 : 2,
 					paddingLeft: right ? 0 : left,
-					paddingRight: right ? RIGHT_GAP : 0,
+					paddingRight: right ? ownRight : 0,
 					alignItems: right ? 'flex-end' : 'flex-start',
 				}}
 			>
@@ -378,22 +535,50 @@ export function ChatPreview({
 								</Text>
 							</View>
 						) : null}
-						<View
-							style={{
-								flexDirection: 'row',
-								alignItems: 'baseline',
-								gap: 6,
-								marginBottom: NAME_GAP,
-							}}
-						>
-							<Text variant="text-sm/semibold" color="text-default">
-								{person.name}
-							</Text>
-						</View>
+						{s.hideNames ? null : (
+							<View
+								style={{
+									flexDirection: 'row',
+									alignItems: 'baseline',
+									gap: 6,
+									marginBottom: NAME_GAP,
+								}}
+							>
+								<Text variant="text-sm/semibold" color="text-default">
+									{person.name}
+								</Text>
+							</View>
+						)}
 					</>
 				) : null}
+				{right && startsRun && s.ownAvatar ? (
+					<SelfAvatar bg={solid} fg={fg} />
+				) : null}
 				{bubble}
-				{timeHere ? (
+				{m.card ? (
+					<LinkCard
+						card={m.card}
+						radius={s.bubbleRadius}
+						onChat={onChat}
+						inset={tailInset}
+					/>
+				) : null}
+				{editedHere ? (
+					<Text
+						style={{
+							fontSize: TIME_SP,
+							// In your bubble colour, as iMessage writes "Edited" in blue (TimeTag).
+							color: toHex6(colors.ownBg),
+							marginTop: 2,
+							...(right
+								? { marginRight: tailInset + TIME_INSET }
+								: { marginLeft: tailInset + TIME_INSET }),
+						}}
+					>
+						{timeShown ? `Edited · ${label(m)}` : 'Edited'}
+					</Text>
+				) : null}
+				{timeShown && !editedHere ? (
 					<Text
 						style={{
 							fontSize: TIME_SP,
