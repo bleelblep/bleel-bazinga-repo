@@ -424,7 +424,7 @@
       "author": "bleelblep",
       "icon": "UserCircleIcon",
       "channels": {
-        "latest": "1.0.8"
+        "latest": "1.0.9"
       },
       "versions": {
         "0.5.2": {
@@ -457,6 +457,19 @@
           "url": "https://bleelblep.github.io/bleel-bazinga-repo/pool/bleelblep.pronouns@1.0.8.zip",
           "sha256": "1397fa8cde40f7aa42a3bf34ef76263182bbe970783e82cbe27c7d3ff74ec00b",
           "size": 22637,
+          "dependencies": {
+            "valenced.api": {
+              "version": ">=1 <2"
+            },
+            "discord": {
+              "version": ">=350.4"
+            }
+          }
+        },
+        "1.0.9": {
+          "url": "https://bleelblep.github.io/bleel-bazinga-repo/pool/bleelblep.pronouns@1.0.9.zip",
+          "sha256": "ddef8ca162ad9bfb9f2ee1486351908f2d7af56d692e371920e8f75297fad475",
+          "size": 22796,
           "dependencies": {
             "valenced.api": {
               "version": ">=1 <2"
@@ -550,7 +563,7 @@
       "author": "bleelblep",
       "icon": "AppsIcon",
       "channels": {
-        "latest": "1.3.21"
+        "latest": "1.3.22"
       },
       "versions": {
         "1.3.11": {
@@ -570,6 +583,19 @@
           "url": "https://bleelblep.github.io/bleel-bazinga-repo/pool/bleelblep.round-icons@1.3.21.zip",
           "sha256": "586630256954372025d808ab40da5379f9d220398a5787adaeac78effbedf6e3",
           "size": 10843,
+          "dependencies": {
+            "valenced.api": {
+              "version": ">=1 <2"
+            },
+            "discord": {
+              "version": "*"
+            }
+          }
+        },
+        "1.3.22": {
+          "url": "https://bleelblep.github.io/bleel-bazinga-repo/pool/bleelblep.round-icons@1.3.22.zip",
+          "sha256": "f134238cde3af31f8d63d05251888baf224a4974d887e655e481615f081b2fa0",
+          "size": 10889,
           "dependencies": {
             "valenced.api": {
               "version": ">=1 <2"
@@ -613,7 +639,7 @@
       "author": "bleelblep, Rosie, WarFade",
       "icon": "SendMessageIcon",
       "channels": {
-        "latest": "1.1.6"
+        "latest": "1.1.7"
       },
       "versions": {
         "1.0.14": {
@@ -688,6 +714,23 @@
           "url": "https://bleelblep.github.io/bleel-bazinga-repo/pool/bleelblep.send-tweaks@1.1.6.zip",
           "sha256": "fd03423409d091797c04eb21a1486babed025e2f53ba85e05a6cc007aaff2384",
           "size": 61908,
+          "dependencies": {
+            "valenced.api": {
+              "version": ">=1 <2"
+            },
+            "discord": {
+              "version": "*"
+            },
+            "bleelblep.ai-core": {
+              "version": ">=1 <3",
+              "optional": true
+            }
+          }
+        },
+        "1.1.7": {
+          "url": "https://bleelblep.github.io/bleel-bazinga-repo/pool/bleelblep.send-tweaks@1.1.7.zip",
+          "sha256": "6f80fca0e21152c3184545a90eba494b13507be69e14193abf8a68e90e37308a",
+          "size": 61964,
           "dependencies": {
             "valenced.api": {
               "version": ">=1 <2"
@@ -785,7 +828,7 @@
       "author": "bleelblep",
       "icon": "ChatIcon",
       "channels": {
-        "latest": "0.5.31"
+        "latest": "0.7.16"
       },
       "versions": {
         "0.5.30": {
@@ -805,6 +848,19 @@
           "url": "https://bleelblep.github.io/bleel-bazinga-repo/pool/bleelblep.speech-bubbles@0.5.31.zip",
           "sha256": "eed1125d007c7c92dc69aa3f43516081ab99a4eb4810a465ae6ec7bc9e0f5b9d",
           "size": 154133,
+          "dependencies": {
+            "valenced.api": {
+              "version": ">=1 <2"
+            },
+            "discord": {
+              "version": ">=352.2"
+            }
+          }
+        },
+        "0.7.16": {
+          "url": "https://bleelblep.github.io/bleel-bazinga-repo/pool/bleelblep.speech-bubbles@0.7.16.zip",
+          "sha256": "4a07bb46b9a8a2b90c9e2342e5fb7e836416581940dd566f1cb358f37c9d02cf",
+          "size": 188059,
           "dependencies": {
             "valenced.api": {
               "version": ">=1 <2"
@@ -989,13 +1045,26 @@
       "author": "bleelblep",
       "icon": "SlidersIcon",
       "channels": {
-        "latest": "0.8.4"
+        "latest": "0.8.5"
       },
       "versions": {
         "0.8.4": {
           "url": "https://bleelblep.github.io/bleel-bazinga-repo/pool/bleelblep.ui-tweaks@0.8.4.zip",
           "sha256": "13bc663f79eb2cc8c91960d6cc7bf631dd26cc79a38dd63af1129356219ae945",
           "size": 41277,
+          "dependencies": {
+            "valenced.api": {
+              "version": ">=1 <2"
+            },
+            "discord": {
+              "version": "*"
+            }
+          }
+        },
+        "0.8.5": {
+          "url": "https://bleelblep.github.io/bleel-bazinga-repo/pool/bleelblep.ui-tweaks@0.8.5.zip",
+          "sha256": "6de61061823fbf69c88cb2a3d9e04a64eb1f9f94c4ff6c13a6fdfb6d00df281d",
+          "size": 41408,
           "dependencies": {
             "valenced.api": {
               "version": ">=1 <2"
