@@ -246,8 +246,9 @@ Chat as speech bubbles: your messages on the right, everyone else's on the left.
   run. Breaks between messages sent far apart, pictures with the bubbles' corners.
 - Optionally no profile pictures, no names above their messages, or your own picture and name
   beside your messages. Profile pictures can take the bubbles' corner roundness.
-- Message times hidden, shown under the bubble when you tap it, or in a pop-up above it. "Edited"
-  under an edited message instead of in its text.
+- Message times hidden, shown under the bubble when you tap it, or in a pop-up above it, and
+  optionally always beside names as Discord shows them. "Edited" under an edited message instead
+  of in its text.
 - Reactions as round iMessage-style badges, optionally on the bubble's corner.
 - Optional sounds and haptics when you send, receive or react, quiet with Do Not Disturb or silent.
 - Experimental, off by default and still buggy: a typing bubble while someone is typing,
@@ -283,8 +284,9 @@ See someone's local time next to their messages.
 - Reads the shared timezone list other clients use, so people who've added themselves show up
   automatically. You can turn this off.
 - Can also read Equicord's timezone list (off by default, read only).
-- Set or change someone's zone from the ⋯ menu on their profile, or from the bottom of the message
-  long-press menu (that one can be switched off).
+- Their time on their profile in a Local time card, once their zone is known (can be switched off).
+- Set or change someone's zone from that card, the ⋯ menu on their profile, or the bottom of the
+  message long-press menu (that one can be switched off).
 
 Credit: a port of Aliucord's Timezones by aniimalz.
 

@@ -78,6 +78,8 @@ export interface SpeechBubblesStorage {
 	ownAvatar: boolean
 	/** Your name (tags and badges too) above the first bubble of each run, on the right. */
 	ownName: boolean
+	/** Discord's time stays beside the name above the first bubble of a run (yours with [ownName]). */
+	headerTimes: boolean
 	/** Chat avatars get the bubbles' corner roundness instead of a circle. */
 	avatarShape: boolean
 }
@@ -176,6 +178,7 @@ export const DEFAULTS: SpeechBubblesStorage = {
 	editedLabel: true,
 	ownAvatar: false,
 	ownName: false,
+	headerTimes: false,
 	avatarShape: false,
 }
 
@@ -197,6 +200,7 @@ export type BubbleConfig = Pick<
 	| 'editedLabel'
 	| 'ownAvatar'
 	| 'ownName'
+	| 'headerTimes'
 	| 'avatarShape'
 > &
 	BubbleColors & {

@@ -181,6 +181,10 @@ internal class BubbleDrawable(
 		radii[2] = top; radii[3] = top
 		radii[4] = bottom; radii[5] = bottom
 		radii[6] = farBottom; radii[7] = farBottom
+		// Marked so Material Expressive's corner scale (bleelblep.material-expressive) leaves the
+		// bubbles' own corners, joined ones included, exactly as drawn: a whole number of dp plus
+		// 0.003dp, its "already shaped" mark. Invisible either way.
+		for (i in radii.indices) radii[i] = markedCorner(radii[i])
 		body.addRoundRect(rect, radii, Path.Direction.CW)
 
 		if (tails && !joinBottom) {
@@ -224,3 +228,13 @@ internal class BubbleDrawable(
 	@Deprecated("Deprecated in Java")
 	override fun getOpacity(): Int = PixelFormat.TRANSLUCENT
 }
+
+/** [px] as a whole number of dp + 0.003dp: Material Expressive's mark for corners it must not move. */
+internal fun markedCorner(px: Float): Float {
+	if (px <= 0f) return px
+	val density = android.content.res.Resources.getSystem().displayMetrics.density
+	return (kotlin.math.floor(px / density) + 0.003f) * density
+}
+
+/** Material Expressive's native half is running (it sets this): its shapes win over ours. */
+internal fun expressiveOn(): Boolean = System.getProperty("bleelblep.expressive") == "1"

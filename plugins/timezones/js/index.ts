@@ -6,6 +6,7 @@ import { startShared, stopShared } from './lib/shared'
 import { DEFAULTS, setStorage, type TimezonesStorage } from './lib/state'
 import patchChat from './patches/chat'
 import patchMessageSheet from './patches/messageSheet'
+import patchProfileCard from './patches/profileCard'
 import patchProfileMenu from './patches/profileMenu'
 import Settings from './ui/Settings'
 import { reportError, setReporter } from '../../../shared/report'
@@ -50,6 +51,7 @@ export default plugin<{ jsonStorage: TimezonesStorage }>({
 		attempt(cleanup, 'chat timestamp', patchChat)
 		attempt(cleanup, 'message sheet', patchMessageSheet)
 		attempt(cleanup, 'profile menu', patchProfileMenu)
+		attempt(cleanup, 'profile card', patchProfileCard)
 	},
 
 	stop(api) {

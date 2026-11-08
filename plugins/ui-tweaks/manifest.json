@@ -5,7 +5,7 @@
 	"description": "Hide parts of Discord's menus and settings, and choose what double-tap and swipes do.",
 	"author": "bleelblep",
 	"icon": "SlidersIcon",
-	"version": "0.9.5",
+	"version": "0.9.6",
 	"dependencies": {
 		"valenced.api": {
 			"version": ">=1 <2"

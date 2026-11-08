@@ -3,6 +3,15 @@ import type { ChangelogEntry } from '../../../shared/changelog'
 /** Newest first. Every version users got gets an entry; see shared/changelog.tsx. */
 export const CHANGELOG: ChangelogEntry[] = [
 	{
+		version: '0.3.0',
+		date: '2026-11-08',
+		title: 'Their time on their profile',
+		changes: [
+			"Open someone's profile and their local time is right there in a Local time card, once their timezone is known. Tap it to change their timezone.",
+			'Don’t want it? Turn off "Show on their profile" in the settings.',
+		],
+	},
+	{
 		version: '0.2.9',
 		date: '2026-11-02',
 		title: 'Credit line',

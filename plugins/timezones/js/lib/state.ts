@@ -33,6 +33,8 @@ export interface TimezonesStorage {
 	showDay: boolean
 	/** The row in the message long-press menu. The profile's ⋯ menu always has one. */
 	messageMenu: boolean
+	/** The "Local time" card on their profile, when their zone is known. */
+	profileCard: boolean
 	/** Timezones you set, per user id; null clears (older writes may still carry one). */
 	people: Record<string, PersonZone | null>
 	/** The settings page's intro note was hidden for good (settings design guide §4.3). */
@@ -47,6 +49,7 @@ export const DEFAULTS: TimezonesStorage = {
 	hour24: false,
 	showDay: true,
 	messageMenu: true,
+	profileCard: true,
 	people: {},
 	introDismissed: false,
 }

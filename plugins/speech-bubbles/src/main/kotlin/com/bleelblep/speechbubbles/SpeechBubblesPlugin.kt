@@ -194,6 +194,8 @@ private class Config(
 	val ownAvatar: Boolean = false,
 	/** "Show my name": your name (tags and badges too) above the first bubble of each run, on the right. */
 	val ownName: Boolean = false,
+	/** "Time next to names": Discord's time beside the name above the first bubble of a run stays. */
+	val headerTimes: Boolean = false,
 	/** "Avatars match bubbles": chat avatars get the bubbles' corner roundness instead of a circle. */
 	val avatarShape: Boolean = false,
 	val ownBg: Int = OWN_BG,
@@ -429,6 +431,7 @@ internal class BubbleHooks(private val scope: PluginScope) {
 		"hideAvatars" to config.hideAvatars,
 		"hideNames" to config.hideNames,
 		"ownName" to config.ownName,
+		"headerTimes" to config.headerTimes,
 		"avatarShape" to config.avatarShape,
 		"circleHooks" to unhookCircles.size,
 		"personColors" to config.personColors.size,
@@ -499,6 +502,7 @@ internal class BubbleHooks(private val scope: PluginScope) {
 			editedLabel = map["editedLabel"] as? Boolean ?: old.editedLabel,
 			ownAvatar = map["ownAvatar"] as? Boolean ?: old.ownAvatar,
 			ownName = map["ownName"] as? Boolean ?: old.ownName,
+			headerTimes = map["headerTimes"] as? Boolean ?: old.headerTimes,
 			avatarShape = map["avatarShape"] as? Boolean ?: old.avatarShape,
 			scrollColorStrength = (map["scrollColorStrength"] as? Number)?.toFloat() ?: old.scrollColorStrength,
 			bubbleAlpha = (map["bubbleOpacity"] as? Number)?.toFloat()?.coerceIn(0.3f, 1f) ?: old.bubbleAlpha,
@@ -516,6 +520,7 @@ internal class BubbleHooks(private val scope: PluginScope) {
 		val avatarsChanged = old.hideAvatars != config.hideAvatars
 		val ownAvatarChanged = old.ownAvatar != config.ownAvatar
 		val ownNameChanged = old.ownName != config.ownName
+		val headerTimesChanged = old.headerTimes != config.headerTimes
 		val avatarShapeChanged = old.avatarShape != config.avatarShape
 		val inkChanged = old.invisibleInk != config.invisibleInk
 		val reactionsChanged = old.iosReactions != config.iosReactions || old.ownBg != config.ownBg ||
@@ -562,6 +567,7 @@ internal class BubbleHooks(private val scope: PluginScope) {
 							applyTexts(row, it, state)
 						}
 					}
+					if ((headerTimesChanged || ownNameChanged) && state.mode == Mode.OWN) syncOwnTime(row, state)
 					if (avatarShapeChanged) shapeAvatar(row, state)
 					if (reactionsChanged && row.isAttachedToWindow) state.accessories?.let { placeAccessories(row, it, state) }
 					syncOtherTime(row, state)
@@ -1141,8 +1147,8 @@ internal class BubbleHooks(private val scope: PluginScope) {
 	 */
 	private fun syncOtherTime(row: ViewGroup, state: RowState) {
 		// Discord's time beside their name: hidden on their bubbles in every mode, "Hidden" included
-		// (before 0.5.15 "Hidden" left it, so a time still showed).
-		val hide = state.mode == Mode.OTHER
+		// (before 0.5.15 "Hidden" left it, so a time still showed), unless "Time next to names" keeps it.
+		val hide = state.mode == Mode.OTHER && !config.headerTimes
 		val hidden = state.otherTimeHidden
 		if (hide) {
 			if (hidden != null) return
@@ -1219,9 +1225,10 @@ internal class BubbleHooks(private val scope: PluginScope) {
 		}
 		// Discord sets these on every bind (MessageView.b/c), so this bind's value is the one to keep.
 		state.hidden.clear()
-		// The time goes either way: your times show on tap, like theirs.
+		// The time goes too (your times show on tap, like theirs), unless "Time next to names" keeps
+		// it beside your shown name.
 		val hides = (if (config.ownName) emptyList() else listOf("author_name" to View.GONE)) +
-			listOf("timestamp" to View.GONE) +
+			(if (ownHeaderTime()) emptyList() else listOf("timestamp" to View.GONE)) +
 			if (config.ownAvatar) emptyList() else AVATAR_VIEWS.map { it to View.INVISIBLE }
 		for ((name, hide) in hides) {
 			val v = row.findViewById<View>(id(row, name)) ?: continue
@@ -2903,7 +2910,9 @@ internal class BubbleHooks(private val scope: PluginScope) {
 	}
 
 	/** A link or embed card (it has Discord's `border` strip): corners clipped to the bubble radius. */
-	private fun roundCard(row: ViewGroup, container: View, on: Boolean) {
+	private fun roundCard(row: ViewGroup, container: View, onIn: Boolean) {
+		// Material Expressive shapes cards, pictures and GIFs itself; doing it here too doubled them.
+		val on = onIn && !expressiveOn()
 		if (container.findViewById<View>(id(row, "border")) == null) {
 			restoreCard(container)
 			return
@@ -2933,6 +2942,21 @@ internal class BubbleHooks(private val scope: PluginScope) {
 	// ---- "Show my name" ----
 
 	/** The switch changed: the header and name we hid on an own row come back, or go again. */
+	/** Your time stays beside your name: "Time next to names" with "Show my name" on. */
+	private fun ownHeaderTime() = config.headerTimes && config.ownName
+
+	/** [ownHeaderTime] switched on an own row already drawn: the time shown again, or hidden. */
+	private fun syncOwnTime(row: ViewGroup, state: RowState) {
+		val time = row.findViewById<View>(id(row, "timestamp")) ?: return
+		if (ownHeaderTime()) {
+			// Only the GONE we gave; a grouped row's time was GONE from Discord and stays that way.
+			state.hidden.remove(time)?.let { ours -> if (time.visibility == ours) time.visibility = View.VISIBLE }
+		} else if (time.visibility == View.VISIBLE) {
+			state.hidden[time] = View.GONE
+			time.visibility = View.GONE
+		}
+	}
+
 	private fun showOwnName(row: ViewGroup, state: RowState) {
 		val header = row.findViewById<View>(id(row, "header"))
 		val name = row.findViewById<View>(id(row, "author_name"))
@@ -3006,7 +3030,7 @@ internal class BubbleHooks(private val scope: PluginScope) {
 		val rounding = scope.classLoader.loadClass("com.facebook.imagepipeline.nativecode.NativeRoundingFilter")
 		listOf("nativeToCircleFilter", "nativeToCircleFastFilter", "nativeToCircleWithBorderFilter").mapNotNull { name ->
 			rounding.declaredMethods.firstOrNull { it.name == name }?.let { m ->
-				hookMethod(m, before = { param -> if (config.avatarShape) param.result = null })
+				hookMethod(m, before = { param -> if (config.avatarShape && !expressiveOn()) param.result = null })
 			}
 		}
 	}.getOrElse { emptyList() }
@@ -3014,7 +3038,8 @@ internal class BubbleHooks(private val scope: PluginScope) {
 	/** Bubble rows' avatars (author_avatar) get [avatarOutline] while the switch is on; others get Discord's back. */
 	private fun shapeAvatar(row: ViewGroup, state: RowState) {
 		val avatar = row.findViewById<View>(id(row, "author_avatar")) ?: return
-		if (config.avatarShape && state.mode != Mode.NONE) {
+		// Material Expressive gives chat avatars its own shapes; it wins while it's on.
+		if (config.avatarShape && state.mode != Mode.NONE && !expressiveOn()) {
 			if (avatar.outlineProvider === avatarOutline) return
 			shapedAvatars[avatar] = avatar.outlineProvider
 			avatar.outlineProvider = avatarOutline
@@ -3414,7 +3439,8 @@ internal class BubbleHooks(private val scope: PluginScope) {
 	}
 
 	/** The GIF of a GIF link gets the bubbles' corner radius on bubble rows, like pictures do. */
-	private fun roundInlineMedia(row: ViewGroup, container: View, inline: View?, on: Boolean) {
+	private fun roundInlineMedia(row: ViewGroup, container: View, inline: View?, onIn: Boolean) {
+		val on = onIn && !expressiveOn()
 		val media = inline ?: (container as? ViewGroup)?.findViewById(id(row, "inline_media_container")) ?: return
 		if (!on || inline == null) {
 			restoreCard(media)
@@ -3430,7 +3456,8 @@ internal class BubbleHooks(private val scope: PluginScope) {
 	}
 
 	/** A message's pictures (Discord's `mosaic` grid) get the bubble's corner radius on bubble rows. */
-	private fun roundPictures(row: ViewGroup, container: View, on: Boolean) {
+	private fun roundPictures(row: ViewGroup, container: View, onIn: Boolean) {
+		val on = onIn && !expressiveOn()
 		val mosaic = container.findViewById<View>(id(row, "mosaic")) ?: return
 		if (!on) {
 			restoreCard(mosaic)

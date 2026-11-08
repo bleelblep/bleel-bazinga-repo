@@ -252,6 +252,13 @@ export default function Settings({ api }: { api?: { jsonStorage?: any } }) {
 							value={s.messageMenu}
 							onValueChange={(messageMenu: boolean) => update({ messageMenu })}
 						/>
+						<TableSwitchRow
+							label="Show on their profile"
+							subLabel="A Local time card on their profile, once their timezone is known. Tap it to change their timezone."
+							icon={rowIcon('UserCircleIcon', 'ClockIcon')}
+							value={s.profileCard}
+							onValueChange={(profileCard: boolean) => update({ profileCard })}
+						/>
 					</TableRowGroup>
 					<TableRowGroup title="Lookups" hasIcons>
 						<TableSwitchRow

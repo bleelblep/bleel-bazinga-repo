@@ -3,6 +3,22 @@ import type { ChangelogEntry } from '../../../shared/changelog'
 /** Newest first. Every version users got gets an entry; see shared/changelog.tsx. */
 export const CHANGELOG: ChangelogEntry[] = [
 	{
+		version: '0.7.21',
+		date: '2026-11-08',
+		title: 'Times next to names',
+		changes: [
+			'New "Time next to names" on the Times page: Discord’s time stays beside the name above the first bubble of each run, no tap needed. With "Show my name" on, yours shows too.',
+		],
+	},
+	{
+		version: '0.7.20',
+		date: '2026-11-08',
+		title: 'Works with Material Expressive',
+		changes: [
+			'With Material Expressive on, its shapes win: pictures, GIFs, link cards and avatars take its corners instead of the bubble corners, and bubbles keep their own corners (joined ones too) instead of being rounded twice.',
+		],
+	},
+	{
 		version: '0.7.19',
 		date: '2026-11-08',
 		title: 'GIFs and stickers on your side',

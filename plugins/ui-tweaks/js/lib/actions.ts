@@ -24,7 +24,7 @@
  * - userId: the author's id, through the same clipboard copy.
  * - roleColor: the author's name colour in that server, `GuildMemberStore.getMember(guildId, userId).colorString`
  *   (what the chat name colour reads; 352.2 bundle), through the same clipboard copy. Read only.
- * - delete: `actions/MessageActionCreators.tsx` default `deleteMessage(channelId, messageId, true)`,
+ * - delete: `actions/MessageActionCreators.tsx` default `deleteMessage(channelId, messageId)` (a third `true` deletes locally only),
  *   the long-press Delete row's call, behind our confirm dialog (the row's confirm is in its sheet).
  *
  * Every Discord call is the one the long-press menu's own row makes, so permissions, confirms and
@@ -275,7 +275,9 @@ function remove(target: SwipeTarget) {
 				showToast(`Couldn't delete: ${why}`, TOAST)
 			}
 			try {
-				const result = fn(channel.id, message.id, true)
+				// Two arguments only: a third `true` makes Discord drop the message locally without
+				// asking the server (352.2 MessageActionCreators: it skips HTTP.del), so it came back.
+				const result = fn(channel.id, message.id)
 				if (result && typeof result.then === 'function') result.then(undefined, failed)
 			} catch (error) {
 				failed(error)

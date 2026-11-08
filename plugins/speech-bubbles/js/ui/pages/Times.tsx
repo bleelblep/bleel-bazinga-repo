@@ -52,6 +52,20 @@ export default function Times() {
 						/>
 					</TableRadioGroup>
 
+					<TableRowGroup title="Always showing" hasIcons>
+						<TableSwitchRow
+							label="Time next to names"
+							subLabel={
+								s.ownName
+									? 'Discord’s time beside the name above the first bubble of each run, no tap needed. Yours too.'
+									: 'Discord’s time beside their name above the first bubble of each run, no tap needed. Turn on Show my name (Visual style) for yours.'
+							}
+							icon={rowIcon('ClockIcon', 'TagIcon')}
+							value={s.headerTimes}
+							onValueChange={(headerTimes: boolean) => setSettings({ headerTimes })}
+						/>
+					</TableRowGroup>
+
 					<TableRowGroup title="Every time at once" hasIcons>
 						<TableSwitchRow
 							label="Two-finger swipe (buggy)"

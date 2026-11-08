@@ -56,6 +56,7 @@ function visualSummary(s: SpeechBubblesStorage): string {
 		s.hideAvatars ? 'avatars hidden' : null,
 		s.ownAvatar ? 'your picture shown' : null,
 		s.ownName ? 'your name shown' : null,
+		s.headerTimes ? 'times by names' : null,
 		s.avatarShape ? 'avatars match bubbles' : null,
 		s.hideNames ? 'names hidden' : null,
 		s.editedLabel ? '"Edited" under bubbles' : null,

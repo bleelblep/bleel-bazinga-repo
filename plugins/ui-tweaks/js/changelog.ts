@@ -3,6 +3,15 @@ import type { ChangelogEntry } from '../../../shared/changelog'
 /** Newest first. Every version users got gets an entry; see shared/changelog.tsx. */
 export const CHANGELOG: ChangelogEntry[] = [
 	{
+		version: '0.9.6',
+		date: '2026-11-08',
+		title: 'Fixes',
+		changes: [
+			'The long-press menu no longer shows some of its rows twice.',
+			'Deleting with a swipe or double-tap really deletes the message now. Before, it only vanished on your phone and came back.',
+		],
+	},
+	{
 		version: '0.9.5',
 		date: '2026-11-08',
 		title: 'Rearrange the long-press menu and settings',

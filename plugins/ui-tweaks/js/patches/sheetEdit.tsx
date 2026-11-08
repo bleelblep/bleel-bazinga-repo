@@ -175,14 +175,17 @@ function homedSections(children: any[], sections: Section[]): Array<{ child: any
 	const order = sheetOrder()
 	const arranged = arrangedSections(children, sections).map(child => ({ child, section: sections.find(s => s.element === child) }))
 	const rowKeyOf = (row: any) => (isRow(row) ? rowKey(row.props.label) : undefined)
+	const sectioned = arranged.filter(entry => entry.section)
 	const homed = rehome(
-		arranged.filter(entry => entry.section).map(entry => ({ id: idText(entry.section!), items: flat(entry.child.props.children) })),
+		sectioned.map(entry => ({ id: idText(entry.section!), items: flat(entry.child.props.children) })),
 		rowKeyOf,
 		order.homes,
 	)
 	return arranged.map(entry => {
 		if (!entry.section) return { ...entry, rows: [] }
-		const items = homed.find(group => group.id === idText(entry.section!))?.items ?? []
+		// By position, not id: two of Discord's sections can match the same saved one (a sheet that
+		// splits rows another sheet kept together), and looking up by id gave both the first's rows (0.9.5).
+		const items = homed[sectioned.indexOf(entry)]?.items ?? []
 		return { ...entry, rows: arrange(items, rowKeyOf, order.rows) }
 	})
 }
