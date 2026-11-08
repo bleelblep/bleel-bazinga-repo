@@ -39,9 +39,9 @@ account, but these remove the known risky behaviour.
 
 ## Plugins
 
-Most are JavaScript only, so they work on Android and iOS. Live Markdown, Pocket Browser, Sharp
-Corners, Speech Bubbles, Text Animation and UI Tweaks have native Android code, so they are Android
-only.
+Most are JavaScript only, so they work on Android and iOS. Ghost Log Next Gen, Live Markdown,
+Pocket Browser, Sharp Corners, Speech Bubbles, Text Animation and UI Tweaks have native Android
+code, so they are Android only.
 
 ### Character Counter
 
@@ -76,6 +76,27 @@ Choose how the time next to each message looks.
 - Optionally shows the name, avatar and time on every message instead of grouping them.
 
 Credit: based on Custom Timestamps by Fiery.
+
+### Ghost Log Next Gen
+
+A message logger: keeps deleted and edited messages, encrypted, on your phone.
+
+- Deleted messages stay in chat, marked as deleted (an overlay, red text, or off). Replying,
+  reacting, editing and other actions are blocked on them, so nothing is sent for them.
+- Edited messages keep their earlier versions, shown above the message in chat if you want.
+- Saves text, mentions, replies, embeds and media. Only messages Discord had loaded can be caught.
+- The log has Recent and Conversations views, search, Jump to the message, Copy, and Remove.
+- Everything is encrypted with a key made for this phone and kept in Android's secure key storage.
+  An optional recovery password lets backups and bundles open on another phone or after a
+  reinstall. A log this phone can't open is never written over.
+- Automatic backups, export and import bundles, and import from Ghost Log Native Beta (Revenge Next).
+- Nothing is sent anywhere: the log stays on the phone.
+
+Message loggers are the kind of plugin most associated with accounts being actioned. Only you can
+see the log, but the risk is yours.
+
+Credit: the deleted-message styling comes from redstonekasi's message-logger (BSD-3-Clause, see
+`NOTICE.md`).
 
 ### Hide Call Buttons
 
@@ -113,6 +134,26 @@ Shows bold, italics, code, spoilers and more styled as you type a message, inste
 - Code in a monospace font.
 - Select text in the message box to get Bold, Italic and the rest next to Copy and Paste; tap one
   again to undo it.
+
+### Multi Scrobbler
+
+Shows what you're playing as your Discord status ("Listening to …"), with the song, artist, album
+and cover.
+
+- Sources: Last.fm, Libre.fm, ListenBrainz, or This phone (whatever is playing on this phone).
+- Choose what shows: the app name, song length, a timestamp, tooltip text, and whether it says
+  "Listening to" or "Playing".
+- Hides your music status while Spotify or another app you list already shows one, and a Test
+  connection button.
+- Album covers from the service, Cover Art Archive or Apple's iTunes search.
+
+"This phone" needs the Music Bridge app (Android 10+), from this repo's
+[Releases](https://github.com/bleelblep/bleel-bazinga-repo/releases/latest). It has no internet
+permission; songs only go to Discord on the phone. Update by downloading the new APK, or from
+"Get Music Bridge" in the plugin's settings.
+
+Credit: a port of Multi Scrobbler by kmmiio99o (GPL-3.0); Music Bridge is based on kmmiio99o's
+MediaSession Bridge (CC0).
 
 ### New Members
 
@@ -316,6 +357,9 @@ A few plugins talk to services other than Discord. None of them sends your Disco
 | Timezones | Open-Meteo place search | The place name you type. On by default; can be turned off |
 | Timezones | Equicord's timezone list (`timezone.creations.works`) | Nothing about you: it downloads the whole list, about once an hour. Off by default |
 | Pronouns | PronounDB (`pronoundb.org`) | The user IDs of people shown in chat, in batches, to look up their pronouns. On by default; can be turned off |
+| Multi Scrobbler | Last.fm, Libre.fm or ListenBrainz (whichever you pick) | Your username on that service, to read what you're playing |
+| Multi Scrobbler | Cover Art Archive, Apple's iTunes search | The song's artist, album and title, to find a cover |
+| Multi Scrobbler | GitHub | Nothing: only when you tap Get Music Bridge, which opens the download in your browser |
 | Pocket Browser | Whatever sites you open, and your chosen search engine (DuckDuckGo by default) | What any browser sends: the page you ask for and what you type into it. Nothing from Discord |
 
 ## Building

@@ -1,0 +1,24 @@
+{
+	"format": 1,
+	"id": "bleelblep.multi-scrobbler",
+	"name": "Multi Scrobbler",
+	"description": "Shows what you're playing as your Discord status: from Last.fm, Libre.fm, ListenBrainz, or this phone's music player through the Music Bridge app.",
+	"author": "kmmiio99o, bleelblep",
+	"icon": "MusicIcon",
+	"version": "1.3.11",
+	"dependencies": {
+		"valenced.api": {
+			"version": ">=1 <2"
+		},
+		"discord": {
+			"version": "*"
+		}
+	},
+	"dist": {
+		"script": "index.js",
+		"android": {
+			"path": "plugin.jar",
+			"class": "com.bleelblep.multiscrobbler.MultiScrobblerPlugin"
+		}
+	}
+}
