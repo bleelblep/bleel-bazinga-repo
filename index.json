@@ -102,6 +102,30 @@
         }
       }
     },
+    "bleelblep.ghost-log-ng": {
+      "name": "Ghost Log Next Gen",
+      "description": "Ground-up Ghost Log rewrite: encrypted deleted-message log, edit history and saved media.",
+      "author": "bleelblep",
+      "icon": "TrashIcon",
+      "channels": {
+        "latest": "0.3.1"
+      },
+      "versions": {
+        "0.3.1": {
+          "url": "https://bleelblep.github.io/bleel-bazinga-repo/pool/bleelblep.ghost-log-ng@0.3.1.zip",
+          "sha256": "1cdf5b1d1258691686188e59f46ae2400a10452faecb76a8d76a057a6ae76e94",
+          "size": 184427,
+          "dependencies": {
+            "valenced.api": {
+              "version": ">=1 <2"
+            },
+            "discord": {
+              "version": "*"
+            }
+          }
+        }
+      }
+    },
     "bleelblep.hide-call-buttons": {
       "name": "Hide Call Buttons",
       "description": "Hides call and video buttons from DMs, user profiles and voice channels.",
@@ -263,6 +287,30 @@
             },
             "discord": {
               "version": ">=350.2"
+            }
+          }
+        }
+      }
+    },
+    "bleelblep.multi-scrobbler": {
+      "name": "Multi Scrobbler",
+      "description": "Shows what you're playing as your Discord status: from Last.fm, Libre.fm, ListenBrainz, or this phone's music player through the Music Bridge app.",
+      "author": "kmmiio99o, bleelblep",
+      "icon": "MusicIcon",
+      "channels": {
+        "latest": "1.3.11"
+      },
+      "versions": {
+        "1.3.11": {
+          "url": "https://bleelblep.github.io/bleel-bazinga-repo/pool/bleelblep.multi-scrobbler@1.3.11.zip",
+          "sha256": "0f4a9e95a6ca950d6b1f6fa8e75768ab771c1573d6c8f9920b3e53cea14fbbdb",
+          "size": 28292,
+          "dependencies": {
+            "valenced.api": {
+              "version": ">=1 <2"
+            },
+            "discord": {
+              "version": "*"
             }
           }
         }
