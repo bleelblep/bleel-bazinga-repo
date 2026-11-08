@@ -92,6 +92,20 @@ export default function VisualStyle() {
 							onValueChange={(ownAvatar: boolean) => setSettings({ ownAvatar })}
 						/>
 						<TableSwitchRow
+							label="Show my name"
+							subLabel="Your name, tags and badges on the right, above the first of your messages in a row"
+							icon={rowIcon('TagIcon', 'UserIcon')}
+							value={s.ownName}
+							onValueChange={(ownName: boolean) => setSettings({ ownName })}
+						/>
+						<TableSwitchRow
+							label="Avatars match bubbles"
+							subLabel="Profile pictures in chat get the same corner roundness as the bubbles. Restart Discord to reshape ones already loaded"
+							icon={rowIcon('UserCircleIcon', 'UserIcon')}
+							value={s.avatarShape}
+							onValueChange={(avatarShape: boolean) => setSettings({ avatarShape })}
+						/>
+						<TableSwitchRow
 							label="Hide avatars"
 							subLabel="Their bubbles move left into the space the pictures used"
 							icon={rowIcon('UserCircleIcon', 'UserIcon')}

@@ -1,5 +1,5 @@
 /**
- * Edit mode for the message long-press sheet: hide and show rows from the sheet itself.
+ * Edit mode for the message long-press sheet: hide, show and move rows from the sheet itself.
  *
  * patches/sheetRows.tsx hands every message sheet's ActionSheet render to [MessageSheet] below.
  * It builds the sheet's children afresh on each render, never mutating Discord's elements, because
@@ -8,8 +8,12 @@
  * - Normally: hidden rows and sections are left out (as before) and an "Edit menu" row is added
  *   at the end (if that setting is on).
  * - Editing: every row is shown, including hidden ones. Each row's icon becomes an eye (shown) or
- *   a crossed-out eye (hidden), and tapping it flips that row instead of running its action.
+ *   darkened (hidden) or not, and tapping it flips that row instead of running its action.
  *   An "Emoji row" switch sits on top, and "Done" at the end leaves edit mode.
+ *
+ * Editing works like Hide Servers' eye button: every row shows, hidden ones darkened. Tap a row to
+ * hide or show it; hold it and drag to move it, into another section too (ui/DragSections.tsx, saved
+ * by lib/layout.ts moveSheetRow). Both modes draw rows in their saved section and order.
  *
  * Edit mode ends when the sheet closes. Nothing here runs a row's own action while editing, so no
  * message action can fire by accident.
@@ -21,15 +25,20 @@ import * as filters from '@valenced/modules/finders/filters'
 import { lookupGeneratedIconComponent } from '@valenced/utils/discord'
 import { Design } from '@valenced/discord/design'
 import {
+	arrange,
+	moveSheetRow,
 	pluginSectionKey,
 	recordSheet,
+	rehome,
 	rowKey,
 	sectionIndexFor,
 	sheetGroupHidden,
 	sheetLayout,
+	sheetOrder,
 	sheetRowHidden,
 } from '../lib/layout'
 import { onUpdate, settings, update } from '../lib/state'
+import { DragSections } from '../ui/DragSections'
 import { reportError } from '../../../../shared/report'
 
 const TAG = '[UITweaks]'
@@ -143,6 +152,42 @@ function groupHidden(id: number | string): boolean {
 	return id !== 0 && sheetGroupHidden(id)
 }
 
+// ---- Order --------------------------------------------------------------------------------------
+
+/** The sheet's children with its sections in the saved order. Other children keep their place. */
+function arrangedSections(children: any[], sections: Section[]): any[] {
+	const idOf = (child: any) => {
+		const id = sections.find(s => s.element === child)?.id
+		return id === undefined || id === 0 ? undefined : String(id)
+	}
+	return arrange(children, idOf, sheetOrder().sections)
+}
+
+/** A section's id as saved in the order (sections with no known id keep their place). */
+const idText = (section: Section) => String(section.id)
+
+/**
+ * The sheet's sections in the saved order, each with its rows: rows dragged into another section
+ * moved there (a section that isn't on this sheet keeps its rows), then in the saved order. Other
+ * children (not sections) come back as they were, with no rows.
+ */
+function homedSections(children: any[], sections: Section[]): Array<{ child: any; section?: Section; rows: any[] }> {
+	const order = sheetOrder()
+	const arranged = arrangedSections(children, sections).map(child => ({ child, section: sections.find(s => s.element === child) }))
+	const rowKeyOf = (row: any) => (isRow(row) ? rowKey(row.props.label) : undefined)
+	const homed = rehome(
+		arranged.filter(entry => entry.section).map(entry => ({ id: idText(entry.section!), items: flat(entry.child.props.children) })),
+		rowKeyOf,
+		order.homes,
+	)
+	return arranged.map(entry => {
+		if (!entry.section) return { ...entry, rows: [] }
+		const items = homed.find(group => group.id === idText(entry.section!))?.items ?? []
+		return { ...entry, rows: arrange(items, rowKeyOf, order.rows) }
+	})
+}
+
+
 /** One of our own groups, holding [rows]. */
 function ourGroup(key: string, rows: any[]): any {
 	const R = Row()
@@ -155,18 +200,18 @@ function ourGroup(key: string, rows: any[]): any {
 
 function normalChildren(children: any[], sections: Section[]): any[] {
 	const out: any[] = []
-	for (const child of children) {
-		const section = sections.find(s => s.element === child)
+	for (const { child, section, rows: homed } of homedSections(children, sections)) {
 		if (!section) {
 			out.push(child)
 			continue
 		}
 		if (groupHidden(section.id)) continue
 		const rows = flat(child.props.children)
-		const kept = rows.filter(row => !isRow(row) || !sheetRowHidden(rowKey(row.props.label)))
+		const kept = homed.filter(row => !isRow(row) || !sheetRowHidden(rowKey(row.props.label)))
 		// A section left with no rows goes too, rather than an empty gap.
 		if (!kept.some(isRow)) continue
-		out.push(kept.length === rows.length ? child : withProps(child, { children: kept }))
+		const same = kept.length === rows.length && kept.every((row, index) => row === rows[index])
+		out.push(same ? child : withProps(child, { children: kept }))
 	}
 
 	const R = Row()
@@ -175,7 +220,7 @@ function normalChildren(children: any[], sections: Section[]): any[] {
 			<R
 				key="ui-tweaks-edit-row"
 				label="Edit menu"
-				subLabel="Hide or show rows in this menu"
+				subLabel="Hide, show or move rows in this menu"
 				icon={iconWith(undefined, icon('PencilIcon'))}
 				onPress={() => setEditing(true)}
 			/>,
@@ -188,16 +233,13 @@ function normalChildren(children: any[], sections: Section[]): any[] {
 // ---- Edit mode ----------------------------------------------------------------------------------
 
 /** Flips one row. A row hidden by its whole section brings the section back with only that row. */
-function toggleRow(section: Section, label: string) {
+function toggleRow(sectionId: number | string, keys: string[], label: string) {
 	const s = settings()
 	const rows = { ...s.hiddenSheetRows }
 	const groups = { ...s.hiddenSheetGroups }
-	if (groupHidden(section.id)) {
-		groups[String(section.id)] = null
-		for (const row of section.rows) {
-			const key = rowKey(row.props.label)
-			rows[key] = key === label ? null : true
-		}
+	if (groupHidden(sectionId)) {
+		groups[String(sectionId)] = null
+		for (const key of keys) rows[key] = key === label ? null : true
 	} else {
 		rows[label] = rows[label] === true ? null : true
 	}
@@ -225,27 +267,51 @@ function editChildren(children: any[], sections: Section[], hasHeader: boolean):
 		if (group) out.push(group)
 	}
 
-	for (const child of children) {
-		const section = sections.find(s => s.element === child)
-		if (!section) {
-			out.push(child)
-			continue
-		}
-		const sectionHidden = groupHidden(section.id)
-		const rows = flat(child.props.children).map(row => {
-			if (!isRow(row)) return row
-			const label = rowKey(row.props.label)
-			const hidden = sectionHidden || sheetRowHidden(label)
-			return withProps(row, {
-				subLabel: hidden ? 'Hidden. Tap to show.' : 'Shown. Tap to hide.',
-				icon: iconWith(row, hidden ? EyeSlash : Eye),
-				variant: undefined,
-				disabled: false,
-				onPress: () => toggleRow(section, label),
-			})
+	const entries = homedSections(children, sections)
+	for (const entry of entries) if (!entry.section) out.push(entry.child)
+	const specs = entries
+		.filter(entry => entry.section)
+		.map(entry => {
+			const rows = entry.rows.filter(isRow)
+			const { children: _children, ...groupProps } = entry.child.props
+			return { entry, rows, keys: rows.map(row => rowKey(row.props.label)), groupProps }
 		})
-		out.push(withProps(child, { children: rows }))
+	const specOf = (id: string) => specs.find(spec => idText(spec.entry.section!) === id)
+	const isHidden = (key: string, id: string) => {
+		const section = specOf(id)?.entry.section
+		return (section ? groupHidden(section.id) : false) || sheetRowHidden(key)
 	}
+	out.push(
+		<DragSections
+			key="ui-tweaks-edit-sections"
+			gap={12}
+			Group={Row()?.Group}
+			sections={specs.map(spec => ({
+				id: idText(spec.entry.section!),
+				keys: spec.keys,
+				groupProps: spec.groupProps,
+				Group: spec.entry.child.type,
+			}))}
+			dimmed={isHidden}
+			// Our own row element: no onPress of its own, so the tap reaches DragSections (toggle) and
+			// a hold starts the drag. variant and disabled are cleared so nothing looks off-limits.
+			renderRow={(key, id) => {
+				const spec = specOf(id)
+				const row = spec?.rows[spec.keys.indexOf(key)]
+				return withProps(row ?? <R label={key} />, {
+					subLabel: isHidden(key, id) ? 'Hidden. Tap to show, hold to move.' : 'Tap to hide, hold to move.',
+					variant: undefined,
+					disabled: false,
+					onPress: undefined,
+				})
+			}}
+			onPressRow={(key, id) => {
+				const spec = specOf(id)
+				if (spec) toggleRow(spec.entry.section!.id, spec.keys, key)
+			}}
+			onMove={(key, from, to, index) => moveSheetRow(key, from, specOf(from)?.keys ?? [], to, specOf(to)?.keys ?? [], index)}
+		/>,
+	)
 
 	const done = ourGroup('ui-tweaks-edit-done', [
 		<R

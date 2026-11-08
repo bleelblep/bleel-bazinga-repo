@@ -1,5 +1,5 @@
 /**
- * "Hide channel" (or "Hide category") in the channel long-press sheet.
+ * "Hide channel" (or "Hide category", or "Hide thread") in the channel long-press sheet.
  *
  * `openChannelLongPressActionSheet` opens the sheet through `ActionSheetActionCreators.openLazy`
  * with the key `ChannelLongPress-<channelId>` and props `{ channelId, onClose }` (350.2 bundle,
@@ -28,8 +28,18 @@ import { after, before } from "@valenced/patcher"
 
 const TAG = "[HideServersDrawer:channelSheet]"
 const SYM_PATCHED = Symbol.for("bleelblep.hide-servers-drawer channel sheet")
-const KEY = /^ChannelLongPress-/
+// Channels: `ChannelLongPress-<id>`. Threads: `ThreadLongPressActionSheet` with `{ channelId }`.
+// Forum posts: `ForumPostLongPressActionSheet` with `{ thread, parentChannel }` (all seen on device
+// 2026-11-08); patches/forumPosts.ts hides them in the forum.
+const KEY = /^(ChannelLongPress-|ThreadLongPressActionSheet$|ForumPostLongPressActionSheet$)/
 const GUILD_CATEGORY = 4
+/** Announcement, public and private threads. */
+const THREAD_TYPES = new Set([10, 11, 12])
+/** Forum and media channels: their threads are posts. */
+const FORUM_TYPES = new Set([15, 16])
+// Logs long-press sheet keys this file doesn't know, to find the one a thread opens if it isn't
+// ChannelLongPress. Off for release.
+const DEBUG_KEYS: boolean = false
 
 let actionSheetRow: any
 function ActionSheetRowComponent() {
@@ -57,7 +67,14 @@ function buildGroup(channelId: string): any {
 	if (!channel?.guild_id) return null
 
 	const category = channel.type === GUILD_CATEGORY
-	const what = category ? "category" : "channel"
+	const thread = THREAD_TYPES.has(channel.type)
+	let post = false
+	try {
+		post = thread && FORUM_TYPES.has((Stores as any).ChannelStore?.getChannel?.(channel.parent_id)?.type)
+	} catch {
+		/* treat it as a thread */
+	}
+	const what = category ? "category" : post ? "post" : thread ? "thread" : "channel"
 	const hidden = isChannelHidden(channelId)
 	const { getAssetIdByName } = assets
 
@@ -70,7 +87,11 @@ function buildGroup(channelId: string): any {
 						? "Put it back in the channel list."
 						: category
 							? "Hides it and its channels from the list, only on this device."
-							: "Hides it from the channel list, only on this device."
+							: post
+								? "Hides it from the forum, only on this device."
+								: thread
+									? "Hides it from under its channel in the list, only on this device."
+								: "Hides it and its threads from the channel list, only on this device."
 				}
 				icon={<ActionSheetRow.Icon source={getAssetIdByName(hidden ? "EyeIcon" : "EyeSlashIcon")} />}
 				onPress={() => {
@@ -78,7 +99,7 @@ function buildGroup(channelId: string): any {
 					try {
 						setChannelHidden(channelId, !hidden)
 						showToast(
-							hidden ? `${category ? "Category" : "Channel"} shown again.` : `Hidden. Show it again from Hide Servers' settings.`,
+							hidden ? `${what[0]!.toUpperCase()}${what.slice(1)} shown again.` : `Hidden. Show it again from Hide Servers' settings.`,
 							"HideServersDrawerToast",
 						)
 					} catch (error) {
@@ -174,8 +195,11 @@ export default function patchChannelSheet(): () => void {
 		before(ActionSheetActionCreators as any, "openLazy", (args: any[]) => {
 			try {
 				const [sheet, key, props] = args
-				if (typeof key === "string" && KEY.test(key) && typeof props?.channelId === "string" && typeof sheet?.then === "function") {
-					current = props.channelId
+				const channelId = props?.channelId ?? props?.channel?.id ?? props?.thread?.id
+				if (DEBUG_KEYS && typeof key === "string" && !KEY.test(key) && /LongPress|Thread/i.test(key))
+					console.log(`${TAG} unknown sheet ${key}, props: ${Object.keys(props ?? {}).join(", ")}`)
+				if (typeof key === "string" && KEY.test(key) && typeof channelId === "string" && typeof sheet?.then === "function") {
+					current = channelId
 					args[0] = sheet.then((mod: any) => patchSheetModule(mod, patches))
 				}
 			} catch (error) {

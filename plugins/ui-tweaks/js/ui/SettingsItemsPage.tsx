@@ -1,6 +1,6 @@
 import { rowIcon } from '../../../../shared/ui/icon'
 import { useBottomPadding } from '../../../../shared/ui/safeArea'
-import { PROTECTED_ITEMS, settingsLayout } from '../lib/layout'
+import { arrange, PROTECTED_ITEMS, settingsLayout, settingsOrder } from '../lib/layout'
 import { settings, update, useSettings } from '../lib/state'
 import { nulls } from './SheetPage'
 import * as components from '@valenced/components'
@@ -12,7 +12,7 @@ import * as ReactNative from 'react-native'
 const CONFIG = 'modules/user_settings/core/native/SettingsRendererConfig.tsx'
 
 /** Discord's settings item config (`SETTING_RENDERER_CONFIG`), for item titles. */
-function itemConfig(): Record<string, any> | undefined {
+export function itemConfig(): Record<string, any> | undefined {
 	try {
 		const finders = modulesFinders as any
 		return finders.lookupModuleWithImportedPath(CONFIG)?.[0]?.SETTING_RENDERER_CONFIG
@@ -22,14 +22,14 @@ function itemConfig(): Record<string, any> | undefined {
 }
 
 /** "APP_ICONS" → "App icons", for items whose title can't be read. */
-function prettyKey(key: string): string {
+export function prettyKey(key: string): string {
 	const words = key.replace(/^bleelblep\./, '').replace(/[._-]+/g, ' ').toLowerCase().trim()
 	return words.charAt(0).toUpperCase() + words.slice(1)
 }
 
 let Boundary: any
 /** Falls back to the key when an item's title hook throws outside Discord's own page. */
-function TitleBoundary(props: { fallback: any; children: any }) {
+export function TitleBoundary(props: { fallback: any; children: any }) {
 	if (!Boundary) {
 		const { React } = react
 		Boundary = class extends React.Component<any, { failed: boolean }> {
@@ -66,7 +66,8 @@ export default function SettingsItemsPage() {
 	const { ScrollView } = ReactNative
 	const { Stack, TableRowGroup, TableRow, TableSwitchRow } = Design as any
 	const s = useSettings()
-	const layout = settingsLayout(s.settingsLayout)
+	const order = settingsOrder(s.settingsOrder)
+	const layout = arrange(settingsLayout(s.settingsLayout), section => section.id, order.sections)
 	const config = itemConfig() ?? {}
 
 	const setItem = (key: string, shown: boolean) =>
@@ -78,6 +79,16 @@ export default function SettingsItemsPage() {
 		<Page>
 			<ScrollView contentContainerStyle={{ paddingBottom: useBottomPadding() }}>
 				<Stack spacing={24}>
+					<TableRowGroup title="On the settings page" hasIcons>
+						<TableSwitchRow
+							label="Edit button"
+							subLabel="An Edit button at the bottom of Discord's settings: tap items to hide or show them, hold and drag to move them."
+							icon={rowIcon('PencilIcon', 'CompassIcon')}
+							value={s.settingsEditButton}
+							onValueChange={(settingsEditButton: boolean) => update({ settingsEditButton })}
+						/>
+					</TableRowGroup>
+
 					{layout.length === 0 ? (
 						<TableRowGroup title="Sections">
 							<TableRow label="Nothing seen yet" subLabel="Open Discord's settings once (You, then the gear) and its sections show up here." />
@@ -97,7 +108,7 @@ export default function SettingsItemsPage() {
 										onValueChange={(shown: boolean) => setSection(section.id, shown)}
 									/>
 									{sectionShown &&
-										section.settings.map(key => {
+										arrange(section.settings, key => key, order.items).map(key => {
 											const fallback = (
 												<TableSwitchRow
 													label={prettyKey(key)}
@@ -122,6 +133,13 @@ export default function SettingsItemsPage() {
 					)}
 
 					<TableRowGroup>
+						<TableRow
+							label="Back to Discord's order"
+							subLabel="Undo moving items on the settings page."
+							icon={rowIcon('RetryIcon', 'RefreshIcon')}
+							disabled={!s.settingsOrder}
+							onPress={() => update({ settingsOrder: '' })}
+						/>
 						<TableRow
 							label="Show everything again"
 							icon={rowIcon('RetryIcon', 'RefreshIcon')}

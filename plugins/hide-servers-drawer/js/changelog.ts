@@ -3,6 +3,16 @@ import type { ChangelogEntry } from '../../../shared/changelog'
 /** Newest first. Every version users got gets an entry; see shared/changelog.tsx. */
 export const CHANGELOG: ChangelogEntry[] = [
 	{
+		version: '1.8.12',
+		date: '2026-11-08',
+		title: 'Hide threads and forum posts',
+		changes: [
+			'Long-press a thread in the channel list and pick "Hide thread" to hide just that thread. Its channel stays.',
+			'Forum posts can be hidden too: long-press a post in a forum and pick "Hide post".',
+			'Hidden threads and posts are listed with their channel in settings, to show them again.',
+		],
+	},
+	{
 		version: '1.8.9',
 		date: '2026-11-02',
 		title: 'Tidier settings',

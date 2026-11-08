@@ -244,8 +244,8 @@ Chat as speech bubbles: your messages on the right, everyone else's on the left.
   opacity, and colours that shift as you scroll.
 - Corner roundness from square to pill, tails on the bubbles, and bubbles in a row joined into one
   run. Breaks between messages sent far apart, pictures with the bubbles' corners.
-- Optionally no profile pictures, no names above their messages, or your own picture beside your
-  messages.
+- Optionally no profile pictures, no names above their messages, or your own picture and name
+  beside your messages. Profile pictures can take the bubbles' corner roundness.
 - Message times hidden, shown under the bubble when you tap it, or in a pop-up above it. "Edited"
   under an edited message instead of in its text.
 - Reactions as round iMessage-style badges, optionally on the bubble's corner.
@@ -293,7 +293,9 @@ Credit: a port of Aliucord's Timezones by aniimalz.
 Hide the parts of Discord you don't use, and choose what double-tap and swipes do. Android only.
 
 - Hide rows in the message long-press menu, items in the long-press + menu and sections of Discord's
-  settings, each from a list of what it has seen; an Edit menu row hides rows right in the menu.
+  settings, each from a list of what it has seen.
+- Edit the long-press menu and Discord's settings page in place: Edit shows everything, hidden
+  ones darkened; tap to hide or show, hold and drag to move.
 - Hide the reaction bar, the GIFs or Stickers tab, Message Requests and Quests (display only:
   quests you started keep going). Keep the picker open after sending a GIF.
 - Double-tap and swipe on a message: reply, edit, react, copy, quote, mention, pin, forward, start a

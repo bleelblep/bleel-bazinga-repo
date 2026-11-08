@@ -3,6 +3,30 @@ import type { ChangelogEntry } from '../../../shared/changelog'
 /** Newest first. Every version users got gets an entry; see shared/changelog.tsx. */
 export const CHANGELOG: ChangelogEntry[] = [
 	{
+		version: '0.7.19',
+		date: '2026-11-08',
+		title: 'GIFs and stickers on your side',
+		changes: [
+			'Your stickers and GIFs (Tenor, Giphy) now sit on the right with your bubbles, instead of staying on the left.',
+			"GIFs get the same rounded corners as your bubbles and pictures.",
+		],
+	},
+	{
+		version: '0.7.18',
+		date: '2026-11-08',
+		title: 'Bubbles for bots',
+		changes: ["A bot's answers to commands are in bubbles too, so bots in DMs look like everyone else."],
+	},
+	{
+		version: '0.7.17',
+		date: '2026-11-07',
+		title: 'Your name, and avatars to match',
+		changes: [
+			'New "Show my name" in Visual style: your name, tags and badges on the right, above the first of your messages in a row.',
+			'New "Avatars match bubbles": profile pictures in chat get the same corner roundness as your bubbles, so square bubbles get square avatars. Restart Discord after turning it on so pictures already loaded change too.',
+		],
+	},
+	{
 		version: '0.7.16',
 		date: '2026-11-07',
 		title: 'Quiet with Do Not Disturb',

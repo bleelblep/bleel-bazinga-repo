@@ -11,7 +11,8 @@
  * bundle, 2026-10-17: #42036 updateChannel, #42040 computeState, the enum in the module factory.)
  *
  * So a hidden channel, or a channel inside a hidden category, gets DoNotShow and no threads from
- * `computeState`. On 351.3 records call `computeState` straight from their constructor and never go
+ * `computeState`. A shown channel keeps its threads minus the hidden ones: a thread is listed only
+ * through its parent's `threadIds`, so taking its id out is what hides it. On 351.3 records call `computeState` straight from their constructor and never go
  * through `updateChannel` (counted on device 2026-10-18: 70 computeState calls, 0 updateChannel), and
  * each record class (text, voice, thread...) has its own `computeState`, so every class met in a built
  * list gets wrapped. The classes aren't exported (only the module's `default` cache is, with
@@ -50,6 +51,13 @@ function hiddenRecord(record: any): boolean {
 	return typeof channel?.parent_id === "string" && isChannelHidden(channel.parent_id)
 }
 
+/** The thread ids minus hidden ones, or undefined when none of them is hidden (keep Discord's own). */
+function withoutHiddenThreads(ids: unknown): string[] | undefined {
+	if (!Array.isArray(ids) || !ids.length) return undefined
+	const kept = ids.filter(id => !(typeof id === "string" && isChannelHidden(id)))
+	return kept.length === ids.length ? undefined : kept
+}
+
 /** Wraps `computeState` on the record's own class (and any above it that has one). New ones: true. */
 function patchRecordClass(record: any): boolean {
 	let added = false
@@ -61,6 +69,8 @@ function patchRecordClass(record: any): boolean {
 			const state = original.apply(this, args)
 			try {
 				if (hiddenRecord(this)) return { ...state, renderLevel: DO_NOT_SHOW, threadIds: [] }
+				const threads = withoutHiddenThreads(state?.threadIds)
+				if (threads) return { ...state, threadIds: threads }
 			} catch (error) {
 				reportError(`${TAG} hiding a channel failed:`, error)
 			}

@@ -131,7 +131,7 @@ export default function Settings({
 							label="Channels"
 							subLabel={
 								channels
-									? `${channels} channel${channels === 1 ? "" : "s"} or categor${channels === 1 ? "y" : "ies"} hidden`
+									? `${channels} channel${channels === 1 ? "" : "s"}, categor${channels === 1 ? "y" : "ies"} or thread${channels === 1 ? "" : "s"} hidden`
 									: 'Nothing hidden yet. Long-press a channel and pick "Hide channel"'
 							}
 							icon={rowIcon("EyeSlashIcon", "ic_hide")}

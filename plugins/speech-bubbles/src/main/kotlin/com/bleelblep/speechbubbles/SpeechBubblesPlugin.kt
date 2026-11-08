@@ -63,6 +63,8 @@ private const val ACCESSORIES_VIEW = "com.discord.chat.presentation.message.Mess
 private const val CONTENT_VIEW = "com.discord.chat.presentation.message.view.MessageContentView"
 /** Discord's reactions row (the chips and its "+" button), a child of the accessories list. */
 private const val REACTIONS_VIEW = "com.discord.reactions.ShortcutsFlexbox"
+/** A sticker: one image view straight in the accessories list, not a container like the rest. */
+private const val STICKER_VIEW = "com.discord.sticker.StickerView"
 private const val ADD_REACTION_BUTTON = "com.discord.reactions.AddReactionView"
 /** Reactions on the bubble's corner: their size there, and how far they reach over the corner. */
 private const val TAPBACK_SCALE = 0.85f
@@ -96,8 +98,12 @@ private const val PAD_V_DP = 8f
 private const val RIGHT_GAP_DP = 8f
 private const val MAX_WIDTH_FRACTION = 0.75f
 
-/** Message types drawn as bubbles. Anything else (system messages, calls, joins) stays stock. */
-private val BUBBLE_TYPES = setOf("DEFAULT", "REPLY")
+/**
+ * Message types drawn as bubbles. Anything else (system messages, calls, joins) stays stock.
+ * A bot's answer to a slash command or an app (message menu) command is its own type, so bots in
+ * DMs got no bubbles with only DEFAULT and REPLY (names from com.discord.chat.bridge.MessageType).
+ */
+private val BUBBLE_TYPES = setOf("DEFAULT", "REPLY", "CHAT_INPUT_COMMAND", "CONTEXT_MENU_COMMAND")
 private const val MAX_SEEN_TYPES = 16
 private const val TIME_TEXT_SP = 11f
 /** Between a bubble and the time under it, and from the bubble's edge to the time's. */
@@ -186,6 +192,10 @@ private class Config(
 	val editedLabel: Boolean = true,
 	/** "Show my profile picture": your picture on the right, beside the first bubble of each run. */
 	val ownAvatar: Boolean = false,
+	/** "Show my name": your name (tags and badges too) above the first bubble of each run, on the right. */
+	val ownName: Boolean = false,
+	/** "Avatars match bubbles": chat avatars get the bubbles' corner roundness instead of a circle. */
+	val avatarShape: Boolean = false,
 	val ownBg: Int = OWN_BG,
 	val ownText: Int = OWN_TEXT,
 	val otherBg: Int = OTHER_BG,
@@ -418,6 +428,9 @@ internal class BubbleHooks(private val scope: PluginScope) {
 		"custom" to config.custom,
 		"hideAvatars" to config.hideAvatars,
 		"hideNames" to config.hideNames,
+		"ownName" to config.ownName,
+		"avatarShape" to config.avatarShape,
+		"circleHooks" to unhookCircles.size,
 		"personColors" to config.personColors.size,
 		"tapToggles" to tapToggles,
 		"roomsMade" to roomsMade,
@@ -485,6 +498,8 @@ internal class BubbleHooks(private val scope: PluginScope) {
 			scrollColor = map["scrollColor"] as? Boolean ?: old.scrollColor,
 			editedLabel = map["editedLabel"] as? Boolean ?: old.editedLabel,
 			ownAvatar = map["ownAvatar"] as? Boolean ?: old.ownAvatar,
+			ownName = map["ownName"] as? Boolean ?: old.ownName,
+			avatarShape = map["avatarShape"] as? Boolean ?: old.avatarShape,
 			scrollColorStrength = (map["scrollColorStrength"] as? Number)?.toFloat() ?: old.scrollColorStrength,
 			bubbleAlpha = (map["bubbleOpacity"] as? Number)?.toFloat()?.coerceIn(0.3f, 1f) ?: old.bubbleAlpha,
 			ownBg = parseColor(map["ownBg"]) ?: old.ownBg,
@@ -500,6 +515,8 @@ internal class BubbleHooks(private val scope: PluginScope) {
 		if (old.tails != config.tails || old.hideAvatars != config.hideAvatars) bubbleLeftPx = -1f
 		val avatarsChanged = old.hideAvatars != config.hideAvatars
 		val ownAvatarChanged = old.ownAvatar != config.ownAvatar
+		val ownNameChanged = old.ownName != config.ownName
+		val avatarShapeChanged = old.avatarShape != config.avatarShape
 		val inkChanged = old.invisibleInk != config.invisibleInk
 		val reactionsChanged = old.iosReactions != config.iosReactions || old.ownBg != config.ownBg ||
 			old.otherBg != config.otherBg || old.ownText != config.ownText || old.otherText != config.otherText ||
@@ -537,6 +554,15 @@ internal class BubbleHooks(private val scope: PluginScope) {
 							alignRow(row, state)
 						}
 					}
+					// Your name shown or hidden: visibility and a move; the gap above the first bubble changes too.
+					if (ownNameChanged && state.mode == Mode.OWN) {
+						showOwnName(row, state)
+						if (row.isAttachedToWindow) state.accessories?.let {
+							remeasureTexts(it)
+							applyTexts(row, it, state)
+						}
+					}
+					if (avatarShapeChanged) shapeAvatar(row, state)
 					if (reactionsChanged && row.isAttachedToWindow) state.accessories?.let { placeAccessories(row, it, state) }
 					syncOtherTime(row, state)
 					syncOtherName(row, state)
@@ -548,6 +574,7 @@ internal class BubbleHooks(private val scope: PluginScope) {
 					if (d != null) for (saved in texts.values) saved.bubble.setRadii(config.bubbleRadiusDp * d, joinedRadiusDp() * d)
 					// Embed cards are clipped to the bubble radius: unclip, then clip again at the new one.
 					for (v in roundedCards.keys.toList()) restoreCard(v)
+					for (v in shapedAvatars.keys.toList()) v.invalidateOutline()
 					for ((row, state) in rows.entries.toList()) {
 						if (row.isAttachedToWindow) state.accessories?.let { placeAccessories(row, it, state) }
 					}
@@ -560,7 +587,7 @@ internal class BubbleHooks(private val scope: PluginScope) {
 				if (config.scrollColor) chatList?.get()?.let(::watchScroll)
 				if (old.timeBreaks != config.timeBreaks) relayoutBreaks { true }
 				// The run gaps come from the list's decorations, which only ask again when told to.
-				if (namesChanged) chatList?.get()?.let(::invalidateDecorations)
+				if (namesChanged || ownNameChanged) chatList?.get()?.let(::invalidateDecorations)
 				for ((text, saved) in texts.entries.toList()) {
 					val mode = rowOf(text)?.mode ?: continue
 					if (mode != Mode.NONE) recolor(text, saved, mode)
@@ -714,7 +741,9 @@ internal class BubbleHooks(private val scope: PluginScope) {
 
 		unhookDraw.unhook()
 		for (u in unhookEdited) runCatching { u.unhook() }
+		for (u in unhookCircles) runCatching { u.unhook() }
 		main.post {
+			for (v in shapedAvatars.keys.toList()) runCatching { unshapeAvatar(v) }
 			bubbleIds.clear()
 			for (u in spanHooks.values) runCatching { u.unhook() }
 			spanHooks.clear()
@@ -1183,13 +1212,16 @@ internal class BubbleHooks(private val scope: PluginScope) {
 	}
 
 	private fun styleRow(row: ViewGroup, state: RowState) {
-		row.findViewById<View>(id(row, "header"))?.let { header ->
+		// "Show my name" keeps the header (name, tags, badges); alignOwnName moves it to the right.
+		if (!config.ownName) row.findViewById<View>(id(row, "header"))?.let { header ->
 			if (state.headerSaved == null) state.headerSaved = header.visibility
 			if (header.visibility != View.GONE) header.visibility = View.GONE
 		}
 		// Discord sets these on every bind (MessageView.b/c), so this bind's value is the one to keep.
 		state.hidden.clear()
-		val hides = listOf("author_name" to View.GONE, "timestamp" to View.GONE) +
+		// The time goes either way: your times show on tap, like theirs.
+		val hides = (if (config.ownName) emptyList() else listOf("author_name" to View.GONE)) +
+			listOf("timestamp" to View.GONE) +
 			if (config.ownAvatar) emptyList() else AVATAR_VIEWS.map { it to View.INVISIBLE }
 		for ((name, hide) in hides) {
 			val v = row.findViewById<View>(id(row, name)) ?: continue
@@ -1921,8 +1953,10 @@ internal class BubbleHooks(private val scope: PluginScope) {
 		val mode = state.mode
 		val shift = mode == Mode.OTHER && config.hideAvatars
 		if (shift) shiftRow(row, accessories, state) else unshiftRow(state)
-		if (mode == Mode.OWN) alignReply(row, accessories, state)
-		else if (shift) hookOtherReply(row, state)
+		if (mode == Mode.OWN) {
+			alignReply(row, accessories, state)
+			if (config.ownName) alignOwnName(row, accessories, state)
+		} else if (shift) hookOtherReply(row, state)
 		else unalignReply(state)
 		if (mode == Mode.OTHER && state.otherHeaderSaved != null) tightenName(row, accessories, state) else untightenName(state)
 		scheduleRowAlign(row, state)
@@ -2182,7 +2216,7 @@ internal class BubbleHooks(private val scope: PluginScope) {
 		}
 		// A bubble's body starts below the gap kept under their name.
 		val isBubble = first is TextView && texts[first] != null
-		val gap = if (state.mode == Mode.OTHER && isBubble && (state.position == GroupPosition.START || state.position == GroupPosition.ONLY)) dp(row, NAME_GAP_DP) else 0
+		val gap = if ((state.mode == Mode.OTHER || (state.mode == Mode.OWN && config.ownName)) && isBubble && (state.position == GroupPosition.START || state.position == GroupPosition.ONLY)) dp(row, NAME_GAP_DP) else 0
 		val firstTop = accessories.top + first.top + gap
 		val wanted = (firstTop - avatar.top).coerceAtLeast(0)
 		val dy = wanted.coerceAtMost(row.height - avatar.bottom).coerceAtLeast(0).toFloat()
@@ -2228,6 +2262,7 @@ internal class BubbleHooks(private val scope: PluginScope) {
 		else unalignAvatar(row, state)
 		state.accessories?.let { placeAccessories(row, it, state) }
 		placeBreak(row, state)
+		shapeAvatar(row, state)
 	}
 
 	// ---- Time breaks ----
@@ -2375,14 +2410,25 @@ internal class BubbleHooks(private val scope: PluginScope) {
 			}
 			roundCard(row, child, state.mode != Mode.NONE)
 			roundPictures(row, child, state.mode != Mode.NONE)
-			if (!own || child.width == 0 || child !is ViewGroup) {
+			val inline = inlineMediaOf(row, child)
+			roundInlineMedia(row, child, inline, state.mode != Mode.NONE)
+			val sticker = child.javaClass.name == STICKER_VIEW
+			if (!own || child.width == 0 || (child !is ViewGroup && !sticker)) {
 				movedAccessories.remove(child)?.let { if (child.translationX != it) child.translationX = it }
 				continue
 			}
-			val shown = (0 until child.childCount).map(child::getChildAt)
-				.filter { it.width > 0 && it.visibility == View.VISIBLE }
-			val contentRight = shown.maxOfOrNull { it.right } ?: child.width
-			val contentLeft = shown.minOfOrNull { it.left } ?: 0
+			// A sticker is its own content. A Tenor/GIF link's embed is card-wide while the GIF in it
+			// (inline_media_container) is narrower, so the GIF's own edges are measured, not the card's.
+			val inlineSpan = inline?.let { spanIn(child, it) }
+			val (contentLeft, contentRight) = when {
+				child !is ViewGroup -> 0 to child.width
+				inlineSpan != null -> inlineSpan
+				else -> {
+					val shown = (0 until child.childCount).map(child::getChildAt)
+						.filter { it.width > 0 && it.visibility == View.VISIBLE }
+					(shown.minOfOrNull { it.left } ?: 0) to (shown.maxOfOrNull { it.right } ?: child.width)
+				}
+			}
 			// Pushed right to your side. With "Show my profile picture", something too wide for the
 			// room left of your picture (a picture, a link card) slides left instead, into the empty
 			// avatar column on the left, but no closer to the edge than AVATAR_MARGIN_DP.
@@ -2884,6 +2930,105 @@ internal class BubbleHooks(private val scope: PluginScope) {
 		}
 	}
 
+	// ---- "Show my name" ----
+
+	/** The switch changed: the header and name we hid on an own row come back, or go again. */
+	private fun showOwnName(row: ViewGroup, state: RowState) {
+		val header = row.findViewById<View>(id(row, "header"))
+		val name = row.findViewById<View>(id(row, "author_name"))
+		if (config.ownName) {
+			state.headerSaved?.let { saved -> header?.visibility = saved }
+			state.headerSaved = null
+			// Only the GONE we gave; a grouped row's name was GONE from Discord and stays that way.
+			name?.let { v -> state.hidden.remove(v)?.let { ours -> if (v.visibility == ours) v.visibility = View.VISIBLE } }
+		} else {
+			header?.let { h ->
+				if (state.headerSaved == null) state.headerSaved = h.visibility
+				if (h.visibility != View.GONE) h.visibility = View.GONE
+			}
+			name?.let { v ->
+				if (v.visibility == View.VISIBLE) {
+					state.hidden[v] = View.GONE
+					v.visibility = View.GONE
+				}
+			}
+			unalignReply(state)
+		}
+	}
+
+	/**
+	 * "Show my name": Discord lays your header (name, tags, badges) out on the left, where theirs
+	 * goes. It moves right as one block so it ends where your bubbles end (their tail tip, the
+	 * mirror of their name starting at the start guideline), never past the left margin. translationX
+	 * only, saved with the reply's moves ([move]) and put back by [unalignReply].
+	 */
+	private fun alignOwnName(row: ViewGroup, accessories: ViewGroup, state: RowState) {
+		val header = row.findViewById<View>(id(row, "header")) as? ViewGroup ?: return
+		if (header.visibility != View.VISIBLE || header.width == 0) return
+		val shown = (0 until header.childCount).map(header::getChildAt).filter { it.visibility == View.VISIBLE && it.width > 0 }
+		if (shown.isEmpty()) return
+		// The header's left in row coordinates (layout only: its own translationX is what we set).
+		var x = 0
+		var p: View? = header
+		while (p != null && p !== row) {
+			x += p.left
+			p = p.parent as? View
+		}
+		if (p == null) return
+		val contentLeft = x + shown.minOf { it.left }
+		val contentRight = x + shown.maxOf { it.right }
+		val bubbleRight = accessories.left + accessories.width - accessories.paddingRight - ownRightGap(row, accessories)
+		val dx = (bubbleRight - contentRight).coerceAtLeast(dp(row, AVATAR_MARGIN_DP) - contentLeft)
+		move(state, header, dx.toFloat(), null)
+	}
+
+	// ---- "Avatars match bubbles" ----
+
+	/** Chat avatars we gave the bubbles' corners -> Discord's own outline (a circle) to put back. */
+	private val shapedAvatars = WeakHashMap<View, android.view.ViewOutlineProvider?>()
+
+	/** The bubbles' outer corner radius, at most half the avatar (a circle at "pill"). */
+	private val avatarOutline = object : android.view.ViewOutlineProvider() {
+		override fun getOutline(view: View, outline: android.graphics.Outline) {
+			val r = minOf(config.bubbleRadiusDp * view.resources.displayMetrics.density, minOf(view.width, view.height) / 2f)
+			outline.setRoundRect(0, 0, view.width, view.height, r)
+		}
+	}
+
+	/**
+	 * Discord also cuts chat avatars into a circle inside the picture itself (Fresco's
+	 * RoundAsCirclePostprocessor, through NativeRoundingFilter), so a new outline alone would still
+	 * show a circle. While "Avatars match bubbles" is on, that cut is skipped, as Sharp Corners does.
+	 * Pictures already loaded keep their circle until Discord restarts. The JNI natives keep their
+	 * names and can't be inlined. App-wide: other pictures Discord cuts that way come out square.
+	 */
+	private val unhookCircles: List<Unhook> = runCatching {
+		val rounding = scope.classLoader.loadClass("com.facebook.imagepipeline.nativecode.NativeRoundingFilter")
+		listOf("nativeToCircleFilter", "nativeToCircleFastFilter", "nativeToCircleWithBorderFilter").mapNotNull { name ->
+			rounding.declaredMethods.firstOrNull { it.name == name }?.let { m ->
+				hookMethod(m, before = { param -> if (config.avatarShape) param.result = null })
+			}
+		}
+	}.getOrElse { emptyList() }
+
+	/** Bubble rows' avatars (author_avatar) get [avatarOutline] while the switch is on; others get Discord's back. */
+	private fun shapeAvatar(row: ViewGroup, state: RowState) {
+		val avatar = row.findViewById<View>(id(row, "author_avatar")) ?: return
+		if (config.avatarShape && state.mode != Mode.NONE) {
+			if (avatar.outlineProvider === avatarOutline) return
+			shapedAvatars[avatar] = avatar.outlineProvider
+			avatar.outlineProvider = avatarOutline
+			avatar.clipToOutline = true
+		} else {
+			unshapeAvatar(avatar)
+		}
+	}
+
+	private fun unshapeAvatar(avatar: View) {
+		if (!shapedAvatars.containsKey(avatar)) return
+		avatar.outlineProvider = shapedAvatars.remove(avatar)
+	}
+
 	private fun setAvatarY(row: ViewGroup, state: RowState, dy: Float) {
 		state.avatarMoved = dy != 0f
 		for (name in AVATAR_VIEWS) {
@@ -2993,10 +3138,10 @@ internal class BubbleHooks(private val scope: PluginScope) {
 	/**
 	 * Your messages one after another make one run even where Discord starts a new group (a pause
 	 * of a few minutes): your name is hidden anyway, so nothing shows the break. Not with "Show my
-	 * profile picture" (it sits beside each group's first bubble), and not for other people, whose
-	 * name and picture mark their groups.
+	 * profile picture" (it sits beside each group's first bubble) or "Show my name" (it heads each
+	 * group), and not for other people, whose name and picture mark their groups.
 	 */
-	private fun mergesRuns(state: RowState) = state.mode == Mode.OWN && !config.ownAvatar
+	private fun mergesRuns(state: RowState) = state.mode == Mode.OWN && !config.ownAvatar && !config.ownName
 
 	/**
 	 * The bound row of the next message in [row]'s list, when it's the same person's and joins on:
@@ -3104,8 +3249,8 @@ internal class BubbleHooks(private val scope: PluginScope) {
 		if (room > 0) roomsMade++
 		saved.bubble.setBottomGap(room.toFloat())
 		val bottom = v + room
-		// Their first message of a run has their name above it: a little room between the two.
-		val gap = if (mode == Mode.OTHER && (position == GroupPosition.START || position == GroupPosition.ONLY)) dp(text, NAME_GAP_DP) else 0
+		// Their first message of a run has their name above it (yours too with "Show my name"): a little room between the two.
+		val gap = if ((mode == Mode.OTHER || (mode == Mode.OWN && config.ownName)) && (position == GroupPosition.START || position == GroupPosition.ONLY)) dp(text, NAME_GAP_DP) else 0
 		saved.bubble.setTopGap(gap.toFloat())
 		val top = v + gap
 		if (text.paddingLeft != left || text.paddingTop != top || text.paddingRight != right || text.paddingBottom != bottom) {
@@ -3246,6 +3391,43 @@ internal class BubbleHooks(private val scope: PluginScope) {
 	}
 
 	// ---- Pictures with the bubbles' corners ----
+
+	/**
+	 * A GIF or image link shown as media only (Tenor, Giphy): the embed's `inline_media_container`,
+	 * when it's showing. Null for ordinary link cards, pictures and anything else.
+	 */
+	private fun inlineMediaOf(row: ViewGroup, container: View): View? {
+		if (container !is ViewGroup) return null
+		val media = container.findViewById<View>(id(row, "inline_media_container")) ?: return null
+		return media.takeIf { it.visibility == View.VISIBLE && it.width > 0 && it.isShown }
+	}
+
+	/** [view]'s left and right edges in [ancestor]'s coordinates, or null if it isn't inside it. */
+	private fun spanIn(ancestor: View, view: View): Pair<Int, Int>? {
+		var left = 0
+		var v: View = view
+		while (v !== ancestor) {
+			left += v.left
+			v = v.parent as? View ?: return null
+		}
+		return left to left + view.width
+	}
+
+	/** The GIF of a GIF link gets the bubbles' corner radius on bubble rows, like pictures do. */
+	private fun roundInlineMedia(row: ViewGroup, container: View, inline: View?, on: Boolean) {
+		val media = inline ?: (container as? ViewGroup)?.findViewById(id(row, "inline_media_container")) ?: return
+		if (!on || inline == null) {
+			restoreCard(media)
+			return
+		}
+		val radius = config.bubbleRadiusDp * media.resources.displayMetrics.density
+		val current = media.outlineProvider as? RoundedOutline
+		if (current != null && current.radius == radius) return
+		if (current == null) roundedCards[media] = media.outlineProvider to media.clipToOutline
+		media.outlineProvider = RoundedOutline(radius)
+		media.clipToOutline = true
+		media.invalidateOutline()
+	}
 
 	/** A message's pictures (Discord's `mosaic` grid) get the bubble's corner radius on bubble rows. */
 	private fun roundPictures(row: ViewGroup, container: View, on: Boolean) {

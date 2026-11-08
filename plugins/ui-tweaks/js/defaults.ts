@@ -45,6 +45,17 @@ export interface UITweaksStorage {
 	 */
 	sheetLayout: string
 	settingsLayout: string
+	/**
+	 * The long-press sheet's order, as JSON `{ sections: string[], rows: string[] }` (a string for the
+	 * same reason as sheetLayout). Section ids as in hiddenSheetGroups, rows by rowKey. Only relative
+	 * order counts: rows are compared with rows of their own section, sections with each other, and
+	 * anything not listed keeps Discord's place.
+	 */
+	sheetOrder: string
+	/** Discord settings' order, as JSON `{ sections: string[], items: string[] }`, the same way as sheetOrder. */
+	settingsOrder: string
+	/** A floating Edit button on Discord's settings page, to hide, show and move items there. */
+	settingsEditButton: boolean
 
 	/** Expression picker tabs. */
 	hidePickerGifs: boolean
@@ -105,6 +116,9 @@ export const DEFAULTS: UITweaksStorage = {
 	hiddenSettingsSections: {},
 	hiddenSettingsItems: {},
 	sheetLayout: '',
+	sheetOrder: '',
+	settingsOrder: '',
+	settingsEditButton: true,
 	settingsLayout: '',
 	hidePickerGifs: false,
 	hidePickerStickers: false,

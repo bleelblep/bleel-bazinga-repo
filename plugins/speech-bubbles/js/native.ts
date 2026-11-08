@@ -76,6 +76,10 @@ export interface SpeechBubblesStorage {
 	editedLabel: boolean
 	/** Your profile picture on the right, beside the first bubble of each run. */
 	ownAvatar: boolean
+	/** Your name (tags and badges too) above the first bubble of each run, on the right. */
+	ownName: boolean
+	/** Chat avatars get the bubbles' corner roundness instead of a circle. */
+	avatarShape: boolean
 }
 
 export type SendStyle = 'imessage' | 'pop'
@@ -171,6 +175,8 @@ export const DEFAULTS: SpeechBubblesStorage = {
 	soundVolume: 60,
 	editedLabel: true,
 	ownAvatar: false,
+	ownName: false,
+	avatarShape: false,
 }
 
 /** What native is told: the settings plus the theme's colours as `#RRGGBBAA` (already swapped). */
@@ -190,6 +196,8 @@ export type BubbleConfig = Pick<
 	| 'swipeNames'
 	| 'editedLabel'
 	| 'ownAvatar'
+	| 'ownName'
+	| 'avatarShape'
 > &
 	BubbleColors & {
 		custom: boolean

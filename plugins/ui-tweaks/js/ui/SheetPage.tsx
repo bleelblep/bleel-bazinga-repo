@@ -1,6 +1,6 @@
 import { rowIcon } from '../../../../shared/ui/icon'
 import { useBottomPadding } from '../../../../shared/ui/safeArea'
-import { sheetLayout } from '../lib/layout'
+import { arrange, sheetLayout, sheetOrder } from '../lib/layout'
 import { settings, update, useSettings } from '../lib/state'
 import * as components from '@valenced/components'
 import { Design } from '@valenced/discord/design'
@@ -17,6 +17,7 @@ export default function SheetPage() {
 	const { Stack, TableRowGroup, TableRow, TableSwitchRow } = Design as any
 	const s = useSettings()
 	const layout = sheetLayout(s.sheetLayout)
+	const order = sheetOrder(s.sheetOrder)
 
 	const setRow = (label: string, shown: boolean) =>
 		update({ hiddenSheetRows: { ...settings().hiddenSheetRows, [label]: shown ? null : true } })
@@ -27,6 +28,8 @@ export default function SheetPage() {
 	/** One section: a "Show" switch for the whole of it, then its rows while it's shown. */
 	const section = (id: number | string, title: string, labels: string[]) => {
 		const groupShown = s.hiddenSheetGroups?.[String(id)] !== true
+		// In the order the menu shows them (rows are moved in the menu's Edit mode).
+		labels = arrange(labels, label => label, order.rows)
 		return (
 			<TableRowGroup key={id} title={title}>
 				<TableSwitchRow
@@ -55,7 +58,7 @@ export default function SheetPage() {
 					<TableRowGroup title="In the menu" hasIcons>
 						<TableSwitchRow
 							label="Edit menu row"
-							subLabel="An Edit menu row at the bottom of the long-press menu, to hide and show rows right there."
+							subLabel="An Edit menu row at the bottom of the long-press menu: tap rows to hide or show them, hold and drag to move them."
 							icon={rowIcon('PencilIcon', 'CompassIcon')}
 							value={s.sheetEditRow}
 							onValueChange={(sheetEditRow: boolean) => update({ sheetEditRow })}
@@ -83,6 +86,13 @@ export default function SheetPage() {
 					{plugins.map(([key, labels]) => section(key, `Added by a plugin: ${key.replace(/^plugin:/, '')}`, labels))}
 
 					<TableRowGroup>
+						<TableRow
+							label="Back to Discord's order"
+							subLabel="Undo moving rows in the menu."
+							icon={rowIcon('RetryIcon', 'RefreshIcon')}
+							disabled={!s.sheetOrder}
+							onPress={() => update({ sheetOrder: '' })}
+						/>
 						<TableRow
 							label="Show everything again"
 							icon={rowIcon('RetryIcon', 'RefreshIcon')}

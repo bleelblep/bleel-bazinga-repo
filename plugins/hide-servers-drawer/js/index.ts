@@ -3,6 +3,7 @@ import { initPrefs } from "./lib/prefs"
 import { armDump, onDumpDone, probeDmNavigation, probeSortedGuildStore } from "./lib/probe"
 import patchChannelList from "./patches/channelList"
 import patchChannelSheet from "./patches/channelSheet"
+import patchForumPosts from "./patches/forumPosts"
 import { patchCreateElement } from "./patches/createElementIntercept"
 import patchEditMode from "./patches/editMode"
 import patchEmoji from "./patches/emoji"
@@ -113,6 +114,7 @@ export default plugin<{ jsonStorage: HideServersDrawerStorage }>({
 			apply("editMode", patchEditMode)
 			apply("channelList", patchChannelList)
 			apply("channelSheet", patchChannelSheet)
+			apply("forumPosts", patchForumPosts)
 			apply("emoji", patchEmoji)
 			refresh()
 		}, 0)

@@ -3,6 +3,17 @@ import type { ChangelogEntry } from '../../../shared/changelog'
 /** Newest first. Every version users got gets an entry; see shared/changelog.tsx. */
 export const CHANGELOG: ChangelogEntry[] = [
 	{
+		version: '0.9.5',
+		date: '2026-11-08',
+		title: 'Rearrange the long-press menu and settings',
+		changes: [
+			'Edit menu works like Hide Servers: every row shows, hidden ones darkened. Tap a row to hide or show it, hold it and drag it anywhere in the menu, then tap Done.',
+			"Discord's settings get the same: tap Edit at the bottom of the settings page, then tap items to hide or show them, hold and drag to move them, and tap Done.",
+			'Rows can be dragged into another section too. The row you hold lifts out above everything with a short buzz, an outline and a shadow, and a line shows where it will land.',
+			"Back to Discord's order, in UI Tweaks' settings, undoes the moving.",
+		],
+	},
+	{
 		version: '0.8.5',
 		date: '2026-11-07',
 		title: 'Delete tells you why',

@@ -8,6 +8,10 @@ import * as react from "@valenced/react"
 import * as ReactNative from "react-native"
 
 const GUILD_CATEGORY = 4
+/** Announcement, public and private threads. */
+const THREAD_TYPES = new Set([10, 11, 12])
+/** Forum and media channels: their threads are posts. */
+const FORUM_TYPES = new Set([15, 16])
 
 type Row = { id: string; name: string; category: boolean }
 type Group = { title: string; rows: Row[] }
@@ -41,7 +45,21 @@ function groups(): Group[] {
 			byGuild.set(guildId, group)
 		}
 		const category = channel?.type === GUILD_CATEGORY
-		group.rows.push({ id, name: channel?.name ? (category ? channel.name : `#${channel.name}`) : id, category })
+		let name: string = id
+		if (channel?.name) {
+			if (category) name = channel.name
+			else if (THREAD_TYPES.has(channel.type)) {
+				let parent: any
+				try {
+					parent = channels?.getChannel?.(channel.parent_id)
+				} catch {
+					/* no parent */
+				}
+				const kind = FORUM_TYPES.has(parent?.type) ? "post" : "thread"
+				name = parent?.name ? `${channel.name} (${kind} in #${parent.name})` : `${channel.name} (${kind})`
+			} else name = `#${channel.name}`
+		}
+		group.rows.push({ id, name, category })
 	}
 	return [...byGuild.values()]
 }
@@ -64,7 +82,7 @@ export default function Channels() {
 					<TableRowGroup hasIcons>
 						<TableRow
 							label="Hiding a channel"
-							subLabel='Long-press a channel or category in a server and pick "Hide channel". Turn a switch off here to show it again.'
+							subLabel='Long-press a channel, category, thread or forum post in a server and pick "Hide". Turn a switch off here to show it again.'
 							icon={rowIcon("EyeSlashIcon")}
 						/>
 					</TableRowGroup>

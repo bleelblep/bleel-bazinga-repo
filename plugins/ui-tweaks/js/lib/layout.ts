@@ -191,6 +191,134 @@ export function sheetGroupHidden(id: number | string): boolean {
 	return settings().hiddenSheetGroups?.[String(id)] === true
 }
 
+// ---- Long-press sheet order ---------------------------------------------------------------------
+
+/**
+ * The saved order (see UITweaksStorage.sheetOrder). Empty lists mean Discord's own order. `homes`:
+ * rows dragged into another section, by row key -> that section's id.
+ */
+export interface SheetOrder {
+	sections: string[]
+	rows: string[]
+	homes: Record<string, string>
+}
+
+function parseHomes(parsed: any): Record<string, string> {
+	const out: Record<string, string> = {}
+	if (parsed?.homes && typeof parsed.homes === 'object') {
+		for (const [key, id] of Object.entries(parsed.homes)) if (typeof id === 'string') out[key] = id
+	}
+	return out
+}
+
+export function sheetOrder(raw = settings().sheetOrder): SheetOrder {
+	try {
+		const parsed = raw ? JSON.parse(raw) : undefined
+		return {
+			sections: Array.isArray(parsed?.sections) ? parsed.sections.map(String) : [],
+			rows: Array.isArray(parsed?.rows) ? parsed.rows.map(String) : [],
+			homes: parseHomes(parsed),
+		}
+	} catch {
+		return { sections: [], rows: [], homes: {} }
+	}
+}
+
+/**
+ * Groups with their items moved to the group they were dragged into ([homes]), when that group is
+ * here. An item whose home isn't on screen stays where Discord put it.
+ */
+export function rehome<T>(
+	groups: Array<{ id: string; items: T[] }>,
+	keyOf: (item: T) => string | undefined,
+	homes: Record<string, string>,
+): Array<{ id: string; items: T[] }> {
+	const ids = new Set(groups.map(group => group.id))
+	const moving: Array<[string, T]> = []
+	const out = groups.map(group => ({
+		id: group.id,
+		items: group.items.filter(item => {
+			const key = keyOf(item)
+			const home = key === undefined ? undefined : homes[key]
+			if (home && home !== group.id && ids.has(home)) {
+				moving.push([home, item])
+				return false
+			}
+			return true
+		}),
+	}))
+	for (const [home, item] of moving) out.find(group => group.id === home)?.items.push(item)
+	return out
+}
+
+/** [lists] saved as the new order: each list's keys to the end, so they compare in this order. */
+function reordered(order: string[], lists: string[][]): string[] {
+	const keys = new Set(lists.flat())
+	return [...order.filter(key => !keys.has(key)), ...lists.flat()]
+}
+
+/**
+ * Moves [key] into section [to] at [index] (counted without it). [fromKeys] and [toKeys] are both
+ * sections' rows as shown, so both keep their order.
+ */
+export function moveSheetRow(key: string, from: string, fromKeys: string[], to: string, toKeys: string[], index: number) {
+	const order = sheetOrder()
+	const target = toKeys.filter(k => k !== key)
+	target.splice(Math.max(0, Math.min(index, target.length)), 0, key)
+	const source = from === to ? [] : fromKeys.filter(k => k !== key)
+	saveOrder({ ...order, rows: reordered(order.rows, [source, target]), homes: { ...order.homes, [key]: to } })
+}
+
+function saveOrder(order: SheetOrder) {
+	update({ sheetOrder: JSON.stringify(order) })
+}
+
+/**
+ * [items] in the saved [order]. Only the items the order lists move, and only among their own
+ * places: anything it doesn't list (a row first seen today, a plugin's section) keeps its spot.
+ */
+export function arrange<T>(items: T[], keyOf: (item: T) => string | undefined, order: string[]): T[] {
+	if (items.length < 2 || !order.length) return items
+	const rank = new Map<string, number>()
+	order.forEach((key, index) => {
+		if (!rank.has(key)) rank.set(key, index)
+	})
+	const rankOf = (item: T) => {
+		const key = keyOf(item)
+		return key === undefined ? undefined : rank.get(key)
+	}
+	const ranked = items.filter(item => rankOf(item) !== undefined)
+	if (ranked.length < 2) return items
+	const sorted = [...ranked].sort((a, b) => rankOf(a)! - rankOf(b)!)
+	let next = 0
+	return items.map(item => (rankOf(item) !== undefined ? sorted[next++] : item))
+}
+
+/**
+ * Saves one section's rows in this order. Rows are only ever compared with their own section's,
+ * so the section's keys go to the end of the list; where the other sections' keys sit doesn't
+ * matter.
+ */
+export function setSectionRowOrder(keys: string[]) {
+	const order = sheetOrder()
+	const unique = [...new Set(keys)]
+	saveOrder({ ...order, rows: [...order.rows.filter(key => !unique.includes(key)), ...unique] })
+}
+
+/** Saves the sections in this order, by id ("1" = Discord's first, `plugin:` keys for plugins). */
+export function setSectionOrder(ids: Array<number | string>) {
+	saveOrder({ ...sheetOrder(), sections: [...new Set(ids.map(String))] })
+}
+
+/** [list] with the item at [index] moved to [to]. */
+export function moved<T>(list: T[], index: number, to: number): T[] {
+	if (index < 0 || index >= list.length || to < 0 || to >= list.length || index === to) return list
+	const next = [...list]
+	const [item] = next.splice(index, 1)
+	next.splice(to, 0, item)
+	return next
+}
+
 // ---- Discord settings page ----------------------------------------------------------------------
 
 export interface SettingsSectionLayout {
@@ -225,6 +353,52 @@ export function settingsLayout(raw = settings().settingsLayout): SettingsSection
 export function recordSettings(sections: SettingsSectionLayout[]) {
 	const json = JSON.stringify(sections)
 	if (json !== settings().settingsLayout) save({ settingsLayout: json })
+}
+
+/** The saved order of Discord's settings (see UITweaksStorage.settingsOrder); `homes` as in SheetOrder. */
+export function settingsOrder(raw = settings().settingsOrder): { sections: string[]; items: string[]; homes: Record<string, string> } {
+	try {
+		const parsed = raw ? JSON.parse(raw) : undefined
+		return {
+			sections: Array.isArray(parsed?.sections) ? parsed.sections.map(String) : [],
+			items: Array.isArray(parsed?.items) ? parsed.items.map(String) : [],
+			homes: parseHomes(parsed),
+		}
+	} catch {
+		return { sections: [], items: [], homes: {} }
+	}
+}
+
+/** Moves a settings item into section [to] at [index], as moveSheetRow does for the menu. */
+export function moveSettingsItem(key: string, from: string, fromKeys: string[], to: string, toKeys: string[], index: number) {
+	const order = settingsOrder()
+	const target = toKeys.filter(k => k !== key)
+	target.splice(Math.max(0, Math.min(index, target.length)), 0, key)
+	const source = from === to ? [] : fromKeys.filter(k => k !== key)
+	update({
+		settingsOrder: JSON.stringify({ ...order, items: reordered(order.items, [source, target]), homes: { ...order.homes, [key]: to } }),
+	})
+}
+
+/** Saves one settings section's items in this order (only compared within their section). */
+export function setSettingsItemOrder(keys: string[]) {
+	const order = settingsOrder()
+	const unique = [...new Set(keys)]
+	update({ settingsOrder: JSON.stringify({ ...order, items: [...order.items.filter(key => !unique.includes(key)), ...unique] }) })
+}
+
+/** Flips one settings item. A hidden section comes back with only that item shown. */
+export function toggleSettingsItem(sectionKey: string, items: string[], key: string) {
+	const s = settings()
+	const hiddenItems = { ...s.hiddenSettingsItems }
+	const hiddenSections = { ...s.hiddenSettingsSections }
+	if (settingsSectionHidden(sectionKey)) {
+		hiddenSections[sectionKey] = null
+		for (const item of items) hiddenItems[item] = item === key ? null : true
+	} else {
+		hiddenItems[key] = hiddenItems[key] === true ? null : true
+	}
+	update({ hiddenSettingsItems: hiddenItems, hiddenSettingsSections: hiddenSections })
 }
 
 export function settingsSectionHidden(id: string): boolean {

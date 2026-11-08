@@ -97,6 +97,8 @@ export default plugin<{ jsonStorage: SpeechBubblesStorage }>({
 				scrollColor: settings.scrollColor,
 				editedLabel: settings.editedLabel,
 				ownAvatar: settings.ownAvatar,
+				ownName: settings.ownName,
+				avatarShape: settings.avatarShape,
 				scrollColorStrength:
 					Math.min(Math.max(settings.scrollColorStrength ?? 50, 20), 100) / 50,
 			})
