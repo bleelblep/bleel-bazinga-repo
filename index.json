@@ -841,7 +841,7 @@
       "author": "bleelblep",
       "icon": "ChatIcon",
       "channels": {
-        "latest": "0.7.19"
+        "latest": "0.7.21"
       },
       "versions": {
         "0.5.30": {
@@ -887,6 +887,19 @@
           "url": "https://bleelblep.github.io/bleel-bazinga-repo/pool/bleelblep.speech-bubbles@0.7.19.zip",
           "sha256": "958f44e0c9fd657c0ef84e48e2570b063ec2271664c84b7deead72733e328b67",
           "size": 191842,
+          "dependencies": {
+            "valenced.api": {
+              "version": ">=1 <2"
+            },
+            "discord": {
+              "version": ">=352.2"
+            }
+          }
+        },
+        "0.7.21": {
+          "url": "https://bleelblep.github.io/bleel-bazinga-repo/pool/bleelblep.speech-bubbles@0.7.21.zip",
+          "sha256": "3343c39752972653cdf61a193df2b1e46c999e1d21c5f705e807e4619acea1b9",
+          "size": 192853,
           "dependencies": {
             "valenced.api": {
               "version": ">=1 <2"
@@ -995,7 +1008,7 @@
       "author": "bleelblep, aniimalz",
       "icon": "ClockIcon",
       "channels": {
-        "latest": "0.2.9"
+        "latest": "0.3.0"
       },
       "versions": {
         "0.2.2": {
@@ -1062,6 +1075,19 @@
               "version": "*"
             }
           }
+        },
+        "0.3.0": {
+          "url": "https://bleelblep.github.io/bleel-bazinga-repo/pool/bleelblep.timezones@0.3.0.zip",
+          "sha256": "d0e6abfc75c39f42f5883725fed1a97f5e18f3bb39904977f8fba0c60f22a533",
+          "size": 26163,
+          "dependencies": {
+            "valenced.api": {
+              "version": ">=1 <2"
+            },
+            "discord": {
+              "version": "*"
+            }
+          }
         }
       }
     },
@@ -1071,7 +1097,7 @@
       "author": "bleelblep",
       "icon": "SlidersIcon",
       "channels": {
-        "latest": "0.9.5"
+        "latest": "0.9.6"
       },
       "versions": {
         "0.8.4": {
@@ -1104,6 +1130,19 @@
           "url": "https://bleelblep.github.io/bleel-bazinga-repo/pool/bleelblep.ui-tweaks@0.9.5.zip",
           "sha256": "cbe20ff0504a983ce807a7a42c6ddba708e7e0ed2558d8151f49062dbd10e7a8",
           "size": 45669,
+          "dependencies": {
+            "valenced.api": {
+              "version": ">=1 <2"
+            },
+            "discord": {
+              "version": "*"
+            }
+          }
+        },
+        "0.9.6": {
+          "url": "https://bleelblep.github.io/bleel-bazinga-repo/pool/bleelblep.ui-tweaks@0.9.6.zip",
+          "sha256": "a947eebca1470628d2f5d5d932eadf72f69adc36e744e748d6ad4af67925305c",
+          "size": 45755,
           "dependencies": {
             "valenced.api": {
               "version": ">=1 <2"
