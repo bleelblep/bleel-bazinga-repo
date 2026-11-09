@@ -298,13 +298,26 @@
       "author": "kmmiio99o, bleelblep",
       "icon": "MusicIcon",
       "channels": {
-        "latest": "1.3.11"
+        "latest": "1.3.12"
       },
       "versions": {
         "1.3.11": {
           "url": "https://bleelblep.github.io/bleel-bazinga-repo/pool/bleelblep.multi-scrobbler@1.3.11.zip",
           "sha256": "0f4a9e95a6ca950d6b1f6fa8e75768ab771c1573d6c8f9920b3e53cea14fbbdb",
           "size": 28292,
+          "dependencies": {
+            "valenced.api": {
+              "version": ">=1 <2"
+            },
+            "discord": {
+              "version": "*"
+            }
+          }
+        },
+        "1.3.12": {
+          "url": "https://bleelblep.github.io/bleel-bazinga-repo/pool/bleelblep.multi-scrobbler@1.3.12.zip",
+          "sha256": "8a8ea293a02fd8b776b14ab761b10ad2a2928b767dec3160f7bd1166d1484587",
+          "size": 31432,
           "dependencies": {
             "valenced.api": {
               "version": ">=1 <2"
