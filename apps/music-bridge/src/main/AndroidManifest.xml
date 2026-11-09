@@ -12,9 +12,13 @@
 
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
 
-    <!-- KeepAlive: stays running while a player has a song, so Android doesn't freeze the app. -->
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
+    <!--
+        Deliberately no foreground service and so no notification in the shade: a foreground
+        service is only allowed to exist behind one, and the entry is unwanted (it was also
+        refused from the background, so it never kept anything up anyway). Background liveness
+        comes from an ordinary started service (KeepAlive) and the Heartbeat alarm instead;
+        neither needs a permission of its own.
+    -->
 
     <!-- Lets this app address Discord on Android 11+. No internet permission: nothing leaves the phone. -->
     <queries>
@@ -68,8 +72,12 @@
 
         <service
             android:name=".KeepAlive"
-            android:exported="false"
-            android:foregroundServiceType="mediaPlayback" />
+            android:exported="false" />
+
+        <!-- Fires only if publishing stopped; see Heartbeat. -->
+        <receiver
+            android:name=".Heartbeat"
+            android:exported="false" />
 
         <receiver
             android:name=".BootReceiver"

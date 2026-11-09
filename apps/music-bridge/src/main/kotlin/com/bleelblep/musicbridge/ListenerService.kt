@@ -1,5 +1,7 @@
 package com.bleelblep.musicbridge
 
+import android.app.AlarmManager
+import android.app.PendingIntent
 import android.content.BroadcastReceiver
 import android.content.ComponentName
 import android.content.Context
@@ -25,6 +27,11 @@ import kotlinx.coroutines.flow.StateFlow
  * for sessions coming and going and for each player's own changes, and tells Discord when the
  * song or play state changes. While something plays it repeats itself every 30 s, so a Discord
  * that started later still hears within half a minute. Paused or idle, it's silent.
+ *
+ * It stays up in the background without any notification: [KeepAlive] holds the app out of the
+ * cached state while there's a song, and the [Heartbeat] alarm re-brings it back (rebinding the
+ * listener and republishing) whenever publishing stops for longer than the repeat or, when
+ * paused, longer than a few minutes.
  */
 class ListenerService : NotificationListenerService() {
 
@@ -33,12 +40,73 @@ class ListenerService : NotificationListenerService() {
         private const val REPEAT_MS = 30_000L
         private const val MIN_ANSWER_GAP_MS = 2_000L
 
+        /**
+         * How long the app may go without publishing a playing song before something is wrong.
+         * Past the 30 s repeat plus the settle, so a healthy bridge re-arms the alarm instead of
+         * ever firing it. (In doze Android stretches this to about nine minutes.)
+         */
+        private const val HEARTBEAT_PLAYING_MS = 60_000L
+        /** While paused nothing is owed to Discord, so only check in occasionally. */
+        private const val HEARTBEAT_PAUSED_MS = 180_000L
+        private const val HEARTBEAT_REQUEST = 1_044
+
         private val _song = MutableStateFlow<Song?>(null)
         /** What's playing, for the app's own screen. */
         val song: StateFlow<Song?> = _song
 
         private val _connected = MutableStateFlow(false)
         val connected: StateFlow<Boolean> = _connected
+
+        /** The running instance, if the process has one; null after it was killed or destroyed. */
+        @Volatile private var instance: ListenerService? = null
+
+        /**
+         * The heartbeat alarm landed (Heartbeat): the publishing stopped, or the process was
+         * restarted out from under us. Try to start the keep-alive again either way, then either
+         * ask Android to bring the listener back (it isn't there) or publish straight away.
+         */
+        fun heartbeat(context: Context) {
+            KeepAlive.start(context)
+            val self = instance
+            if (self != null && _connected.value) {
+                self.main.post { self.publish(force = false) }
+                return
+            }
+            // The listener is gone (or this whole process was). Asking is what actually brings
+            // it back; it re-publishes itself once it connects. Until then nobody else re-arms
+            // this alarm, so keep asking rather than going quiet for good.
+            if (!Bridge.listenerEnabled(context)) {
+                cancelHeartbeat(context)
+                return
+            }
+            try {
+                NotificationListenerService.requestRebind(
+                    ComponentName(context, ListenerService::class.java),
+                )
+            } catch (_: Exception) {}
+            armHeartbeat(context, HEARTBEAT_PLAYING_MS)
+        }
+
+        private fun heartbeatPending(context: Context): PendingIntent = PendingIntent.getBroadcast(
+            context, HEARTBEAT_REQUEST, Intent(context, Heartbeat::class.java), PendingIntent.FLAG_IMMUTABLE,
+        )
+
+        /** Inexact alarm (no exact-alarm permission, and none wanted): good enough to notice death. */
+        private fun armHeartbeat(context: Context, inMs: Long) {
+            try {
+                context.getSystemService(AlarmManager::class.java)?.setAndAllowWhileIdle(
+                    AlarmManager.ELAPSED_REALTIME_WAKEUP,
+                    SystemClock.elapsedRealtime() + inMs,
+                    heartbeatPending(context),
+                )
+            } catch (_: Exception) {}
+        }
+
+        private fun cancelHeartbeat(context: Context) {
+            try {
+                context.getSystemService(AlarmManager::class.java)?.cancel(heartbeatPending(context))
+            } catch (_: Exception) {}
+        }
     }
 
     private val main = Handler(Looper.getMainLooper())
@@ -75,6 +143,11 @@ class ListenerService : NotificationListenerService() {
     private fun manager() = getSystemService(MediaSessionManager::class.java)
     private fun me() = ComponentName(this, ListenerService::class.java)
 
+    override fun onCreate() {
+        super.onCreate()
+        instance = this
+    }
+
     override fun onListenerConnected() {
         _connected.value = true
         AppFilter.prefs(this).registerOnSharedPreferenceChangeListener(filterChanged)
@@ -105,6 +178,7 @@ class ListenerService : NotificationListenerService() {
 
     override fun onDestroy() {
         shutDown()
+        instance = null
         super.onDestroy()
     }
 
@@ -126,6 +200,10 @@ class ListenerService : NotificationListenerService() {
         }
         _song.value = null
         KeepAlive.stop(this)
+        // Access still on but the listener was dropped (a phone killed it, or Android unbound
+        // it): keep a hand on the pulse, so Heartbeat brings it back and, if the whole process
+        // was reaped, starts it again. Access off: no song can arrive, so go quiet for good.
+        if (Bridge.listenerEnabled(this)) armHeartbeat(this, HEARTBEAT_PLAYING_MS) else cancelHeartbeat(this)
     }
 
     private fun watch(list: List<MediaController>) {
@@ -145,13 +223,22 @@ class ListenerService : NotificationListenerService() {
         main.postDelayed(publishNow, SETTLE_MS)
     }
 
+    private fun scheduleHeartbeat(song: Song?) = when {
+        song == null -> cancelHeartbeat(this)
+        song.playing -> armHeartbeat(this, HEARTBEAT_PLAYING_MS)
+        else -> armHeartbeat(this, HEARTBEAT_PAUSED_MS)
+    }
+
     private fun publish(force: Boolean) {
         main.removeCallbacks(repeat)
         val song = current()
         _song.value = song
 
         // Stay awake while there's a song, even paused, so pressing play is heard straight away.
+        // No notification anywhere: an ordinary service and the heartbeat alarm instead.
         if (song != null) KeepAlive.start(this) else KeepAlive.stop(this)
+        // Re-armed by every publish, so it only fires if publishing has stopped (frozen or dead).
+        scheduleHeartbeat(song)
 
         if (song == null) {
             // Forced means Multi Scrobbler asked: answer even with nothing, so it knows we're here.

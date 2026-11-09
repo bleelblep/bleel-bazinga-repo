@@ -151,8 +151,8 @@ and cover.
 
 "This phone" needs the Music Bridge app (Android 10+), from this repo's
 [Releases](https://github.com/bleelblep/bleel-bazinga-repo/releases/latest). It has no internet
-permission; songs only go to Discord on the phone. While a player has a song it shows a quiet
-notification, so Android doesn't pause it in the background. When a newer Music Bridge is out, the
+permission; songs only go to Discord on the phone. While a player has a song it keeps updating in
+the background, with nothing shown in the notification shade. When a newer Music Bridge is out, the
 plugin says so once and its settings row becomes "Update Music Bridge"; it checks
 `music-bridge.json` on this repo's site for the newest version.
 
