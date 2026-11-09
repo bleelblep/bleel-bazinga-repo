@@ -41,6 +41,11 @@ export type Track = {
 	from: number
 	to: number | null | undefined
 	duration?: number
+	/**
+	 * `from` is the player's real position (Music Bridge), not a scrobble time, so a pause, seek
+	 * or replay moves it and the status is re-sent with the new time.
+	 */
+	live?: boolean
 }
 
 export interface ServiceClient {

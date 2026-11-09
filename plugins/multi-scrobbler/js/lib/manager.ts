@@ -1,7 +1,12 @@
 import Constants from '../constants'
 import { DEFAULTS } from '../defaults'
 import { serviceFactory } from '../services/ServiceFactory'
-import { clearActivity, fetchAsset, sendRequest } from './activity'
+import {
+	clearActivity,
+	fetchAsset,
+	flushPending,
+	sendRequest,
+} from './activity'
 import { findAlbumArtUrl } from './artwork'
 import {
 	debugInfo,
@@ -16,6 +21,12 @@ import { shareTrack } from './share'
 import { getSettings, pluginState } from './state'
 import { formatDuration, getCurrentTimestamp } from './time'
 import type { Activity, ServiceType, Track } from '../types'
+
+/**
+ * How far (seconds) a live track's start may move before the status is re-sent. Start times are
+ * whole seconds and the bridge's position is a little late, so a second or two is just rounding.
+ */
+const LIVE_DRIFT_S = 3
 
 /** How many more checks may retry a song's album art after the first try. */
 const ARTWORK_RETRIES = 3
@@ -43,6 +54,10 @@ class PluginManager {
 	 * and put the old cover (and song) back. A check that finds one running just skips.
 	 */
 	private _checking = false
+	/** A check was asked for while one ran (Music Bridge woke us): run one more after it. */
+	private _again = false
+	/** The live track start (seconds) on the status now; see Track.live. */
+	private _sentFrom?: number
 	/** The cover link found for the current song, for Now Playing. */
 	private _artUrl?: string
 	/** The Discord asset id of the current song's cover, once resolved. */
@@ -64,14 +79,28 @@ class PluginManager {
 	}
 
 	// Check for new tracks and update Discord status when something changes
-	private async updateActivity() {
-		if (this._checking) return
+	private async updateActivity(again = false) {
+		if (this._checking) {
+			// A wake from Music Bridge must not be lost: the song may have changed after this check
+			// read it. Timer checks just skip.
+			if (again) this._again = true
+			return
+		}
 		this._checking = true
 		try {
-			await this.checkOnce()
+			do {
+				this._again = false
+				await this.checkOnce()
+			} while (this._again && !pluginState.pluginStopped)
 		} finally {
 			this._checking = false
 		}
+	}
+
+	/** Music Bridge heard a change (or its 16 s follow-up): check now, even in the background. */
+	public checkNow() {
+		if (pluginState.pluginStopped || getSettings().service !== 'bridge') return
+		void this.updateActivity(true)
 	}
 
 	private async checkOnce() {
@@ -87,6 +116,9 @@ class PluginManager {
 			}
 			return
 		}
+
+		// A change held back for the 15 s gap whose timer was frozen in the background.
+		flushPending()
 
 		const settings = getSettings()
 		const serviceName = serviceFactory.getCurrentService().getServiceName()
@@ -152,7 +184,15 @@ class PluginManager {
 			// (timestamp, listening, tooltip, app name) rebuilds the status straight away instead
 			// of waiting for the next song.
 			const key = this.settingsKey()
-			if (sameSong && art === this._artId && key === this._sentKey) {
+			// A live track that was paused, seeked or replayed has a new start: re-send so the
+			// status's time matches the player.
+			const moved =
+				!!lastTrack.live &&
+				settings.showTimestamp &&
+				settings.listeningTo &&
+				this._sentFrom !== undefined &&
+				Math.abs(lastTrack.from - this._sentFrom) > LIVE_DRIFT_S
+			if (sameSong && !moved && art === this._artId && key === this._sentKey) {
 				recordSuccessfulUpdate()
 				this.consecutiveFailures = 0
 				return
@@ -167,6 +207,7 @@ class PluginManager {
 			this._artId = art
 			this._sentKey = key
 			this._shownTrack = lastTrack
+			this._sentFrom = lastTrack.live ? lastTrack.from : undefined
 			this._currentActivity = activity
 			pluginState.lastActivity = activity
 			this.consecutiveFailures = 0
@@ -460,6 +501,7 @@ export const stop = () => manager.stop()
 export const switchService = (service: string) => manager.switchService(service)
 export const getStatus = () => manager.getStatus()
 export const getShownSong = () => manager.shownSong()
+export const checkNow = () => manager.checkNow()
 
 // Connection status tracking
 let connectionAttempts = 0

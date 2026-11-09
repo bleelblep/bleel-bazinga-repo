@@ -146,6 +146,8 @@ and cover.
 - Hides your music status while Spotify or another app you list already shows one, and a Test
   connection button.
 - Album covers from the service, Cover Art Archive or Apple's iTunes search.
+- With This phone, your status follows pauses, skips back and replays, even while Discord is in
+  the background.
 
 "This phone" needs the Music Bridge app (Android 10+), from this repo's
 [Releases](https://github.com/bleelblep/bleel-bazinga-repo/releases/latest). It has no internet

@@ -133,6 +133,7 @@ export class MusicBridgeService extends BaseService {
 			from: nowSec - elapsed,
 			to: duration ? nowSec - elapsed + duration : null,
 			duration,
+			live: true,
 		}
 	}
 }

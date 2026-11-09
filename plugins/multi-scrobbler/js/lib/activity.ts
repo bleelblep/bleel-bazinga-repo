@@ -61,6 +61,19 @@ export function sendRequest(activity: Activity | null, now = false) {
 	}, wait)
 }
 
+/**
+ * Sends a held-back change whose gap has passed. Its timer doesn't run while Discord is in the
+ * background, so each check calls this; Music Bridge wakes a check after the gap (src/main).
+ */
+export function flushPending() {
+	if (!pendingTimer || Date.now() - lastSentAt < MIN_GAP_MS) return
+	clearTimeout(pendingTimer)
+	pendingTimer = undefined
+	dispatch(
+		pluginState.pluginStopped ? null : (pluginState.lastActivity ?? null),
+	)
+}
+
 /** Resolved asset ids by image URL, so a song that comes round again doesn't look it up twice. */
 const ASSET_CACHE_LIMIT = 128
 const assetCache = new Map<string, string>()

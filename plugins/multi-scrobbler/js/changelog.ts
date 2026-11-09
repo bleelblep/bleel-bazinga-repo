@@ -3,6 +3,15 @@ import type { ChangelogEntry } from '../../../shared/changelog'
 /** Newest first. Every version users got gets an entry; see shared/changelog.tsx. */
 export const CHANGELOG: ChangelogEntry[] = [
 	{
+		version: '1.3.12',
+		date: '2026-11-10',
+		title: 'This phone keeps up',
+		changes: [
+			'"This phone" now updates while Discord is in the background. Pausing clears your status, and playing again shows it.',
+			"After a pause, a skip back or a replay, the status's time jumps to where the song really is instead of carrying on.",
+		],
+	},
+	{
 		version: '1.3.11',
 		date: '2026-11-08',
 		title: 'Right covers',
