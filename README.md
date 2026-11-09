@@ -151,8 +151,10 @@ and cover.
 
 "This phone" needs the Music Bridge app (Android 10+), from this repo's
 [Releases](https://github.com/bleelblep/bleel-bazinga-repo/releases/latest). It has no internet
-permission; songs only go to Discord on the phone. Update by downloading the new APK, or from
-"Get Music Bridge" in the plugin's settings.
+permission; songs only go to Discord on the phone. While a player has a song it shows a quiet
+notification, so Android doesn't pause it in the background. When a newer Music Bridge is out, the
+plugin says so once and its settings row becomes "Update Music Bridge"; it checks
+`music-bridge.json` on this repo's site for the newest version.
 
 Credit: a port of Multi Scrobbler by kmmiio99o (GPL-3.0); Music Bridge is based on kmmiio99o's
 MediaSession Bridge (CC0).

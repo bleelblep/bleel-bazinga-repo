@@ -4,6 +4,7 @@ import { ReactNavigationNative } from '@valenced/externals/react-navigation'
 import * as ReactNative from 'react-native'
 import { useChangelog } from '../../../../../shared/changelog'
 import { DEFAULTS } from '../../defaults'
+import { bridgeUpdate, type BridgeUpdate } from '../../lib/bridgeUpdate'
 import { switchService } from '../../lib/manager'
 import { showToast } from '../../lib/toasts'
 import {
@@ -97,6 +98,7 @@ export default function Settings({
 
 	// When the Music Bridge app last spoke: 0 = not this session, -1 = no Android half (iOS).
 	const [bridgeHeard, setBridgeHeard] = React.useState<number>(0)
+	const [update, setUpdate] = React.useState<BridgeUpdate | null>(null)
 	React.useEffect(() => {
 		let live = true
 		let tries = 0
@@ -106,8 +108,10 @@ export default function Settings({
 			void bridgeStatus().then(status => {
 				if (!live) return
 				if (!status?.listening) return setBridgeHeard(-1)
-				if (status.heardAt > 0)
+				if (status.heardAt > 0) {
+					void bridgeUpdate().then(u => live && setUpdate(u))
 					return setBridgeHeard(status.now - status.heardAt)
+				}
 				if (tries === 0) void requestBridge()
 				if (++tries < 6) timer = setTimeout(check, 1000)
 			})
@@ -261,8 +265,12 @@ export default function Settings({
 				)}
 				{bridgeHeard >= 0 && (
 					<TableRow
-						label="Get Music Bridge"
-						subLabel="Free app for This phone, Android 10+. Downloads the newest version"
+						label={update ? 'Update Music Bridge' : 'Get Music Bridge'}
+						subLabel={
+							update
+								? `${update.installed ?? 'Your version'} → ${update.latest.name}. Downloads the new version; install it over the old one`
+								: 'Free app for This phone, Android 10+. Downloads the newest version'
+						}
 						icon={rowIcon('DownloadIcon', 'ic_download_24px')}
 						arrow
 						onPress={() =>

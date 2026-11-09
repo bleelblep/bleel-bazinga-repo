@@ -98,12 +98,17 @@ private object Bridge {
 	@Volatile var latest: Map<String, Any?>? = null
 	@Volatile var heardAt = 0L
 	@Volatile var registered = false
+	/** Music Bridge's versionCode and name, from its last message. 0: older than 0.4.4, or not heard. */
+	@Volatile var bridgeVersion = 0L
+	@Volatile var bridgeVersionName: String? = null
 
 	val receiver = object : BroadcastReceiver() {
 		override fun onReceive(ctx: Context?, intent: Intent?) {
 			if (intent?.action != ACTION_NOW_PLAYING) return
 			val at = SystemClock.elapsedRealtime()
 			heardAt = at
+			bridgeVersion = intent.getLongExtra("bridgeVersion", 0L).coerceAtLeast(0L)
+			bridgeVersionName = intent.text("bridgeVersionName")
 			val title = intent.text("title")
 			latest = if (title == null) null else mapOf(
 				"title" to title,
@@ -149,6 +154,8 @@ private object Bridge {
 		cancelWakes()
 		latest = null
 		heardAt = 0L
+		bridgeVersion = 0L
+		bridgeVersionName = null
 	}
 
 	/**
@@ -199,10 +206,17 @@ val multiScrobblerPlugin = plugin {
 			song + ("now" to SystemClock.elapsedRealtime())
 		}
 
-		// -> { listening, heardAt, now }. heardAt is 0 until the bridge has spoken this session.
+		// -> { listening, heardAt, now, bridgeVersion, bridgeVersionName }. heardAt is 0 until the
+		// bridge has spoken this session; bridgeVersion is 0 for a bridge older than 0.4.4.
 		registerNativeMethod("${manifest.id}.bridge.status") { _ ->
 			if (enabled) Bridge.register()
-			mapOf("listening" to Bridge.registered, "heardAt" to Bridge.heardAt, "now" to SystemClock.elapsedRealtime())
+			mapOf(
+				"listening" to Bridge.registered,
+				"heardAt" to Bridge.heardAt,
+				"now" to SystemClock.elapsedRealtime(),
+				"bridgeVersion" to Bridge.bridgeVersion,
+				"bridgeVersionName" to Bridge.bridgeVersionName,
+			)
 		}
 
 		registerNativeMethod("${manifest.id}.bridge.request") { _ ->

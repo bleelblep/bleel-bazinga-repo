@@ -81,6 +81,8 @@ export interface MultiScrobblerStorage {
 	verboseLogging: boolean
 	/** The settings intro card was hidden for good (settings design guide §4.3). */
 	introDismissed: boolean
+	/** The newest Music Bridge versionCode already announced in a toast (lib/bridgeUpdate.ts). */
+	bridgeUpdateToldFor: number
 }
 
 export type RevengeJsonStorageApi<S extends object> = {

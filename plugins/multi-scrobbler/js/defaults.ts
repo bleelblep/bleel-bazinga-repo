@@ -19,4 +19,5 @@ export const DEFAULTS: MultiScrobblerStorage = {
 	ignoreList: [],
 	verboseLogging: false,
 	introDismissed: false,
+	bridgeUpdateToldFor: 0,
 }

@@ -3,6 +3,14 @@ import type { ChangelogEntry } from '../../../shared/changelog'
 /** Newest first. Every version users got gets an entry; see shared/changelog.tsx. */
 export const CHANGELOG: ChangelogEntry[] = [
 	{
+		version: '1.3.13',
+		date: '2026-11-10',
+		title: 'Music Bridge updates',
+		changes: [
+			'When a newer Music Bridge app is out, you get a toast once, and the settings row changes to "Update Music Bridge" with your version and the new one.',
+		],
+	},
+	{
 		version: '1.3.12',
 		date: '2026-11-10',
 		title: 'This phone keeps up',

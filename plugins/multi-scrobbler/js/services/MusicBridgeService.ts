@@ -1,4 +1,5 @@
 import * as native from '@valenced/modules/native'
+import { toastBridgeUpdate } from '../lib/bridgeUpdate'
 import { BaseService } from './BaseService'
 import type { Track } from '../types'
 
@@ -33,6 +34,9 @@ export interface BridgeStatus {
 	listening: boolean
 	heardAt: number
 	now: number
+	/** 0 (or missing) for a bridge older than 0.4.4, which doesn't send it. */
+	bridgeVersion?: number
+	bridgeVersionName?: string | null
 }
 
 function call<T>(name: string): Promise<T | null> {
@@ -103,6 +107,8 @@ export class MusicBridgeService extends BaseService {
 
 	async fetchLatestScrobble(): Promise<Track> {
 		const song = await call<BridgeSong>('current')
+		// Once per launch after the bridge is heard; a newer version gets a single toast.
+		void toastBridgeUpdate().catch(() => {})
 		if (!song?.title) return nothing()
 
 		const age = song.now - song.heardAt
