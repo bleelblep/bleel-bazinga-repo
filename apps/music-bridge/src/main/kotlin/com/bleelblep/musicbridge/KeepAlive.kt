@@ -1,41 +1,43 @@
 package com.bleelblep.musicbridge
 
-import android.app.Notification
-import android.app.NotificationChannel
-import android.app.NotificationManager
-import android.app.PendingIntent
 import android.app.Service
 import android.content.Context
 import android.content.Intent
-import android.content.pm.ServiceInfo
-import android.os.Build
+import android.os.Handler
 import android.os.IBinder
+import android.os.Looper
 
 /**
- * Keeps Music Bridge running while a player has a song loaded (0.4.4).
+ * Keeps Music Bridge out of Android's cached state while a player has a song loaded, so its
+ * media-session callbacks keep arriving in the background.
  *
- * A notification listener alone isn't enough: in the background Android freezes or kills the app,
- * so a pause, skip or new song (and the 30 s repeat) only went out once the app woke again. A
- * foreground service with a quiet notification stops that. It runs only while there's a song
- * (playing or paused) and stops as soon as the players have none, so idle it costs nothing.
+ * Deliberately not a foreground service: a foreground service must post a notification, and that
+ * entry in the shade is unwanted. It is an ordinary started service instead, which Android gives
+ * the service oom_adj rank for (the app is no longer "cached", so it isn't frozen and pauses,
+ * skips and new songs are still seen straight away). No wakelock, no CPU cost of its own.
+ *
+ * Android can refuse to start any service from the background, and a phone with aggressive
+ * power management (Huawei and friends) can still kill the app, so this is only the first line:
+ * the heartbeat alarm (Heartbeat) starts it again and republishes what's playing even when this
+ * never managed to run.
  */
 class KeepAlive : Service() {
 
     companion object {
-        private const val CHANNEL = "keep_alive"
-        private const val ID = 1
+        /** How long a start gets to prove there's a song worth staying up for. */
+        private const val CHECK_MS = 10_000L
 
         @Volatile private var running = false
 
-        /** Starts it if it isn't running. Android 12+ can refuse a start from the background. */
+        /** Starts it if it isn't running. Starting from the background can be refused. */
         fun start(context: Context) {
             if (running) return
             try {
-                context.startForegroundService(Intent(context, KeepAlive::class.java))
+                context.startService(Intent(context, KeepAlive::class.java))
                 running = true
             } catch (_: Exception) {
-                // ForegroundServiceStartNotAllowedException: the battery setting is restricted.
-                // The listener still works; it just pauses with the app, as before 0.4.4.
+                // IllegalStateException: Android won't start a service from the background here.
+                // The heartbeat alarm tries again in a moment; nothing is shown either way.
             }
         }
 
@@ -48,46 +50,25 @@ class KeepAlive : Service() {
         }
     }
 
+    private val main = Handler(Looper.getMainLooper())
+
+    /** Started with no song in sight (a system restart, or a stale heartbeat): leave again. */
+    private val giveUp = Runnable { if (ListenerService.song.value == null) stopSelf() }
+
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        val manager = getSystemService(NotificationManager::class.java)
-        manager?.createNotificationChannel(
-            NotificationChannel(CHANNEL, "Keeps up with your music", NotificationManager.IMPORTANCE_MIN).apply {
-                description = "Shown while a player has a song, so Discord hears every change."
-                setShowBadge(false)
-            },
-        )
-        val open = PendingIntent.getActivity(
-            this, 0,
-            Intent(this, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
-            PendingIntent.FLAG_IMMUTABLE,
-        )
-        val notification = Notification.Builder(this, CHANNEL)
-            .setSmallIcon(android.R.drawable.ic_media_play)
-            .setContentTitle("Sharing your music with Discord")
-            .setContentIntent(open)
-            .setOngoing(true)
-            .setShowWhen(false)
-            .build()
-        try {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                startForeground(ID, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK)
-            } else {
-                startForeground(ID, notification)
-            }
-        } catch (_: Exception) {
-            running = false
-            stopSelf()
-            return START_NOT_STICKY
-        }
         running = true
-        // Not sticky: the listener restarts it when there's a song again.
-        return START_NOT_STICKY
+        main.removeCallbacks(giveUp)
+        main.postDelayed(giveUp, CHECK_MS)
+        // Sticky: if the system reaps the process while a song is loaded, it starts this again
+        // as soon as it can, which puts the app back above the cached state.
+        return START_STICKY
     }
 
     override fun onDestroy() {
         running = false
+        main.removeCallbacks(giveUp)
         super.onDestroy()
     }
 }
