@@ -21,3 +21,9 @@ plan.tsv
 .DS_Store
 .idea/
 *.iml
+
+# Signing: never commit keys or their passwords (apps/music-bridge reads signing.properties)
+signing.properties
+*.jks
+*.keystore
+*.apk

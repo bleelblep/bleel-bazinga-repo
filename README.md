@@ -156,6 +156,10 @@ notification, so Android doesn't pause it in the background. When a newer Music 
 plugin says so once and its settings row becomes "Update Music Bridge"; it checks
 `music-bridge.json` on this repo's site for the newest version.
 
+Music Bridge's source is in [`apps/music-bridge`](apps/music-bridge) (Kotlin, Jetpack Compose), a
+separate Gradle build: `cd apps/music-bridge && ./gradlew assembleRelease`. A build signed with
+another key can't install over the release one; uninstall it first.
+
 Credit: a port of Multi Scrobbler by kmmiio99o (GPL-3.0); Music Bridge is based on kmmiio99o's
 MediaSession Bridge (CC0).
 
