@@ -3,6 +3,16 @@ import type { ChangelogEntry } from '../../../shared/changelog'
 /** Newest first. Every version users got gets an entry; see shared/changelog.tsx. */
 export const CHANGELOG: ChangelogEntry[] = [
 	{
+		version: '0.1.19',
+		date: '2026-11-10',
+		title: 'Circles stay round',
+		changes: [
+			'Fixed: with Circles too off, avatars, pills and round buttons still turned square. They stay round now, and only rounded corners go sharp.',
+			'Restart Discord after changing the switch.',
+			'On iPhone it now says it needs Android and turns itself off, instead of showing a red error.',
+		],
+	},
+	{
 		version: '0.1.17',
 		date: '2026-11-07',
 		title: 'Square status bubble',

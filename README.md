@@ -41,7 +41,8 @@ account, but these remove the known risky behaviour.
 
 Most are JavaScript only, so they work on Android and iOS. Ghost Log Next Gen, Live Markdown,
 Pocket Browser, Sharp Corners, Speech Bubbles, Text Animation and UI Tweaks have native Android
-code, so they are Android only.
+code, so they are Android only. On an iPhone they say so with a message and turn themselves
+off, instead of showing an error.
 
 ### Character Counter
 
@@ -120,7 +121,8 @@ you stay in the server, and your server order on other devices isn't touched.
   to finish.
 - Hide a channel or category from its long-press menu ("Hide channel").
 - A list in settings to bring anything back.
-- Hidden servers' emoji still show in the emoji picker, unless you turn on "Hide their emoji too".
+- Hidden servers' emoji and stickers still show in the pickers, unless you turn on "Hide their emoji and
+  stickers too".
 
 Credit: with blerp; one file adapted from kmmiio99o's ServerDrawer.
 
@@ -281,7 +283,7 @@ Credit: with Rosie and WarFade.
 Every corner in Discord sharp: buttons, the message box, the You bar, menus, cards, sheets, server
 icons and pictures. Android only, because chat messages are drawn natively.
 
-- "Circles too" also squares avatars, status dots and round buttons.
+- "Circles too" also squares avatars, status dots and round buttons. With it off, they stay round.
 - Can't run together with Round Corners; it says so if both are on.
 
 ### Speech Bubbles

@@ -17,6 +17,7 @@ import patchSwipe from './patches/swipe'
 import { registerPages } from './ui/routes'
 import Settings from './ui/Settings'
 import { reportError, setReporter } from '../../../shared/report'
+import { isAndroid, stopUnlessAndroid } from '../../../shared/androidOnly'
 
 const TAG = '[UITweaks]'
 
@@ -35,6 +36,8 @@ export default plugin<{ jsonStorage: UITweaksStorage }>({
 	},
 
 	start(api) {
+		// iOS: the native half never loads (shared/androidOnly.ts).
+		if (stopUnlessAndroid(api.plugin, 'UI Tweaks')) return
 		// Errors go to Valenced's plugin error list (shared/report.ts), not the log.
 		setReporter(api.plugin)
 		api.cleanup(() => setReporter(undefined))
@@ -91,6 +94,7 @@ export default plugin<{ jsonStorage: UITweaksStorage }>({
 	},
 
 	stop(api) {
+		if (!isAndroid()) return
 		api.plugin.requireReload()
 	},
 

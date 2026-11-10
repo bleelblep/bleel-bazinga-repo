@@ -5,7 +5,7 @@
 	"description": "A web browser with tabs and history in a new tab of the emoji picker.",
 	"author": "bleelblep",
 	"icon": "GlobeEarthIcon",
-	"version": "0.4.16",
+	"version": "0.4.17",
 	"dependencies": {
 		"valenced.api": {
 			"version": ">=1 <2"

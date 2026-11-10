@@ -10,8 +10,10 @@ import android.graphics.drawable.GradientDrawable
 import android.graphics.drawable.shapes.RoundRectShape
 import android.view.View
 import app.valenced.xposed.api.DexFinder
+import java.lang.reflect.Field
 import java.lang.reflect.Member
 import java.lang.reflect.Modifier
+import java.util.WeakHashMap
 import java.util.concurrent.atomic.AtomicLong
 
 /**
@@ -28,6 +30,10 @@ import java.util.concurrent.atomic.AtomicLong
  * - [ovals]: circles too. Avatars in chat clip with `Outline.setOval` (clipToCircle), status dots
  *   and buttons use oval `GradientDrawable`s or `Canvas.drawCircle`, and react-native-svg masks (the
  *   avatar status cut-out) are `Path.addCircle`. Each is drawn as the square around it instead.
+ *   Most circles aren't drawn as circles, though: they're a rounded square whose corner is half its
+ *   side (every React Native avatar, pills, round buttons). With [ovals] off, a corner at least half
+ *   the shorter side is left alone by the other two groups ([isRound]); React Native views only get
+ *   their size at layout, so that check waits for `View.layout` ([rnCorners]).
  *
  * Hardware-accelerated drawing goes through `BaseRecordingCanvas`, which overrides Canvas's draw
  * methods, so both classes are hooked.
@@ -65,6 +71,85 @@ internal object Corners {
 	private val F = Float::class.javaPrimitiveType!!
 	private val I = Int::class.javaPrimitiveType!!
 
+	/** A corner this big (px) with no size to compare against is a pill trick, like 999dp. */
+	private const val HUGE = 500f
+
+	/** A corner at least half the shorter side: the shape is a circle or a pill. */
+	private fun isRound(radius: Float, width: Float, height: Float): Boolean {
+		val side = minOf(width, height)
+		return if (side > 0f) radius * 2f >= side - 1f else radius >= HUGE
+	}
+
+	/** With circles off, round shapes keep their corners. */
+	private fun keepRound(radius: Float, width: Float, height: Float) = !ovals && isRound(radius, width, height)
+
+	private fun keepRound(radii: FloatArray, width: Float, height: Float) =
+		!ovals && radii.isNotEmpty() && radii.all { isRound(it, width, height) }
+
+	private fun keepRound(param: XC_MethodHook.MethodHookParam, radius: Float): Boolean {
+		val bounds = (param.thisObject as? android.graphics.drawable.Drawable)?.bounds
+		return keepRound(radius, bounds?.width()?.toFloat() ?: 0f, bounds?.height()?.toFloat() ?: 0f)
+	}
+
+	/**
+	 * React Native corners kept while circles are off, per view and corner: the original
+	 * LengthPercentage and whether it's applied now. Decided again at each layout, once the view has
+	 * a size. Touched on the UI thread only, like the views.
+	 */
+	private class RnCorner(val length: Any, var applied: Boolean)
+
+	private val rnCorners = WeakHashMap<View, MutableMap<Any?, RnCorner>>()
+	private var setBorderRadius: java.lang.reflect.Method? = null
+
+	/** Set while this file calls setBorderRadius itself, so its own hook lets the call through. */
+	private var reapplying = false
+
+	/** Applies a kept corner, or takes it off, now that the view's size says which. */
+	private fun relayout(view: View) {
+		if (!app || ovals) return
+		val corners = rnCorners[view] ?: return
+		val method = setBorderRadius ?: return
+		for ((prop, corner) in corners) {
+			val round = rnRound(view, corner.length) ?: continue
+			if (round == corner.applied) continue
+			corner.applied = round
+			reapplying = true
+			try {
+				method.invoke(null, view, prop, if (round) corner.length else null)
+			} catch (_: Throwable) {
+				/* leave it */
+			} finally {
+				reapplying = false
+			}
+			if (!round) appCount.incrementAndGet()
+		}
+	}
+	private var lengthFields: Pair<Field?, Field?>? = null
+
+	/** LengthPercentage's value and whether it's a percentage, read by type (its names are minified). */
+	private fun lengthRadius(length: Any, width: Float, height: Float): Float? {
+		val (valueField, unitField) = lengthFields ?: run {
+			val fields = length.javaClass.declaredFields.filter { !Modifier.isStatic(it.modifiers) }
+			val value = fields.firstOrNull { it.type == F }?.apply { isAccessible = true }
+			val unit = fields.firstOrNull { it.type.isEnum }?.apply { isAccessible = true }
+			(value to unit).also { lengthFields = it }
+		}
+		val value = runCatching { valueField?.getFloat(length) }.getOrNull() ?: return null
+		// LengthPercentageType is POINT, PERCENT.
+		val percent = runCatching { (unitField?.get(length) as? Enum<*>)?.ordinal == 1 }.getOrDefault(false)
+		return if (percent) value / 100f * minOf(width, height) else value
+	}
+
+	/** Whether this view's corner makes it a circle or a pill, or null before it has a size. */
+	private fun rnRound(view: View, length: Any): Boolean? {
+		if (view.width <= 0 || view.height <= 0) return null
+		val density = view.resources.displayMetrics.density
+		val w = view.width / density
+		val h = view.height / density
+		val radius = lengthRadius(length, w, h) ?: return false
+		return radius * 2f >= minOf(w, h) - 0.5f
+	}
+
 	/** Hooks everything it can find; each hook that fails is reported and the rest still go in. */
 	fun install(
 		classLoader: ClassLoader,
@@ -82,23 +167,48 @@ internal object Corners {
 				val prop = classLoader.loadClass("com.facebook.react.uimanager.style.BorderRadiusProp")
 				val length = classLoader.loadClass("com.facebook.react.uimanager.LengthPercentage")
 				classLoader.loadClass("com.facebook.react.uimanager.BackgroundStyleApplicator").getMethod("setBorderRadius", View::class.java, prop, length)
-			}.getOrElse { minifiedSetBorderRadius(finder) }
+			}.getOrElse { minifiedSetBorderRadius(finder) }.also { member ->
+				setBorderRadius = (member as? java.lang.reflect.Method)?.apply { isAccessible = true }
+			}
 		}, object : XC_MethodHook() {
 			override fun beforeHookedMethod(param: MethodHookParam) {
-				if (!app) return
+				if (!app || reapplying) return
 				val args = param.args
-				if (args[2] != null) {
+				val view = args[0] as? View
+				val length = args[2]
+				if (!ovals && view != null) {
+					// Circles stay: keep the corner until the view's size says whether it's round.
+					if (length == null) {
+						rnCorners[view]?.remove(args[1])
+						return
+					}
+					val round = rnRound(view, length)
+					rnCorners.getOrPut(view) { HashMap(2) }[args[1]] = RnCorner(length, round != false)
+					if (round != false) return
+				}
+				if (length != null) {
 					args[2] = null
 					appCount.incrementAndGet()
 				}
 			}
 		})
+		// Where a kept React Native corner learns its size. ViewGroup.layout calls this too.
+		hook("View.layout", { View::class.java.getMethod("layout", I, I, I, I) }, object : XC_MethodHook() {
+			override fun afterHookedMethod(param: MethodHookParam) {
+				if (!app || ovals) return
+				val view = param.thisObject as? View ?: return
+				runCatching { relayout(view) }
+			}
+		})
 
 		// --- Android shapes: rounded corners -> 0 ---
-		val zeroAt = { indices: IntArray ->
+		// `round` says whether the shape is a circle or a pill, which keeps its corners while circles
+		// are off.
+		val zeroAt = { indices: IntArray, round: (XC_MethodHook.MethodHookParam) -> Boolean ->
 			object : XC_MethodHook() {
 				override fun beforeHookedMethod(param: MethodHookParam) {
 					if (!native) return
+					if (!ovals && runCatching { round(param) }.getOrDefault(false)) return
 					val args = param.args
 					for (i in indices) {
 						when (val v = args[i]) {
@@ -110,20 +220,47 @@ internal object Corners {
 				}
 			}
 		}
-		hook("Outline.setRoundRect(ints)", { Outline::class.java.getMethod("setRoundRect", I, I, I, I, F) }, zeroAt(intArrayOf(4)))
-		hook("Outline.setRoundRect(Rect)", { Outline::class.java.getMethod("setRoundRect", Rect::class.java, F) }, zeroAt(intArrayOf(1)))
-		hook("GradientDrawable.setCornerRadius", { GradientDrawable::class.java.getMethod("setCornerRadius", F) }, zeroAt(intArrayOf(0)))
-		hook("GradientDrawable.setCornerRadii", { GradientDrawable::class.java.getMethod("setCornerRadii", FloatArray::class.java) }, zeroAt(intArrayOf(0)))
+		hook("Outline.setRoundRect(ints)", { Outline::class.java.getMethod("setRoundRect", I, I, I, I, F) }, zeroAt(intArrayOf(4)) { p ->
+			val a = p.args
+			keepRound(a[4] as Float, ((a[2] as Int) - (a[0] as Int)).toFloat(), ((a[3] as Int) - (a[1] as Int)).toFloat())
+		})
+		hook("Outline.setRoundRect(Rect)", { Outline::class.java.getMethod("setRoundRect", Rect::class.java, F) }, zeroAt(intArrayOf(1)) { p ->
+			val r = p.args[0] as Rect
+			keepRound(p.args[1] as Float, r.width().toFloat(), r.height().toFloat())
+		})
+		hook("GradientDrawable.setCornerRadius", { GradientDrawable::class.java.getMethod("setCornerRadius", F) }, zeroAt(intArrayOf(0)) { p -> keepRound(p, p.args[0] as Float) })
+		hook("GradientDrawable.setCornerRadii", { GradientDrawable::class.java.getMethod("setCornerRadii", FloatArray::class.java) }, zeroAt(intArrayOf(0)) { p ->
+			val radii = p.args[0] as? FloatArray
+			radii != null && radii.isNotEmpty() && radii.all { keepRound(p, it) }
+		})
 		for (canvas in canvasClasses()) {
 			val name = canvas.simpleName
-			hook("$name.drawRoundRect(RectF)", { canvas.getDeclaredMethod("drawRoundRect", RectF::class.java, F, F, Paint::class.java) }, zeroAt(intArrayOf(1, 2)))
-			hook("$name.drawRoundRect(floats)", { canvas.getDeclaredMethod("drawRoundRect", F, F, F, F, F, F, Paint::class.java) }, zeroAt(intArrayOf(4, 5)))
+			hook("$name.drawRoundRect(RectF)", { canvas.getDeclaredMethod("drawRoundRect", RectF::class.java, F, F, Paint::class.java) }, zeroAt(intArrayOf(1, 2)) { p ->
+				val r = p.args[0] as RectF
+				keepRound(minOf(p.args[1] as Float, p.args[2] as Float), r.width(), r.height())
+			})
+			hook("$name.drawRoundRect(floats)", { canvas.getDeclaredMethod("drawRoundRect", F, F, F, F, F, F, Paint::class.java) }, zeroAt(intArrayOf(4, 5)) { p ->
+				val a = p.args
+				keepRound(minOf(a[4] as Float, a[5] as Float), (a[2] as Float) - (a[0] as Float), (a[3] as Float) - (a[1] as Float))
+			})
 		}
 		val dir = Path.Direction::class.java
-		hook("Path.addRoundRect(RectF, rx, ry)", { Path::class.java.getMethod("addRoundRect", RectF::class.java, F, F, dir) }, zeroAt(intArrayOf(1, 2)))
-		hook("Path.addRoundRect(floats, rx, ry)", { Path::class.java.getMethod("addRoundRect", F, F, F, F, F, F, dir) }, zeroAt(intArrayOf(4, 5)))
-		hook("Path.addRoundRect(RectF, radii)", { Path::class.java.getMethod("addRoundRect", RectF::class.java, FloatArray::class.java, dir) }, zeroAt(intArrayOf(1)))
-		hook("Path.addRoundRect(floats, radii)", { Path::class.java.getMethod("addRoundRect", F, F, F, F, FloatArray::class.java, dir) }, zeroAt(intArrayOf(4)))
+		hook("Path.addRoundRect(RectF, rx, ry)", { Path::class.java.getMethod("addRoundRect", RectF::class.java, F, F, dir) }, zeroAt(intArrayOf(1, 2)) { p ->
+			val r = p.args[0] as RectF
+			keepRound(minOf(p.args[1] as Float, p.args[2] as Float), r.width(), r.height())
+		})
+		hook("Path.addRoundRect(floats, rx, ry)", { Path::class.java.getMethod("addRoundRect", F, F, F, F, F, F, dir) }, zeroAt(intArrayOf(4, 5)) { p ->
+			val a = p.args
+			keepRound(minOf(a[4] as Float, a[5] as Float), (a[2] as Float) - (a[0] as Float), (a[3] as Float) - (a[1] as Float))
+		})
+		hook("Path.addRoundRect(RectF, radii)", { Path::class.java.getMethod("addRoundRect", RectF::class.java, FloatArray::class.java, dir) }, zeroAt(intArrayOf(1)) { p ->
+			val r = p.args[0] as RectF
+			keepRound(p.args[1] as FloatArray, r.width(), r.height())
+		})
+		hook("Path.addRoundRect(floats, radii)", { Path::class.java.getMethod("addRoundRect", F, F, F, F, FloatArray::class.java, dir) }, zeroAt(intArrayOf(4)) { p ->
+			val a = p.args
+			keepRound(a[4] as FloatArray, (a[2] as Float) - (a[0] as Float), (a[3] as Float) - (a[1] as Float))
+		})
 
 		// Discord's own ViewOutlineProviders (fe.b on 352.2: clipToRoundedRectangle, embeds, polls, media)
 		// call Outline.setRoundRect, a tiny framework method that ART may compile straight into
@@ -139,6 +276,7 @@ internal object Corners {
 					if (!native) return
 					val outline = param.args[1] as? Outline ?: return
 					if (outline.radius > 0f && outline.getRect(rect)) {
+						if (keepRound(outline.radius, rect.width().toFloat(), rect.height().toFloat())) return
 						outline.setRect(rect)
 						nativeCount.incrementAndGet()
 					}
@@ -179,6 +317,7 @@ internal object Corners {
 			override fun beforeHookedMethod(param: MethodHookParam) {
 				if (!app && !native) return
 				val args = param.args
+				if ((args[0] as? FloatArray)?.let { keepRound(it, 0f, 0f) } == true) return
 				var changed = false
 				for (i in intArrayOf(0, 2)) {
 					val radii = args[i] as? FloatArray ?: continue
@@ -198,7 +337,7 @@ internal object Corners {
 			override fun afterHookedMethod(param: MethodHookParam) {
 				val drawable = param.thisObject as? GradientDrawable ?: return
 				if (ovals && drawable.shape == GradientDrawable.OVAL) drawable.shape = GradientDrawable.RECTANGLE
-				if (native && drawable.shape == GradientDrawable.RECTANGLE) {
+				if (native && drawable.shape == GradientDrawable.RECTANGLE && !keepRound(drawable.cornerRadius, 0f, 0f)) {
 					drawable.cornerRadii = null
 					drawable.cornerRadius = 0f
 				}

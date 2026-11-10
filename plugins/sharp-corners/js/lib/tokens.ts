@@ -31,11 +31,22 @@ export function rawColors(): Record<string, string> | undefined {
 	return tokensModule()?.unsafe_rawColors
 }
 
+/**
+ * With "Circles too" off, a token for a circle or pill keeps its value: named for one (`round`,
+ * `AVATAR_...`), or so big it only makes sense as one (radii.round is 9999).
+ */
+const ROUND_NAME = /ROUND|CIRCLE|AVATAR|PILL/i
+const HUGE = 500
+const isRoundToken = (name: string, value: number) => value >= HUGE || ROUND_NAME.test(name)
+
 /** How many corner tokens the last start covered, for the settings page. */
 export let tokenCount = 0
 
 /** Zeroes every corner token while `active()` says so. Returns a cleanup and how many it covered. */
-export function sharpenTokens(active: () => boolean): { cleanup: () => void; count: number } {
+export function sharpenTokens(
+	active: () => boolean,
+	circles: () => boolean,
+): { cleanup: () => void; count: number } {
 	const cleanups: Array<() => void> = []
 	const tokens = tokensModule()
 	const groups = tokens?.modules ?? {}
@@ -48,7 +59,12 @@ export function sharpenTokens(active: () => boolean): { cleanup: () => void; cou
 					instead(token, 'resolve', (args: any[], original: any) => {
 						const stock = original(...args)
 						try {
-							if (typeof stock === 'number' && active()) return 0
+							if (
+								typeof stock === 'number' &&
+								active() &&
+								(circles() || !isRoundToken(name, stock))
+							)
+								return 0
 						} catch {
 							/* stock */
 						}
@@ -68,6 +84,7 @@ export function sharpenTokens(active: () => boolean): { cleanup: () => void; cou
 	if (radii && typeof radii === 'object' && active()) {
 		for (const [key, value] of Object.entries<any>(radii)) {
 			if (typeof value !== 'number') continue
+			if (!circles() && isRoundToken(key, value)) continue
 			try {
 				radii[key] = 0
 				saved[key] = value

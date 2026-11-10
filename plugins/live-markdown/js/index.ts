@@ -4,6 +4,7 @@ import { CHANGELOG } from './changelog'
 import { DEFAULTS, setSettings } from './native'
 import Settings from './ui/Settings'
 import type { LiveMarkdownStorage } from './native'
+import { stopUnlessAndroid } from '../../../shared/androidOnly'
 
 export default plugin<{ jsonStorage: LiveMarkdownStorage }>({
 	jsonStorage: {
@@ -11,6 +12,8 @@ export default plugin<{ jsonStorage: LiveMarkdownStorage }>({
 		default: DEFAULTS,
 	},
 	start({ jsonStorage, cleanup, plugin }) {
+		// iOS: the native half never loads (shared/androidOnly.ts).
+		if (stopUnlessAndroid(plugin, 'Live Markdown')) return
 		// Errors go to Valenced's plugin error list (shared/report.ts), not the log.
 		setReporter(plugin)
 		cleanup(() => setReporter(undefined))

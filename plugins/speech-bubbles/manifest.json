@@ -5,7 +5,7 @@
 	"description": "Chat as speech bubbles, yours on the right and theirs on the left.",
 	"author": "bleelblep",
 	"icon": "ChatIcon",
-	"version": "0.7.21",
+	"version": "0.7.22",
 	"dependencies": {
 		"valenced.api": {
 			"version": ">=1 <2"

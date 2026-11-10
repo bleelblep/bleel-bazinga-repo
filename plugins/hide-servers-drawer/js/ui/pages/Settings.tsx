@@ -142,8 +142,8 @@ export default function Settings({
 
 					<TableRowGroup hasIcons>
 						<TableSwitchRow
-							label="Hide their emoji too"
-							subLabel="Leaves hidden servers' emoji out of the emoji picker and autocomplete. Needs a reload."
+							label="Hide their emoji and stickers too"
+							subLabel="Leaves hidden servers' emoji and stickers out of the pickers and autocomplete. Needs a reload."
 							icon={rowIcon("ReactionIcon", "EmojiIcon", "ic_emoji_24px")}
 							value={hideEmoji()}
 							onValueChange={(value: boolean) => {

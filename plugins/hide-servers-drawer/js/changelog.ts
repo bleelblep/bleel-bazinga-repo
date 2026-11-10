@@ -3,6 +3,15 @@ import type { ChangelogEntry } from '../../../shared/changelog'
 /** Newest first. Every version users got gets an entry; see shared/changelog.tsx. */
 export const CHANGELOG: ChangelogEntry[] = [
 	{
+		version: '1.8.13',
+		date: '2026-11-10',
+		title: 'Stickers from hidden servers',
+		changes: [
+			'Fixed: hiding a server also took its stickers out of the sticker picker. They stay now, like its emoji, unless "Hide their emoji and stickers too" is on.',
+			'Fixed: opening a forum could show a red error about forum posts.',
+		],
+	},
+	{
 		version: '1.8.12',
 		date: '2026-11-08',
 		title: 'Hide threads and forum posts',

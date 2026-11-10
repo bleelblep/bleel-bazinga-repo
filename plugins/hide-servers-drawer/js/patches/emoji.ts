@@ -21,6 +21,11 @@ const TAG = "[HideServersDrawer]"
 //
 // Unless "Hide their emoji too" is on, these run with filtering paused, so they see every server.
 // The server list itself is untouched. Each is exported by exactly one module in 352.2.
+//
+// Stickers had the same problem, reported 2026-11-10 ("stickers don't appear at all"): on 352.6
+// the sticker picker's category hooks (useStickerPackCategories, useFilteredStickerPackCategories)
+// live in a module that imports SortedGuildStore (read live with DevTools: module 10153 depends on
+// 6699). The same switch covers them, and the settings row says so.
 
 /** Runs the original with the full server list, unless the user wants hidden servers' emoji gone. */
 function full(this: any, args: any[], original: any) {
@@ -62,6 +67,8 @@ export default function patchEmoji(): () => void {
 
 	patchExport("useEmojiCategories", patches)
 	patchExport("getSurpriseMeEmojiPool", patches)
+	patchExport("useStickerPackCategories", patches)
+	patchExport("useFilteredStickerPackCategories", patches)
 
 	return () => {
 		for (const unpatch of patches.splice(0)) unpatch()

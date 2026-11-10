@@ -343,11 +343,15 @@ export function cleanUrl(raw: string, unwrapped = false): CleanResult {
  * Trailing sentence punctuation is split off first and put back after, so "see
  * https://x.com/a?s=20." keeps its full stop and a change never sees it as part of the link.
  */
-export function mapUrls(text: string, change: (url: string) => string): string {
+export function mapUrls(
+	text: string,
+	change: (url: string, before: string) => string,
+): string {
 	URL_PATTERN.lastIndex = 0
 	return text.replace(URL_PATTERN, (match, offset: number) => {
-		const { url, tail } = splitUrl(match, text.slice(0, offset))
-		return change(url) + tail
+		const before = text.slice(0, offset)
+		const { url, tail } = splitUrl(match, before)
+		return change(url, before) + tail
 	})
 }
 

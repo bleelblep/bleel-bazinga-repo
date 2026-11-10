@@ -2989,21 +2989,33 @@ internal class BubbleHooks(private val scope: PluginScope) {
 	private fun alignOwnName(row: ViewGroup, accessories: ViewGroup, state: RowState) {
 		val header = row.findViewById<View>(id(row, "header")) as? ViewGroup ?: return
 		if (header.visibility != View.VISIBLE || header.width == 0) return
+		// Not laid out yet: the bubbles' edge would come out at 0 and throw the name to the far left.
+		// The next layout runs this again.
+		if (accessories.width == 0) return
 		val shown = (0 until header.childCount).map(header::getChildAt).filter { it.visibility == View.VISIBLE && it.width > 0 }
 		if (shown.isEmpty()) return
-		// The header's left in row coordinates (layout only: its own translationX is what we set).
+		// The header's and the bubbles' left in row coordinates (layout only: translationX is ours).
+		// Both are walked up to the row: on a tablet the bubbles sit inside more containers than on a
+		// phone, so the accessories list's own `left` isn't its place in the row.
+		val x = leftInRow(header, row) ?: return
+		val accessoriesX = leftInRow(accessories, row) ?: return
+		val contentLeft = x + shown.minOf { it.left }
+		val contentRight = x + shown.maxOf { it.right }
+		// Where the bubbles' tails end (applyTexts places them there), in row coordinates.
+		val bubbleRight = accessoriesX + accessories.width - accessories.paddingRight - ownRightGap(row, accessories)
+		val dx = (bubbleRight - contentRight).coerceAtLeast(dp(row, AVATAR_MARGIN_DP) - contentLeft)
+		move(state, header, dx.toFloat(), null)
+	}
+
+	/** [view]'s left edge in [row]'s coordinates, from layout alone, or null if it isn't in [row]. */
+	private fun leftInRow(view: View, row: View): Int? {
 		var x = 0
-		var p: View? = header
+		var p: View? = view
 		while (p != null && p !== row) {
 			x += p.left
 			p = p.parent as? View
 		}
-		if (p == null) return
-		val contentLeft = x + shown.minOf { it.left }
-		val contentRight = x + shown.maxOf { it.right }
-		val bubbleRight = accessories.left + accessories.width - accessories.paddingRight - ownRightGap(row, accessories)
-		val dx = (bubbleRight - contentRight).coerceAtLeast(dp(row, AVATAR_MARGIN_DP) - contentLeft)
-		move(state, header, dx.toFloat(), null)
+		return if (p == null) null else x
 	}
 
 	// ---- "Avatars match bubbles" ----

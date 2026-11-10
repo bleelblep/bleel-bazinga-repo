@@ -3,6 +3,12 @@ import type { ChangelogEntry } from '../../../shared/changelog'
 /** Newest first. Every version users got gets an entry; see shared/changelog.tsx. */
 export const CHANGELOG: ChangelogEntry[] = [
 	{
+		version: '0.7.22',
+		date: '2026-11-10',
+		title: 'Your name on tablets',
+		changes: ['Fixed: with "Show my name" on, your name could land on the far left on tablets instead of above your bubbles on the right.', 'On iPhone it now says it needs Android and turns itself off, instead of showing a red error.'],
+	},
+	{
 		version: '0.7.21',
 		date: '2026-11-08',
 		title: 'Times next to names',

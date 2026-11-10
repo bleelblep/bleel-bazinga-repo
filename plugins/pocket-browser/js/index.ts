@@ -23,6 +23,7 @@ import { patchUpload } from './lib/upload'
 import Settings from './ui/Settings'
 import { registerPages } from './ui/routes'
 import { reportError, setReporter } from '../../../shared/report'
+import { stopUnlessAndroid } from '../../../shared/androidOnly'
 
 const TAG = '[Pocket Browser]'
 
@@ -41,6 +42,8 @@ export default plugin<{ jsonStorage: PocketBrowserStorage }>({
 	},
 
 	start(api) {
+		// iOS: the native half never loads (shared/androidOnly.ts).
+		if (stopUnlessAndroid(api.plugin, 'Pocket Browser')) return
 		// Errors go to Valenced's plugin error list (shared/report.ts), not the log.
 		setReporter(api.plugin)
 		api.cleanup(() => setReporter(undefined))

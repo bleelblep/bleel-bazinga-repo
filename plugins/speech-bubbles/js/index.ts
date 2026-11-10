@@ -23,6 +23,7 @@ import { GROUP_DM, onSelectedChannel, selectedChannel } from './typing/stores'
 import Settings from './ui/pages/Settings'
 import { registerPages } from './ui/routes'
 import type { SpeechBubblesStorage } from './native'
+import { stopUnlessAndroid } from '../../../shared/androidOnly'
 
 export default plugin<{ jsonStorage: SpeechBubblesStorage }>({
 	jsonStorage: {
@@ -30,6 +31,8 @@ export default plugin<{ jsonStorage: SpeechBubblesStorage }>({
 		default: DEFAULTS,
 	},
 	start({ jsonStorage, cleanup, plugin }) {
+		// iOS: the native half never loads (shared/androidOnly.ts).
+		if (stopUnlessAndroid(plugin, 'Speech Bubbles')) return
 		// Errors go to Valenced's plugin error list (shared/report.ts), not the log.
 		setReporter(plugin)
 		cleanup(() => setReporter(undefined))

@@ -21,12 +21,24 @@ export function setStorage(handle: any) {
 	storage = handle
 }
 
+/** Changes not yet in `storage.cache`: `set` can finish after `update` returns. */
+let pending: Partial<CirclesStorage> = {}
+
 export function settings(): CirclesStorage {
-	return { ...DEFAULTS, ...(storage?.cache ?? {}) }
+	return { ...DEFAULTS, ...(storage?.cache ?? {}), ...pending }
 }
 
 export function update(patch: Partial<CirclesStorage>) {
-	storage?.set(patch)
+	pending = { ...pending, ...patch }
+	try {
+		Promise.resolve(storage?.set(patch)).finally(() => {
+			for (const key of Object.keys(patch) as Array<keyof CirclesStorage>) {
+				if (storage?.cache?.[key] === patch[key]) delete pending[key]
+			}
+		})
+	} catch {
+		/* kept in pending for this session */
+	}
 	for (const listener of listeners) listener()
 }
 
