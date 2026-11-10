@@ -280,24 +280,27 @@
 				"wholeWord": false
 			}
 		},
-				{
+		{
 			"id": "hide-gif-links",
-			"version": 3,
+			"version": 4,
+			"legacyFinds": [
+				"^(https?://[\\w.-]*\\b(?:tenor|giphy|klipy)\\.com/.+)$"
+			],
 			"shows": {
 				"from": "tenor.com/view/…",
 				"to": "[⠀](tenor.com/view/…)"
 			},
 			"kind": "links",
 			"source": "added",
-			"note": "Wraps Tenor, Giphy and Klipy links in an invisible masked link.",
+			"note": "Wraps Tenor, Giphy, Klipy and fxtwitter GIF links, and Discord GIF attachments, in an invisible masked link.",
 			"rule": {
 				"name": "Hide GIF links",
-				"find": "^(https?://[\\w.-]*\\b(?:tenor|giphy|klipy)\\.com/.+)$",
+				"find": "^(https?://(?:(?:[\\w.-]*\\b(?:tenor|giphy|klipy)\\.com|gif\\.fxtwitter\\.com)/.+|(?:cdn\\.discordapp\\.com|media\\.discordapp\\.net)/attachments/[^?#]+\\.gif(?:[?#].*)?))$",
 				"replace": "[⠀]($1)",
 				"regex": true,
 				"caseSensitive": false,
 				"wholeWord": false
 			}
-				}
+		}
 	]
 }
