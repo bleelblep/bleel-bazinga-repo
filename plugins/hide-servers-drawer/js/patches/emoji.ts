@@ -1,3 +1,4 @@
+import { onBarChange } from "../lib/hidden"
 import { hideEmoji } from "../lib/prefs"
 import { reportError } from "../../../../shared/report"
 import { unfiltered } from "./sortedGuilds"
@@ -26,6 +27,15 @@ const TAG = "[HideServersDrawer]"
 // the sticker picker's category hooks (useStickerPackCategories, useFilteredStickerPackCategories)
 // live in a module that imports SortedGuildStore (read live with DevTools: module 10153 depends on
 // 6699). The same switch covers them, and the settings row says so.
+//
+// The index is cached, and getDisambiguatedEmojiContext is only one way in. The store's own methods
+// (searchWithoutFetchingLatest, getTopEmoji, getUsableCustomEmojiById and more) call
+// `EmojiDisambiguations.get(guildId)` directly, which builds the index into `_lastInstance` and
+// reuses it until the guild changes or `reset()` runs. Whichever ran first decided what got cached,
+// so hidden servers' emoji went missing until a reload even with the switch off (Bazinga reports
+// 2026-11-10 and 2026-11-11; read in the 352.2 disassembly, `_lastInstance` is in 352.6 too).
+// So the class's static `get` runs unfiltered as well, and the cache is cleared on start, on stop
+// and whenever the hidden list changes.
 
 /** Runs the original with the full server list, unless the user wants hidden servers' emoji gone. */
 function full(this: any, args: any[], original: any) {
@@ -53,8 +63,41 @@ function patchExport(name: string, patches: Array<() => void>) {
 	patches.push(waitForModules(withProps(name), exports => onModule(exports)))
 }
 
+/** Drops Discord's cached emoji index so the next read rebuilds it with the current filter. */
+function resetIndex(cls: any) {
+	try {
+		if (typeof cls?.reset === "function") cls.reset()
+	} catch (error) {
+		reportError(`${TAG} could not reset the emoji index:`, error)
+	}
+}
+
+function patchIndex(patches: Array<() => void>) {
+	const done = new WeakSet<object>()
+	let cls: any
+	const onModule = (exports: any) => {
+		try {
+			const found = exports?.EmojiDisambiguations ?? exports?.default?.EmojiDisambiguations
+			if (typeof found?.get !== "function" || done.has(found)) return
+			done.add(found)
+			cls = found
+			patches.push(instead(found, "get", full))
+			patches.push(() => resetIndex(found))
+			resetIndex(found)
+		} catch (error) {
+			reportError(`${TAG} could not patch the emoji index:`, error)
+		}
+	}
+	for (const [exports] of lookupModules(withProps("EmojiDisambiguations"))) onModule(exports)
+	if (!cls) patches.push(waitForModules(withProps("EmojiDisambiguations"), exports => onModule(exports)))
+	// Only matters with "Hide their emoji and stickers too" on, but a reset is cheap either way.
+	patches.push(onBarChange(() => resetIndex(cls)))
+}
+
 export default function patchEmoji(): () => void {
 	const patches: Array<() => void> = []
+
+	patchIndex(patches)
 
 	try {
 		const store = (Stores as any).EmojiStore

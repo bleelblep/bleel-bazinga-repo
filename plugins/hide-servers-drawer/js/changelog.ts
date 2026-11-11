@@ -3,6 +3,14 @@ import type { ChangelogEntry } from '../../../shared/changelog'
 /** Newest first. Every version users got gets an entry; see shared/changelog.tsx. */
 export const CHANGELOG: ChangelogEntry[] = [
 	{
+		version: '1.8.14',
+		date: '2026-11-12',
+		title: 'Emoji from hidden servers, properly',
+		changes: [
+			'Fixed: some emoji from hidden servers could still go missing from the picker and autocomplete until a reload, even with "Hide their emoji and stickers too" off.',
+		],
+	},
+	{
 		version: '1.8.13',
 		date: '2026-11-10',
 		title: 'Stickers from hidden servers',

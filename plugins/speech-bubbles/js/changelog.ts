@@ -3,6 +3,18 @@ import type { ChangelogEntry } from '../../../shared/changelog'
 /** Newest first. Every version users got gets an entry; see shared/changelog.tsx. */
 export const CHANGELOG: ChangelogEntry[] = [
 	{
+		version: '0.7.24',
+		date: '2026-11-12',
+		title: 'Your name on wide screens',
+		changes: ['Fixed: with "Show my name" on, a long time or tag beside your name could throw it to the far left, mostly on tablets and wide screens. It now lines up above your bubbles on the right.'],
+	},
+	{
+		version: '0.7.23',
+		date: '2026-11-10',
+		title: 'Your name on tablets, again',
+		changes: ['Fixed: on tablets your name could still sit on the far left with "Show my name" on. It now moves above your bubbles every time the message is drawn.'],
+	},
+	{
 		version: '0.7.22',
 		date: '2026-11-10',
 		title: 'Your name on tablets',

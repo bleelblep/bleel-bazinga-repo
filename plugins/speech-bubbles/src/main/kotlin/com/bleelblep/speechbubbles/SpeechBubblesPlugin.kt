@@ -2268,6 +2268,10 @@ internal class BubbleHooks(private val scope: PluginScope) {
 		if ((state.mode == Mode.OTHER && !config.hideAvatars) || (state.mode == Mode.OWN && config.ownAvatar)) alignAvatar(row, state)
 		else unalignAvatar(row, state)
 		state.accessories?.let { placeAccessories(row, it, state) }
+		// Again here, with the whole row laid out: the accessories list's layout listener can run
+		// before the header's own layout in the same pass (seen on tablets), when the header still
+		// has no width or last bind's, so the name stayed on the left. move() is idempotent.
+		if (state.mode == Mode.OWN && config.ownName) state.accessories?.let { alignOwnName(row, it, state) }
 		placeBreak(row, state)
 		shapeAvatar(row, state)
 	}
@@ -2999,12 +3003,46 @@ internal class BubbleHooks(private val scope: PluginScope) {
 		// phone, so the accessories list's own `left` isn't its place in the row.
 		val x = leftInRow(header, row) ?: return
 		val accessoriesX = leftInRow(accessories, row) ?: return
-		val contentLeft = x + shown.minOf { it.left }
-		val contentRight = x + shown.maxOf { it.right }
+		// Where the content is drawn, not the views' bounds: the time is constrained to the header's
+		// end, so its view reached past the bubbles while its text stopped well short. The name then
+		// measured wider than the room and went to the far left margin (Bazinga reports 2026-11-09 and
+		// 2026-11-10, a 590dp screen with a long time format; 0.7.22-0.7.23 chased layout timing).
+		val extents = shown.map(::drawnExtent)
+		val contentLeft = x + extents.minOf { it.first }
+		val contentRight = x + extents.maxOf { it.second }
 		// Where the bubbles' tails end (applyTexts places them there), in row coordinates.
 		val bubbleRight = accessoriesX + accessories.width - accessories.paddingRight - ownRightGap(row, accessories)
 		val dx = (bubbleRight - contentRight).coerceAtLeast(dp(row, AVATAR_MARGIN_DP) - contentLeft)
 		move(state, header, dx.toFloat(), null)
+	}
+
+	/**
+	 * The left and right of what [v] draws, in its parent's coordinates: a TextView's laid-out
+	 * lines, a group's shown children, otherwise its bounds. Never outside its bounds.
+	 */
+	private fun drawnExtent(v: View): Pair<Int, Int> {
+		// A view with its own background (a tag chip) shows all of its bounds.
+		if (v.background != null) return v.left to v.right
+		if (v is TextView) {
+			val layout = v.layout
+			if (layout != null && layout.lineCount > 0 && v.text.isNotEmpty()) {
+				var l = Float.MAX_VALUE
+				var r = -Float.MAX_VALUE
+				for (i in 0 until layout.lineCount) {
+					l = minOf(l, layout.getLineLeft(i))
+					r = maxOf(r, layout.getLineRight(i))
+				}
+				val start = v.left + v.totalPaddingLeft
+				return (start + l.toInt()).coerceIn(v.left, v.right) to (start + kotlin.math.ceil(r).toInt()).coerceIn(v.left, v.right)
+			}
+		} else if (v is ViewGroup) {
+			val kids = (0 until v.childCount).map(v::getChildAt).filter { it.visibility == View.VISIBLE && it.width > 0 }
+			if (kids.isNotEmpty()) {
+				val inner = kids.map(::drawnExtent)
+				return (v.left + inner.minOf { it.first }).coerceIn(v.left, v.right) to (v.left + inner.maxOf { it.second }).coerceIn(v.left, v.right)
+			}
+		}
+		return v.left to v.right
 	}
 
 	/** [view]'s left edge in [row]'s coordinates, from layout alone, or null if it isn't in [row]. */
