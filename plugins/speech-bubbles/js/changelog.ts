@@ -3,6 +3,12 @@ import type { ChangelogEntry } from '../../../shared/changelog'
 /** Newest first. Every version users got gets an entry; see shared/changelog.tsx. */
 export const CHANGELOG: ChangelogEntry[] = [
 	{
+		version: '0.7.28',
+		date: '2026-11-13',
+		title: 'Time before my name, for real',
+		changes: ['Fixed: "Time before my name" did nothing, and your time still sat after your name and tags. It now goes first.'],
+	},
+	{
 		version: '0.7.27',
 		date: '2026-11-12',
 		title: 'Role colours, subtext, your GIFs',

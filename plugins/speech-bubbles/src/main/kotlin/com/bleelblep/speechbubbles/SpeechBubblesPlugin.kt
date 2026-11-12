@@ -3067,29 +3067,41 @@ internal class BubbleHooks(private val scope: PluginScope) {
 	 */
 	private fun timeFirst(row: ViewGroup, header: ViewGroup, shown: List<View>, state: RowState) {
 		val time = row.findViewById<View>(id(row, "timestamp"))
-		// The header's child holding the time (the time itself, or a box around it).
-		var block: View? = time
-		while (block != null && block.parent !== header) block = block.parent as? View
-		val swap = config.ownTimeFirst && ownHeaderTime() && block != null && block in shown && shown.size > 1 &&
-			(block !is ViewGroup || row.findViewById<View>(id(row, "author_name"))?.let { isInside(it, block) } != true)
-		if (!swap) {
-			for (v in shown) if (state.replyMoved.containsKey(v)) move(state, v, 0f, null)
+		// The time's own box. On 352 that's a ConstraintLayout (a Flow) inside the header holding the
+		// name, tags, time and the silent-message bell, not the header itself, so the swap happens
+		// among the time's siblings there (0.7.27 looked only at the header's children, found the
+		// name and time in one box and never swapped: Bazinga report 2026-11-12).
+		val box = time?.parent as? ViewGroup
+		val siblings = box?.let { b -> (0 until b.childCount).map(b::getChildAt) }.orEmpty()
+		fun reset() {
+			for (v in shown + siblings) if (v !== header && state.replyMoved.containsKey(v)) move(state, v, 0f, null)
+		}
+		if (time == null || box == null || !isInside(box, header) || !config.ownTimeFirst || !ownHeaderTime() ||
+			time.visibility != View.VISIBLE || time.width == 0
+		) {
+			reset()
 			return
 		}
-		val others = shown.filter { it !== block }
-		val o = others.map(::drawnExtent)
+		val (tLeft, tRight) = drawnExtent(time)
+		// What's on the time's line and before it (name, tags), as Discord lays it out; anything
+		// after it (the bell) or on another line of the Flow stays put.
+		val before = siblings.filter { v ->
+			v !== time && v.visibility == View.VISIBLE && v.width > 0 && v.height > 0 &&
+				v.top < time.bottom && v.bottom > time.top && drawnExtent(v).second <= tLeft
+		}
+		if (before.isEmpty()) {
+			reset()
+			return
+		}
+		val o = before.map(::drawnExtent)
 		val oLeft = o.minOf { it.first }
 		val oRight = o.maxOf { it.second }
-		val (tLeft, tRight) = drawnExtent(block!!)
-		// Only when the time comes after the rest, as Discord lays it out.
-		if (tLeft < oRight) {
-			for (v in shown) if (state.replyMoved.containsKey(v)) move(state, v, 0f, null)
-			return
-		}
 		val gap = tLeft - oRight
-		move(state, block, (oLeft - tLeft).toFloat(), null)
+		move(state, time, (oLeft - tLeft).toFloat(), null)
 		val shift = (tRight - tLeft + gap).toFloat()
-		for (v in others) move(state, v, shift, null)
+		for (v in before) move(state, v, shift, null)
+		// A sibling swapped on an earlier draw that's no longer before the time goes back.
+		for (v in siblings) if (v !== time && v !in before && state.replyMoved.containsKey(v)) move(state, v, 0f, null)
 	}
 
 	private fun isInside(v: View, ancestor: View): Boolean {
