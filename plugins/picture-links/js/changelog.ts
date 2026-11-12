@@ -3,6 +3,16 @@ import type { ChangelogEntry } from '../../../shared/changelog'
 /** Newest first. Every version users got gets an entry; see shared/changelog.tsx. */
 export const CHANGELOG: ChangelogEntry[] = [
 	{
+		version: '0.1.14',
+		date: '2026-11-12',
+		title: 'Server pictures',
+		changes: [
+			"Tap a server's icon or banner in its menu to view it full size, with save and share.",
+			"Tapping someone's server banner also lets you swipe to their main banner.",
+			'A "Loading picture…" toast shows while a full-size picture is on its way.',
+		],
+	},
+	{
 		version: '0.1.8',
 		date: '2026-11-03',
 		title: 'Credit',

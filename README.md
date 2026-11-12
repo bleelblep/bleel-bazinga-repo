@@ -181,11 +181,12 @@ bring the lines back.
 
 ### Picture Links
 
-Tap profile pictures and banners to open them full size, with save and share. Nothing to set up.
+Tap profile pictures, banners and server icons to open them full size, with save and share. Nothing to set up.
 
 - Profile pictures open in Discord's own viewer at full size, with save and share turned on.
-- Tap a banner to view it; long-press for an animated banner.
+- Tap a banner to view it; long-press for an animated banner. On someone's server banner, swipe to their main one.
 - Long-press a server profile picture to see the person's main one.
+- In a server's menu, tap its icon or banner to view it.
 
 Credit: a port of redstonekasi's Picture Links (BSD-3-Clause, see `NOTICE.md`), as updated by Rico040.
 

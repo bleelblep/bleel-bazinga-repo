@@ -4,7 +4,9 @@
  *
  * - patches/viewerOptions.ts: Discord's own avatar viewer, at full size with save and share on
  * - patches/avatar.ts: long-press a server avatar for the main one
- * - patches/banner.tsx: tap a banner to view it (long-press for animated banners)
+ * - patches/banner.tsx: tap a banner to view it (long-press for animated banners); a server banner
+ *   also offers the main one
+ * - patches/guild.tsx: tap a server's icon or banner in its menu
  */
 
 import { setupChangelog } from '../../../shared/changelog'
@@ -12,6 +14,7 @@ import { CHANGELOG } from './changelog'
 import { TAG } from './lib/media'
 import patchAvatar from './patches/avatar'
 import patchBanner from './patches/banner'
+import patchGuild from './patches/guild'
 import patchViewerOptions from './patches/viewerOptions'
 import Settings from './ui/Settings'
 import { reportError, setReporter } from '../../../shared/report'
@@ -33,6 +36,7 @@ export default plugin({
 			['viewer options', patchViewerOptions],
 			['avatar', patchAvatar],
 			['banner', patchBanner],
+			['server header', patchGuild],
 		] as const) {
 			try {
 				cleanup(install())

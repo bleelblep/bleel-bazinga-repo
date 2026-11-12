@@ -2,10 +2,10 @@
 	"format": 1,
 	"id": "bleelblep.picture-links",
 	"name": "Picture Links",
-	"description": "Tap profile pictures and banners to view them full size, with save and share.",
+	"description": "Tap profile pictures, banners and server icons to view them full size, with save and share.",
 	"author": "bleelblep",
 	"icon": "ImageIcon",
-	"version": "0.1.8",
+	"version": "0.1.14",
 	"dependencies": {
 		"valenced.api": {
 			"version": ">=1 <2"
