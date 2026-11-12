@@ -457,13 +457,26 @@
     },
     "bleelblep.picture-links": {
       "name": "Picture Links",
-      "description": "Tap profile pictures and banners to view them full size, with save and share.",
+      "description": "Tap profile pictures, banners and server icons to view them full size, with save and share.",
       "author": "bleelblep",
       "icon": "ImageIcon",
       "channels": {
-        "latest": "0.1.8"
+        "latest": "0.1.14"
       },
       "versions": {
+        "0.1.14": {
+          "url": "https://bleelblep.github.io/bleel-bazinga-repo/pool/bleelblep.picture-links@0.1.14.zip",
+          "sha256": "62c9882f3a0769695174a70a581d4a6323e947ac63c9fdde6c40c218f1280f89",
+          "size": 6972,
+          "dependencies": {
+            "valenced.api": {
+              "version": ">=1 <2"
+            },
+            "discord": {
+              "version": "*"
+            }
+          }
+        },
         "0.1.8": {
           "url": "https://bleelblep.github.io/bleel-bazinga-repo/pool/bleelblep.picture-links@0.1.8.zip",
           "sha256": "ec31e5183b876e90508cbdd739a7645730acf10907a0b0ed2553908652f15286",
