@@ -3,6 +3,21 @@ import type { ChangelogEntry } from '../../../shared/changelog'
 /** Newest first. Every version users got gets an entry; see shared/changelog.tsx. */
 export const CHANGELOG: ChangelogEntry[] = [
 	{
+		version: '0.10.0',
+		date: '2026-11-11',
+		title: 'Smoother rearranging',
+		changes: [
+			'Each row has dots on the right: drag them to move it straight away. Holding the row still works too.',
+			'The other rows slide apart to show where it will land, the section it is over gets an outline, and the row glides into place when you let go.',
+			"On Discord's settings page, the list scrolls by itself when you drag near the top or bottom, so items can go anywhere in one go.",
+			'Hold a row and let go (or tap its dots) to pick a place from a list instead: up, down, top, bottom or another section.',
+			'A small buzz each time the spot changes, and a firmer one for a new section.',
+			'Drag it sideways off the list, or back to where it was, to leave it where it was.',
+			'Empty sections show a space to drop rows into.',
+			'Undo puts back your last change, one step at a time.',
+		],
+	},
+	{
 		version: '0.9.7',
 		date: '2026-11-10',
 		title: 'Android only',

@@ -7,7 +7,7 @@
 import * as finders from '@valenced/modules/finders'
 import * as filters from '@valenced/modules/finders/filters'
 import { createElement } from 'react'
-import { View } from 'react-native'
+import { StyleSheet, View } from 'react-native'
 import { reportError } from '../../../../shared/report'
 
 const PILL = { borderTopLeftRadius: 9999, borderTopRightRadius: 9999, borderBottomLeftRadius: 9999, borderBottomRightRadius: 9999 }
@@ -91,4 +91,51 @@ export function pillNameplate(tree: any, props: any): any {
 		reportError('[Round Corners] You bar nameplate failed:', error)
 		return tree
 	}
+}
+
+const CLEAR = { backgroundColor: 'transparent' }
+
+function hasFill(style: any): boolean {
+	try {
+		const flat = StyleSheet.flatten(typeof style === 'function' ? style({ pressed: false }) : style)
+		if (!flat || flat.backgroundColor == null || flat.backgroundColor === 'transparent') return false
+		// A badge dot (ICYMI, notifications) keeps its colour: only button-sized fills go.
+		const small = typeof flat.width === 'number' && typeof flat.height === 'number' && flat.width < 20 && flat.height < 20
+		return !small
+	} catch {
+		return false
+	}
+}
+
+function cleared(style: any): any {
+	return typeof style === 'function' ? (state: any) => [style(state), CLEAR] : [style, CLEAR]
+}
+
+/**
+ * "Just icons": the You bar buttons' own fill (the square behind each icon) made see-through, so
+ * only the icons show. Only the elements YouBarButtonContainer itself returns, two levels deep;
+ * the icon and its badge are other components and keep their colours. Copies, never edits, the
+ * tree (rounder.ts: React Compiler caches trees).
+ */
+export function clearButtonFill(tree: any, depth = 0): any {
+	if (!tree || typeof tree !== 'object' || depth > 2) return tree
+	if (Array.isArray(tree)) {
+		let changed = false
+		const next = tree.map(child => {
+			const out = clearButtonFill(child, depth)
+			if (out !== child) changed = true
+			return out
+		})
+		return changed ? next : tree
+	}
+	const props = tree.props
+	if (!props) return tree
+	let nextProps = props
+	if (hasFill(props.style)) nextProps = { ...nextProps, style: cleared(props.style) }
+	const children = props.children
+	if (children != null && typeof children === 'object') {
+		const nextChildren = clearButtonFill(children, depth + 1)
+		if (nextChildren !== children) nextProps = { ...nextProps, children: nextChildren }
+	}
+	return nextProps === props ? tree : { ...tree, props: nextProps }
 }

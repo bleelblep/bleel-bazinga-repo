@@ -3,6 +3,15 @@ import type { ChangelogEntry } from '../../../shared/changelog'
 /** Newest first. Every version users got gets an entry; see shared/changelog.tsx. */
 export const CHANGELOG: ChangelogEntry[] = [
 	{
+		version: '0.1.20',
+		date: '2026-11-12',
+		title: 'More circles stay round',
+		changes: [
+			'Fixed: with Circles too off, some round things in the chat (pills, badges, round pictures) still came out square. They stay round now.',
+			'Restart Discord after updating.',
+		],
+	},
+	{
 		version: '0.1.19',
 		date: '2026-11-10',
 		title: 'Circles stay round',

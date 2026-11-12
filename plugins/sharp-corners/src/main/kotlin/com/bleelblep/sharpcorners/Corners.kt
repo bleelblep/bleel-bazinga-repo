@@ -80,6 +80,17 @@ internal object Corners {
 		return if (side > 0f) radius * 2f >= side - 1f else radius >= HUGE
 	}
 
+	/** GradientDrawable -> the corner Discord gave it (Float or FloatArray), while circles are off. UI thread. */
+	private val gradientCorners = WeakHashMap<GradientDrawable, Any>()
+	/** Set while this file restores a corner itself, so the setter hook lets it through. */
+	private var restoringGradient = false
+
+	private fun gradientRound(value: Any?, width: Float, height: Float): Boolean = when (value) {
+		is Float -> isRound(value, width, height)
+		is FloatArray -> value.isNotEmpty() && value.all { isRound(it, width, height) }
+		else -> false
+	}
+
 	/** With circles off, round shapes keep their corners. */
 	private fun keepRound(radius: Float, width: Float, height: Float) = !ovals && isRound(radius, width, height)
 
@@ -228,10 +239,58 @@ internal object Corners {
 			val r = p.args[0] as Rect
 			keepRound(p.args[1] as Float, r.width().toFloat(), r.height().toFloat())
 		})
-		hook("GradientDrawable.setCornerRadius", { GradientDrawable::class.java.getMethod("setCornerRadius", F) }, zeroAt(intArrayOf(0)) { p -> keepRound(p, p.args[0] as Float) })
-		hook("GradientDrawable.setCornerRadii", { GradientDrawable::class.java.getMethod("setCornerRadii", FloatArray::class.java) }, zeroAt(intArrayOf(0)) { p ->
-			val radii = p.args[0] as? FloatArray
-			radii != null && radii.isNotEmpty() && radii.all { keepRound(p, it) }
+		// GradientDrawable corners are mostly set before the drawable has a size, so with circles off
+		// the corner is remembered and decided again once bounds arrive ([gradientCorners]).
+		val gradientSetter = object : XC_MethodHook() {
+			override fun beforeHookedMethod(param: MethodHookParam) {
+				if (!native || restoringGradient) return
+				val drawable = param.thisObject as? GradientDrawable ?: return
+				val value = param.args[0]
+				if (!ovals) {
+					val nonZero = when (value) {
+						is Float -> value != 0f
+						is FloatArray -> value.any { it != 0f }
+						else -> false
+					}
+					if (!nonZero) {
+						gradientCorners.remove(drawable)
+						return
+					}
+					gradientCorners[drawable] = if (value is FloatArray) value.copyOf() else value!!
+					val b = drawable.bounds
+					if (!b.isEmpty && gradientRound(value, b.width().toFloat(), b.height().toFloat())) return
+				}
+				when (value) {
+					is Float -> if (value != 0f) param.args[0] = 0f
+					is FloatArray -> param.args[0] = ZERO_RADII.copyOf()
+				}
+				nativeCount.incrementAndGet()
+			}
+		}
+		hook("GradientDrawable.setCornerRadius", { GradientDrawable::class.java.getMethod("setCornerRadius", F) }, gradientSetter)
+		hook("GradientDrawable.setCornerRadii", { GradientDrawable::class.java.getMethod("setCornerRadii", FloatArray::class.java) }, gradientSetter)
+		hook("GradientDrawable.onBoundsChange", {
+			GradientDrawable::class.java.getDeclaredMethod("onBoundsChange", Rect::class.java)
+		}, object : XC_MethodHook() {
+			override fun afterHookedMethod(param: MethodHookParam) {
+				if (!native || ovals) return
+				val drawable = param.thisObject as? GradientDrawable ?: return
+				val original = gradientCorners[drawable] ?: return
+				val b = drawable.bounds
+				if (b.isEmpty) return
+				val round = gradientRound(original, b.width().toFloat(), b.height().toFloat())
+				restoringGradient = true
+				try {
+					when (original) {
+						is Float -> drawable.cornerRadius = if (round) original else 0f
+						is FloatArray -> drawable.cornerRadii = if (round) original.copyOf() else ZERO_RADII.copyOf()
+					}
+				} catch (_: Throwable) {
+					/* leave it */
+				} finally {
+					restoringGradient = false
+				}
+			}
 		})
 		for (canvas in canvasClasses()) {
 			val name = canvas.simpleName
@@ -303,7 +362,19 @@ internal object Corners {
 			}
 			hook("NativeRoundingFilter.nativeAddRoundedCornersFilter", {
 				rounding.declaredMethods.first { it.name == "nativeAddRoundedCornersFilter" }
-			}, skip { native })
+			}, object : XC_MethodHook() {
+				override fun beforeHookedMethod(param: MethodHookParam) {
+					if (!native) return
+					// (Bitmap, radius x4): a cut of half the picture or more is a circle; it stays with circles off.
+					if (!ovals) {
+						val bmp = param.args.getOrNull(0) as? android.graphics.Bitmap
+						val radii = param.args.drop(1).mapNotNull { (it as? Number)?.toFloat() }
+						if (bmp != null && radii.isNotEmpty() && radii.all { isRound(it, bmp.width.toFloat(), bmp.height.toFloat()) }) return
+					}
+					param.result = null
+					nativeCount.incrementAndGet()
+				}
+			})
 		} else {
 			warn("NativeRoundingFilter not found")
 		}
@@ -337,9 +408,23 @@ internal object Corners {
 			override fun afterHookedMethod(param: MethodHookParam) {
 				val drawable = param.thisObject as? GradientDrawable ?: return
 				if (ovals && drawable.shape == GradientDrawable.OVAL) drawable.shape = GradientDrawable.RECTANGLE
-				if (native && drawable.shape == GradientDrawable.RECTANGLE && !keepRound(drawable.cornerRadius, 0f, 0f)) {
-					drawable.cornerRadii = null
-					drawable.cornerRadius = 0f
+				if (native && drawable.shape == GradientDrawable.RECTANGLE) {
+					if (!ovals) {
+						// No size yet: remembered, and decided at onBoundsChange like the setters.
+						val radii = runCatching { drawable.cornerRadii }.getOrNull()
+						val radius = runCatching { drawable.cornerRadius }.getOrDefault(0f)
+						when {
+							radii != null && radii.any { it != 0f } -> gradientCorners[drawable] = radii.copyOf()
+							radius != 0f -> gradientCorners[drawable] = radius
+						}
+					}
+					restoringGradient = true
+					try {
+						drawable.cornerRadii = null
+						drawable.cornerRadius = 0f
+					} finally {
+						restoringGradient = false
+					}
 				}
 			}
 		})

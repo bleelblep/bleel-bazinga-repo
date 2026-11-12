@@ -199,6 +199,17 @@ export default function Options() {
 								requireReload()
 							}}
 						/>
+						<TableSwitchRow
+							label="Preview in the chat"
+							subLabel={
+								s.tapToPreview
+									? 'The preview shows as an "Only you can see this" message at the bottom of the chat instead of a pop-up. Tap send again to send it.'
+									: 'The preview shows as an "Only you can see this" message at the bottom of the chat instead of a pop-up. Send as usual when it looks right.'
+							}
+							icon={rowIcon('ChatIcon', 'EyeIcon')}
+							value={!!s.previewInChat}
+							onValueChange={value => set({ previewInChat: value })}
+						/>
 					</TableRowGroup>
 
 					<TableRowGroup title="Links" hasIcons>

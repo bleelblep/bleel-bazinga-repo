@@ -12,8 +12,10 @@
  *   An "Emoji row" switch sits on top, and "Done" at the end leaves edit mode.
  *
  * Editing works like Hide Servers' eye button: every row shows, hidden ones darkened. Tap a row to
- * hide or show it; hold it and drag to move it, into another section too (ui/DragSections.tsx, saved
- * by lib/layout.ts moveSheetRow). Both modes draw rows in their saved section and order.
+ * hide or show it; drag its grip (or hold it) to move it, into another section too, or hold and let
+ * go for a "Move to" list (ui/DragSections.tsx, saved by lib/layout.ts moveSheetRow). An Undo row
+ * puts back the last change made since the sheet opened. Both modes draw rows in their saved
+ * section and order.
  *
  * Edit mode ends when the sheet closes. Nothing here runs a row's own action while editing, so no
  * message action can fire by accident.
@@ -38,6 +40,7 @@ import {
 	sheetRowHidden,
 } from '../lib/layout'
 import { onUpdate, settings, update } from '../lib/state'
+import { UndoStack } from '../lib/undo'
 import { DragSections } from '../ui/DragSections'
 import { reportError } from '../../../../shared/report'
 
@@ -48,8 +51,12 @@ const TAG = '[UITweaks]'
 let editing = false
 const editListeners = new Set<() => void>()
 
+/** Changes made in this edit session, for the Undo row. */
+const undo = new UndoStack(['sheetOrder', 'hiddenSheetRows', 'hiddenSheetGroups', 'hideSheetEmojiRow'])
+
 function setEditing(next: boolean) {
 	editing = next
+	if (!next) undo.clear()
 	for (const listener of editListeners) listener()
 }
 
@@ -264,7 +271,10 @@ function editChildren(children: any[], sections: Section[], hasHeader: boolean):
 				label="Emoji row"
 				subLabel={hidden ? 'Hidden. Tap to show.' : 'Shown. Tap to hide.'}
 				icon={iconWith(undefined, hidden ? EyeSlash : Eye)}
-				onPress={() => update({ hideSheetEmojiRow: !settings().hideSheetEmojiRow })}
+				onPress={() => {
+					undo.record()
+					update({ hideSheetEmojiRow: !settings().hideSheetEmojiRow })
+				}}
 			/>,
 		])
 		if (group) out.push(group)
@@ -289,9 +299,11 @@ function editChildren(children: any[], sections: Section[], hasHeader: boolean):
 			key="ui-tweaks-edit-sections"
 			gap={12}
 			Group={Row()?.Group}
-			sections={specs.map(spec => ({
+			sections={specs.map((spec, index) => ({
 				id: idText(spec.entry.section!),
 				keys: spec.keys,
+				// The "Move to" list names a section by its first row.
+				title: spec.rows[0] ? `${index + 1}: ${spec.rows[0].props.label}…` : `Section ${index + 1}`,
 				groupProps: spec.groupProps,
 				Group: spec.entry.child.type,
 			}))}
@@ -302,7 +314,7 @@ function editChildren(children: any[], sections: Section[], hasHeader: boolean):
 				const spec = specOf(id)
 				const row = spec?.rows[spec.keys.indexOf(key)]
 				return withProps(row ?? <R label={key} />, {
-					subLabel: isHidden(key, id) ? 'Hidden. Tap to show, hold to move.' : 'Tap to hide, hold to move.',
+					subLabel: isHidden(key, id) ? 'Hidden. Tap to show.' : 'Tap to hide. Drag the dots to move.',
 					variant: undefined,
 					disabled: false,
 					onPress: undefined,
@@ -310,13 +322,30 @@ function editChildren(children: any[], sections: Section[], hasHeader: boolean):
 			}}
 			onPressRow={(key, id) => {
 				const spec = specOf(id)
-				if (spec) toggleRow(spec.entry.section!.id, spec.keys, key)
+				if (!spec) return
+				undo.record()
+				toggleRow(spec.entry.section!.id, spec.keys, key)
 			}}
-			onMove={(key, from, to, index) => moveSheetRow(key, from, specOf(from)?.keys ?? [], to, specOf(to)?.keys ?? [], index)}
+			onMove={(key, from, to, index) => {
+				undo.record()
+				moveSheetRow(key, from, specOf(from)?.keys ?? [], to, specOf(to)?.keys ?? [], index)
+			}}
 		/>,
 	)
 
+	const undoIcon = icon('ArrowUndoIcon') ?? icon('UndoIcon') ?? icon('ArrowAngleLeftUpIcon')
 	const done = ourGroup('ui-tweaks-edit-done', [
+		...(undo.size
+			? [
+					<R
+						key="ui-tweaks-undo-row"
+						label="Undo"
+						subLabel="Put back your last change"
+						icon={iconWith(undefined, undoIcon)}
+						onPress={() => undo.undo()}
+					/>,
+				]
+			: []),
 		<R
 			key="ui-tweaks-done-row"
 			label="Done"
@@ -379,6 +408,7 @@ export function SheetStandIn({ children }: { children?: any }) {
 			offUpdate()
 			// Closing the sheet ends edit mode.
 			editing = false
+			undo.clear()
 		}
 	}, [])
 

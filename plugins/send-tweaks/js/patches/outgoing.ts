@@ -46,6 +46,7 @@
 import { onFluxEventDispatched } from '@valenced/discord/flux'
 import { before } from '@valenced/patcher'
 import { reportError } from '../../../../shared/report'
+import { clearInChat } from '../lib/chatPreview'
 import { whenModule } from '../lib/finder'
 import { withSendContext } from '../lib/greetings'
 import { takeNextSend } from '../lib/nextSend'
@@ -189,6 +190,10 @@ export default function patchOutgoing(): () => void {
 							// Taken first and always, so a one-off from the long-press sheet is used up by
 							// this send and never carried to the next one.
 							const once = takeNextSend()
+							// Any send in a chat takes that chat's in-chat preview away (local only).
+							try {
+								clearInChat(args[0])
+							} catch {}
 							if (once === 'raw') {
 								if (DEBUG) status.untouched++
 								debug('send: sent unchanged, as asked from the send button')

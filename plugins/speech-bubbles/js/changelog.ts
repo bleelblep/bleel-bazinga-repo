@@ -3,6 +3,17 @@ import type { ChangelogEntry } from '../../../shared/changelog'
 /** Newest first. Every version users got gets an entry; see shared/changelog.tsx. */
 export const CHANGELOG: ChangelogEntry[] = [
 	{
+		version: '0.7.27',
+		date: '2026-11-12',
+		title: 'Role colours, subtext, your GIFs',
+		changes: [
+			'New "From their role colour" under Colour per person: in servers, each person\'s bubbles take the colour of their name.',
+			'Fixed: small grey text (-# subtext) was hard to read on bubbles. It now reads clearly while staying dimmer than the rest of the message.',
+			'Fixed: a GIF you sent as a link (Giphy and the like) sat on the left instead of on your side.',
+			'New "Time before my name" on the Times page (on by default): with Time next to names and Show my name on, your time goes left of your name, so a long time no longer pushes your name away from your bubbles.',
+		],
+	},
+	{
 		version: '0.7.24',
 		date: '2026-11-12',
 		title: 'Your name on wide screens',

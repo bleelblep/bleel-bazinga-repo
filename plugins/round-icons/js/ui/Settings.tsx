@@ -77,6 +77,13 @@ export default function Settings({ api }: { api: any }) {
 								onValueChange={(value: boolean) => change({ [target.id]: value })}
 							/>
 						))}
+						<TableSwitchRow
+							label="You bar: just icons"
+							subLabel="No square or circle behind the You bar's buttons, only the icons."
+							icon={rowIcon('EyeSlashIcon', 'UserIcon')}
+							value={Boolean(s.youBarIconsOnly)}
+							onValueChange={(value: boolean) => change({ youBarIconsOnly: value })}
+						/>
 					</TableRowGroup>
 
 					<TableRadioGroup key={`selected-${s.selected}`} title="Selected server" defaultValue={s.selected} onChange={(selected: string) => change({ selected })}>

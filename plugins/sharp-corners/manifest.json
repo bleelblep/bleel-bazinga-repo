@@ -5,7 +5,7 @@
 	"description": "Every corner in Discord sharp: square avatars, buttons, bubbles and bars.",
 	"author": "bleelblep",
 	"icon": "AppsIcon",
-	"version": "0.1.19",
+	"version": "0.1.20",
 	"dependencies": {
 		"valenced.api": {
 			"version": ">=1 <2"

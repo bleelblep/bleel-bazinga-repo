@@ -80,6 +80,8 @@ export interface SpeechBubblesStorage {
 	ownName: boolean
 	/** Discord's time stays beside the name above the first bubble of a run (yours with [ownName]). */
 	headerTimes: boolean
+	/** With [headerTimes] and [ownName]: your time before your name, so the name sits by your bubbles. */
+	ownTimeFirst: boolean
 	/** Chat avatars get the bubbles' corner roundness instead of a circle. */
 	avatarShape: boolean
 }
@@ -89,7 +91,7 @@ export type SendSpeed = 'quick' | 'normal' | 'relaxed'
 
 export type ColorMode = 'theme' | 'swapped' | 'own'
 
-export type PersonPalette = 'theme' | 'hues' | 'avatar'
+export type PersonPalette = 'theme' | 'hues' | 'avatar' | 'role'
 
 /** The stored keys before 0.4.0, read only to migrate them. */
 interface OldColorKeys {
@@ -179,6 +181,7 @@ export const DEFAULTS: SpeechBubblesStorage = {
 	ownAvatar: false,
 	ownName: false,
 	headerTimes: false,
+	ownTimeFirst: true,
 	avatarShape: false,
 }
 
@@ -201,6 +204,7 @@ export type BubbleConfig = Pick<
 	| 'ownAvatar'
 	| 'ownName'
 	| 'headerTimes'
+	| 'ownTimeFirst'
 	| 'avatarShape'
 > &
 	BubbleColors & {

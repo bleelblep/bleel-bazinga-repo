@@ -174,6 +174,8 @@ private class Config(
 	val personColors: List<Int> = emptyList(),
 	/** "From their profile picture": each person's colour is their avatar's main colour ([avatarColor]). */
 	val personFromAvatar: Boolean = false,
+	/** "From their role colour": in servers, each person's colour is the colour of their name ([roleColors]). */
+	val personFromRole: Boolean = false,
 	/** "Taken from your theme": a person's colour avoids the colours of the people just before them. */
 	val personInOrder: Boolean = false,
 	/** "Dark colours only", applied here to avatar colours. */
@@ -196,6 +198,8 @@ private class Config(
 	val ownName: Boolean = false,
 	/** "Time next to names": Discord's time beside the name above the first bubble of a run stays. */
 	val headerTimes: Boolean = false,
+	/** "Time before my name": on your header the time goes first, so your name sits by your bubbles. */
+	val ownTimeFirst: Boolean = true,
 	/** "Avatars match bubbles": chat avatars get the bubbles' corner roundness instead of a circle. */
 	val avatarShape: Boolean = false,
 	val ownBg: Int = OWN_BG,
@@ -427,11 +431,14 @@ internal class BubbleHooks(private val scope: PluginScope) {
 		"tails" to config.tails,
 		"linkSpanClasses" to spanHookCount,
 		"linkRecolours" to linkRecolours,
+		"mutedRecolours" to mutedRecolours,
+		"roleColors" to roleColors.size,
 		"custom" to config.custom,
 		"hideAvatars" to config.hideAvatars,
 		"hideNames" to config.hideNames,
 		"ownName" to config.ownName,
 		"headerTimes" to config.headerTimes,
+		"ownTimeFirst" to config.ownTimeFirst,
 		"avatarShape" to config.avatarShape,
 		"circleHooks" to unhookCircles.size,
 		"personColors" to config.personColors.size,
@@ -495,6 +502,7 @@ internal class BubbleHooks(private val scope: PluginScope) {
 			personColors = (map["personColors"] as? List<*>)?.mapNotNull(::parseColor) ?: old.personColors,
 			personFromAvatar = (map["personSource"] as? String)?.let { it == "avatar" } ?: old.personFromAvatar,
 			personInOrder = (map["personSource"] as? String)?.let { it == "theme" } ?: old.personInOrder,
+			personFromRole = (map["personSource"] as? String)?.let { it == "role" } ?: old.personFromRole,
 			personDark = map["personDark"] as? Boolean ?: old.personDark,
 			swipeTimes = map["swipeTimes"] as? Boolean ?: old.swipeTimes,
 			bubbleRadiusDp = (map["bubbleRadius"] as? Number)?.toFloat() ?: old.bubbleRadiusDp,
@@ -503,6 +511,7 @@ internal class BubbleHooks(private val scope: PluginScope) {
 			ownAvatar = map["ownAvatar"] as? Boolean ?: old.ownAvatar,
 			ownName = map["ownName"] as? Boolean ?: old.ownName,
 			headerTimes = map["headerTimes"] as? Boolean ?: old.headerTimes,
+			ownTimeFirst = map["ownTimeFirst"] as? Boolean ?: old.ownTimeFirst,
 			avatarShape = map["avatarShape"] as? Boolean ?: old.avatarShape,
 			scrollColorStrength = (map["scrollColorStrength"] as? Number)?.toFloat() ?: old.scrollColorStrength,
 			bubbleAlpha = (map["bubbleOpacity"] as? Number)?.toFloat()?.coerceIn(0.3f, 1f) ?: old.bubbleAlpha,
@@ -520,7 +529,7 @@ internal class BubbleHooks(private val scope: PluginScope) {
 		val avatarsChanged = old.hideAvatars != config.hideAvatars
 		val ownAvatarChanged = old.ownAvatar != config.ownAvatar
 		val ownNameChanged = old.ownName != config.ownName
-		val headerTimesChanged = old.headerTimes != config.headerTimes
+		val headerTimesChanged = old.headerTimes != config.headerTimes || old.ownTimeFirst != config.ownTimeFirst
 		val avatarShapeChanged = old.avatarShape != config.avatarShape
 		val inkChanged = old.invisibleInk != config.invisibleInk
 		val reactionsChanged = old.iosReactions != config.iosReactions || old.ownBg != config.ownBg ||
@@ -567,12 +576,17 @@ internal class BubbleHooks(private val scope: PluginScope) {
 							applyTexts(row, it, state)
 						}
 					}
-					if ((headerTimesChanged || ownNameChanged) && state.mode == Mode.OWN) syncOwnTime(row, state)
+					if ((headerTimesChanged || ownNameChanged) && state.mode == Mode.OWN) {
+						syncOwnTime(row, state)
+						// "Time before my name" changes no size, so no layout pass would place it again.
+						if (config.ownName && row.isAttachedToWindow) state.accessories?.let { alignOwnName(row, it, state) }
+					}
 					if (avatarShapeChanged) shapeAvatar(row, state)
 					if (reactionsChanged && row.isAttachedToWindow) state.accessories?.let { placeAccessories(row, it, state) }
 					syncOtherTime(row, state)
 					syncOtherName(row, state)
 					if (config.personFromAvatar && state.mode == Mode.OTHER && row.isAttachedToWindow) sampleAvatar(row, state)
+					if (config.personFromRole && state.mode == Mode.OTHER && row.isAttachedToWindow) sampleRole(row, state)
 					updateTimeTag(row, state)
 				}
 				if (old.bubbleRadiusDp != config.bubbleRadiusDp) {
@@ -758,6 +772,7 @@ internal class BubbleHooks(private val scope: PluginScope) {
 			avatarColors.clear()
 			avatarTries.clear()
 			avatarToned.clear()
+			roleColors.clear()
 			decoList = null
 			decoCount = -1
 			chatList?.get()?.let { list -> runCatching { invalidateDecorations(list) } }
@@ -1970,6 +1985,7 @@ internal class BubbleHooks(private val scope: PluginScope) {
 		placeAccessories(row, accessories, state)
 		if (mode == Mode.OTHER) noteChatMetrics(row, accessories)
 		if (mode == Mode.OTHER) sampleAvatar(row, state)
+		if (mode == Mode.OTHER) sampleRole(row, state)
 		for (i in 0 until accessories.childCount) {
 			val child = accessories.getChildAt(i) as? TextView ?: continue
 			if (!contentClass.isInstance(child)) continue
@@ -2437,7 +2453,12 @@ internal class BubbleHooks(private val scope: PluginScope) {
 				else -> {
 					val shown = (0 until child.childCount).map(child::getChildAt)
 						.filter { it.width > 0 && it.visibility == View.VISIBLE }
-					(shown.minOfOrNull { it.left } ?: 0) to (shown.maxOfOrNull { it.right } ?: child.width)
+					val l = shown.minOfOrNull { it.left } ?: 0
+					val r = shown.maxOfOrNull { it.right } ?: child.width
+					// A see-through full-width wrapper (a Giphy link sent as a GIF, Bazinga report #5):
+					// the GIF inside is what shows, so measure that. Measured as wide as the row, it was
+					// "too wide" and slid all the way to the left.
+					if (l <= 1 && r >= child.width - 1) contentSpan(child, 0, 0) ?: (l to r) else l to r
 				}
 			}
 			// Pushed right to your side. With "Show my profile picture", something too wide for the
@@ -2448,6 +2469,26 @@ internal class BubbleHooks(private val scope: PluginScope) {
 			val original = movedAccessories.getOrPut(child) { child.translationX }
 			if (child.translationX != original + dx) child.translationX = original + dx
 		}
+	}
+
+	/**
+	 * What [group] shows, left and right in its own coordinates (offset by [x]): see-through
+	 * containers are looked through, while anything with a background (a card) or no children
+	 * (a picture, a video) counts whole. Null when nothing inside is shown.
+	 */
+	private fun contentSpan(group: ViewGroup, x: Int, depth: Int): Pair<Int, Int>? {
+		var l = Int.MAX_VALUE
+		var r = Int.MIN_VALUE
+		for (i in 0 until group.childCount) {
+			val v = group.getChildAt(i)
+			if (v.visibility != View.VISIBLE || v.width <= 0 || v.height <= 0) continue
+			val vx = x + v.left
+			val inner = if (v is ViewGroup && v.background == null && depth < 6) contentSpan(v, vx, depth + 1) else null
+			val (a, b) = inner ?: (vx to vx + v.width)
+			l = minOf(l, a)
+			r = maxOf(r, b)
+		}
+		return if (l <= r) l to r else null
 	}
 
 	// ---- Reactions on the bubble's top corner (iMessage's place for tapbacks) ----
@@ -2998,6 +3039,7 @@ internal class BubbleHooks(private val scope: PluginScope) {
 		if (accessories.width == 0) return
 		val shown = (0 until header.childCount).map(header::getChildAt).filter { it.visibility == View.VISIBLE && it.width > 0 }
 		if (shown.isEmpty()) return
+		timeFirst(row, header, shown, state)
 		// The header's and the bubbles' left in row coordinates (layout only: translationX is ours).
 		// Both are walked up to the row: on a tablet the bubbles sit inside more containers than on a
 		// phone, so the accessories list's own `left` isn't its place in the row.
@@ -3014,6 +3056,49 @@ internal class BubbleHooks(private val scope: PluginScope) {
 		val bubbleRight = accessoriesX + accessories.width - accessories.paddingRight - ownRightGap(row, accessories)
 		val dx = (bubbleRight - contentRight).coerceAtLeast(dp(row, AVATAR_MARGIN_DP) - contentLeft)
 		move(state, header, dx.toFloat(), null)
+	}
+
+	/**
+	 * "Time before my name": on your header the time goes first and your name last, so the name
+	 * sits by your bubbles however long the time is (a long custom time pushed it far left, Bazinga
+	 * report #5). The header's children swap places with translationX only, saved with [move], so
+	 * the block's overall extent is unchanged and [alignOwnName] places it as before. Off, or
+	 * without a time shown, every child goes back to where Discord put it.
+	 */
+	private fun timeFirst(row: ViewGroup, header: ViewGroup, shown: List<View>, state: RowState) {
+		val time = row.findViewById<View>(id(row, "timestamp"))
+		// The header's child holding the time (the time itself, or a box around it).
+		var block: View? = time
+		while (block != null && block.parent !== header) block = block.parent as? View
+		val swap = config.ownTimeFirst && ownHeaderTime() && block != null && block in shown && shown.size > 1 &&
+			(block !is ViewGroup || row.findViewById<View>(id(row, "author_name"))?.let { isInside(it, block) } != true)
+		if (!swap) {
+			for (v in shown) if (state.replyMoved.containsKey(v)) move(state, v, 0f, null)
+			return
+		}
+		val others = shown.filter { it !== block }
+		val o = others.map(::drawnExtent)
+		val oLeft = o.minOf { it.first }
+		val oRight = o.maxOf { it.second }
+		val (tLeft, tRight) = drawnExtent(block!!)
+		// Only when the time comes after the rest, as Discord lays it out.
+		if (tLeft < oRight) {
+			for (v in shown) if (state.replyMoved.containsKey(v)) move(state, v, 0f, null)
+			return
+		}
+		val gap = tLeft - oRight
+		move(state, block, (oLeft - tLeft).toFloat(), null)
+		val shift = (tRight - tLeft + gap).toFloat()
+		for (v in others) move(state, v, shift, null)
+	}
+
+	private fun isInside(v: View, ancestor: View): Boolean {
+		var p: View? = v
+		while (p != null) {
+			if (p === ancestor) return true
+			p = p.parent as? View
+		}
+		return false
 	}
 
 	/**
@@ -3373,10 +3458,15 @@ internal class BubbleHooks(private val scope: PluginScope) {
 		drawing = Drawing(bgFor(state, mode), textFor(state, mode).defaultColor)
 	}
 
-	/** Hooks `updateDrawState` of every ClickableSpan class in [text] not hooked yet. */
+	/**
+	 * Hooks `updateDrawState` of every colouring span class in [text] not hooked yet: links and
+	 * the like (ClickableSpan), and spans that only colour text, such as Discord's muted `-#`
+	 * subtext, which was grey on your blue bubble. ReplacementSpans (emoji) draw themselves.
+	 */
 	private fun hookSpans(text: TextView) {
 		val spanned = text.text as? Spanned ?: return
-		for (span in spanned.getSpans(0, spanned.length, ClickableSpan::class.java)) {
+		for (span in spanned.getSpans(0, spanned.length, android.text.style.CharacterStyle::class.java)) {
+			if (span is android.text.style.ReplacementSpan) continue
 			val method = runCatching { span.javaClass.getMethod("updateDrawState", TextPaint::class.java) }.getOrNull() ?: continue
 			if (spanHooks.containsKey(method)) continue
 			spanHooks[method] = hookMethod(method, after = ::afterUpdateDrawState)
@@ -3384,15 +3474,50 @@ internal class BubbleHooks(private val scope: PluginScope) {
 		}
 	}
 
+	@Volatile private var mutedRecolours = 0
+
 	private fun afterUpdateDrawState(param: HookParam) {
 		val d = drawing ?: return
 		val paint = param.args.getOrNull(0) as? TextPaint ?: return
 		if (paint.shader != null) return
 		if (contrast(paint.color, d.bg) >= 3.0) return
-		paint.color = d.text
-		paint.isUnderlineText = true
-		linkRecolours++
+		if (param.thisObject is ClickableSpan) {
+			paint.color = d.text
+			paint.isUnderlineText = true
+			linkRecolours++
+			return
+		}
+		// Text on its own background (inline code and the like) isn't on the bubble.
+		if (paint.bgColor != 0) return
+		paint.color = mutedFor(d)
+		mutedRecolours++
 	}
+
+	/** Bubble colours -> their muted text colour, cached (draws are hot). */
+	private val mutedCache = HashMap<Long, Int>()
+
+	/**
+	 * Muted text (subtext) on a bubble: the text colour faded toward the bubble until it has about
+	 * 60% of the text's own contrast, never under 2.5:1. Plain white on your blue bubble is only
+	 * 4.6:1, so a fixed bar left subtext looking like normal text (0.7.25).
+	 */
+	private fun mutedFor(d: Drawing): Int = mutedCache.getOrPut((d.bg.toLong() shl 32) or (d.text.toLong() and 0xFFFFFFFFL)) {
+		val target = maxOf(2.5, contrast(d.text, d.bg) * 0.6)
+		var t = 0.4f
+		while (t < 1f) {
+			val c = blend(d.text, d.bg, t)
+			if (contrast(c, d.bg) >= target) return@getOrPut c
+			t += 0.05f
+		}
+		d.text
+	}
+
+	/** [a] with [t] of it kept and the rest [b], fully opaque. */
+	private fun blend(a: Int, b: Int, t: Float): Int = Color.rgb(
+		(Color.red(a) * t + Color.red(b) * (1 - t)).toInt(),
+		(Color.green(a) * t + Color.green(b) * (1 - t)).toInt(),
+		(Color.blue(a) * t + Color.blue(b) * (1 - t)).toInt(),
+	)
 
 	private fun luminance(c: Int): Double {
 		fun ch(v: Int): Double {
@@ -3930,6 +4055,38 @@ internal class BubbleHooks(private val scope: PluginScope) {
 		}
 	}
 
+	// ---- "From their role colour" ----
+
+	/** "channel|author" -> the colour of their name there, or [NO_AVATAR_COLOR]. Main thread, bounded. */
+	private val roleColors = object : LinkedHashMap<String, Int>(64, 0.75f, true) {
+		override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, Int>?) = size > 500
+	}
+
+	/**
+	 * Reads the colour Discord gave their name (author_name), which is their top role's colour.
+	 * Only on the first row of a run, where Discord binds the name (later rows keep a recycled
+	 * one), and only in servers. A grey name means no coloured role: a soft shade instead. Read
+	 * again on every such bind, so a role change shows the next time their name is drawn.
+	 */
+	private fun sampleRole(row: ViewGroup, state: RowState) {
+		if (!config.perPerson || !config.personFromRole || state.mode != Mode.OTHER || !state.inGuild) return
+		if (state.position != GroupPosition.START && state.position != GroupPosition.ONLY) return
+		val author = state.authorKey ?: return
+		val channel = state.channelKey ?: return
+		val name = row.findViewById<View>(id(row, "author_name")) as? TextView ?: return
+		if (name.text.isNullOrEmpty()) return
+		val c = name.currentTextColor
+		val hsv = FloatArray(3)
+		Color.colorToHSV(c, hsv)
+		val color = if (hsv[1] < 0.15f || Color.alpha(c) < 128) NO_AVATAR_COLOR else (c or 0xFF000000.toInt())
+		val key = "$channel|$author"
+		if (roleColors.put(key, color) == color) return
+		for ((text, saved) in texts.entries.toList()) {
+			val r = rowOf(text) ?: continue
+			if (r.mode == Mode.OTHER && r.authorKey == author && r.channelKey == channel) recolor(text, saved, Mode.OTHER)
+		}
+	}
+
 	// ---- "From their profile picture" ----
 
 	/** Author id -> their avatar's main colour, or [NO_AVATAR_COLOR]. Main thread, bounded. */
@@ -4109,6 +4266,10 @@ internal class BubbleHooks(private val scope: PluginScope) {
 		if (!group) return config.bg(mode)
 		if (config.personFromAvatar) {
 			val raw = avatarColors[author]
+			if (raw != null && raw != NO_AVATAR_COLOR) return avatarToned.getOrPut(raw) { toneAvatar(raw) }
+		}
+		if (config.personFromRole) {
+			val raw = roleColors["$channel|$author"]
 			if (raw != null && raw != NO_AVATAR_COLOR) return avatarToned.getOrPut(raw) { toneAvatar(raw) }
 		}
 		val palette = config.personColors

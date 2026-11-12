@@ -64,6 +64,15 @@ export default function Times() {
 							value={s.headerTimes}
 							onValueChange={(headerTimes: boolean) => setSettings({ headerTimes })}
 						/>
+						{s.headerTimes && s.ownName ? (
+							<TableSwitchRow
+								label="Time before my name"
+								subLabel="Your time goes on the left of your name, so your name stays right above your bubbles however long the time is."
+								icon={rowIcon('ArrowsLeftRightIcon', 'ClockIcon')}
+								value={s.ownTimeFirst ?? true}
+								onValueChange={(ownTimeFirst: boolean) => setSettings({ ownTimeFirst })}
+							/>
+						) : null}
 					</TableRowGroup>
 
 					<TableRowGroup title="Every time at once" hasIcons>
