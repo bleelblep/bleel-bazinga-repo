@@ -3,6 +3,15 @@ import type { ChangelogEntry } from '../../../shared/changelog'
 /** Newest first. Every version users got gets an entry; see shared/changelog.tsx. */
 export const CHANGELOG: ChangelogEntry[] = [
 	{
+		version: '0.1.15',
+		date: '2026-11-12',
+		title: 'Smoother animated pictures',
+		changes: [
+			'Animated server icons, avatars and banners open at a lighter size, so the viewer no longer freezes the app or lags when you close it.',
+			'New setting: "Full size animated pictures" opens them at the full 4096px again, if you want the detail.',
+		],
+	},
+	{
 		version: '0.1.14',
 		date: '2026-11-12',
 		title: 'Server pictures',
@@ -40,13 +49,17 @@ export const CHANGELOG: ChangelogEntry[] = [
 		version: '0.1.4',
 		date: '2026-10-21',
 		title: 'Discord version limit',
-		changes: ["Only starts on Discord 351.6 or older, so a newer Discord build can't break it."],
+		changes: [
+			"Only starts on Discord 351.6 or older, so a newer Discord build can't break it.",
+		],
 	},
 	{
 		version: '0.1.3',
 		date: '2026-10-13',
 		title: 'Tidy-up',
-		changes: ['Errors now show in the Revenge plugin list instead of only the log, and the developer Debug page is gone from normal builds.'],
+		changes: [
+			'Errors now show in the Revenge plugin list instead of only the log, and the developer Debug page is gone from normal builds.',
+		],
 	},
 	{
 		version: '0.1.2',

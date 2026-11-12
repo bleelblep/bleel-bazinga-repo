@@ -5,7 +5,7 @@
 	"description": "Tap profile pictures, banners and server icons to view them full size, with save and share.",
 	"author": "bleelblep",
 	"icon": "ImageIcon",
-	"version": "0.1.14",
+	"version": "0.1.15",
 	"dependencies": {
 		"valenced.api": {
 			"version": ">=1 <2"

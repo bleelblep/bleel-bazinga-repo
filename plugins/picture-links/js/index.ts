@@ -12,6 +12,7 @@
 import { setupChangelog } from '../../../shared/changelog'
 import { CHANGELOG } from './changelog'
 import { TAG } from './lib/media'
+import { setStorage } from './lib/settings'
 import patchAvatar from './patches/avatar'
 import patchBanner from './patches/banner'
 import patchGuild from './patches/guild'
@@ -20,9 +21,11 @@ import Settings from './ui/Settings'
 import { reportError, setReporter } from '../../../shared/report'
 
 export default plugin({
-	// Only for the changelog's last-seen version (shared/changelog.tsx).
+	// The changelog's last-seen version (shared/changelog.tsx) and lib/settings.ts.
 	jsonStorage: { load: true, default: {} },
 	start({ cleanup, jsonStorage, plugin }) {
+		setStorage(jsonStorage)
+		cleanup(() => setStorage(undefined))
 		// Errors go to Valenced's plugin error list (shared/report.ts), not the log.
 		setReporter(plugin)
 		cleanup(() => setReporter(undefined))
