@@ -18,7 +18,7 @@ export interface BridgeVersion {
 }
 
 /** The newest Music Bridge this plugin version knows about. */
-const LATEST: BridgeVersion = { code: 9, name: '0.4.4' }
+const LATEST: BridgeVersion = { code: 10, name: '0.4.5' }
 
 const HOST = 'https://bleelblep.github.io/bleel-bazinga-repo/'
 const SOURCE = `${HOST}music-bridge.json`
