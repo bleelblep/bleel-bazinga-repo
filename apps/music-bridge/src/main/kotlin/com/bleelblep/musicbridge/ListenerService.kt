@@ -36,14 +36,13 @@ import kotlinx.coroutines.flow.StateFlow
 class ListenerService : NotificationListenerService() {
 
     companion object {
-        private const val SETTLE_MS = 400L
         private const val REPEAT_MS = 30_000L
         private const val MIN_ANSWER_GAP_MS = 2_000L
 
         /**
          * How long the app may go without publishing a playing song before something is wrong.
-         * Past the 30 s repeat plus the settle, so a healthy bridge re-arms the alarm instead of
-         * ever firing it. (In doze Android stretches this to about nine minutes.)
+         * Past the 30 s repeat, so a healthy bridge re-arms the alarm instead of ever firing it.
+         * (In doze Android stretches this to about nine minutes.)
          */
         private const val HEARTBEAT_PLAYING_MS = 60_000L
         /** While paused nothing is owed to Discord, so only check in occasionally. */
@@ -217,10 +216,10 @@ class ListenerService : NotificationListenerService() {
     /** A change on the Apps screen re-picks the song straight away. */
     private val filterChanged = android.content.SharedPreferences.OnSharedPreferenceChangeListener { _, _ -> settle() }
 
-    /** Players often send several changes at once (new song, then its art, then playing). */
+    /** Publish on the next main-loop turn so changes queued together are read as one state. */
     private fun settle() {
         main.removeCallbacks(publishNow)
-        main.postDelayed(publishNow, SETTLE_MS)
+        main.post(publishNow)
     }
 
     private fun scheduleHeartbeat(song: Song?) = when {

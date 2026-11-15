@@ -24,10 +24,12 @@ import androidx.compose.material.icons.rounded.Notifications
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material.icons.rounded.Star
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -47,6 +49,7 @@ data class HomeState(
     /** "Valenced", "Discord", or null when neither is installed. */
     val discord: String?,
     val batteryFree: Boolean,
+    val huawei: Boolean,
     val song: Song?,
     /** The Apps row's summary: "All players", "All but 2", "Only 3". */
     val apps: String,
@@ -59,10 +62,12 @@ fun HomeScreen(
     onAccess: () -> Unit,
     onDiscord: () -> Unit,
     onBattery: () -> Unit,
+    onSystemSettings: () -> Unit,
     onApps: () -> Unit,
 ) {
     val context = androidx.compose.ui.platform.LocalContext.current
     val cs = MaterialTheme.colorScheme
+    var showHuaweiHelp by remember { mutableStateOf(false) }
     val top = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
     val bottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
@@ -82,53 +87,63 @@ fun HomeScreen(
                 StaggerAppear(1) {
                     Column {
                         SectionHeader("Set up")
+                        val setupRows: List<@Composable () -> Unit> = listOf(
+                            {
+                                NavRow(
+                                    title = "Notification access",
+                                    subtitle = if (state.accessOn) {
+                                        if (state.connected) "On. Android lets Music Bridge see your music players"
+                                        else "On. Waiting for Android to start the listener"
+                                    } else "Off. Tap, then turn on Music Bridge",
+                                    icon = Icons.Rounded.Notifications,
+                                    trailing = if (state.accessOn) "On" else "Off",
+                                    done = state.accessOn,
+                                    onClick = onAccess,
+                                )
+                            },
+                            {
+                                NavRow(
+                                    title = "Discord",
+                                    subtitle = state.discord?.let { "$it found. Pick \"This phone\" in Multi Scrobbler's settings" }
+                                        ?: "Valenced isn't installed on this phone",
+                                    icon = Icons.AutoMirrored.Rounded.Send,
+                                    trailing = if (state.discord != null) "Found" else "Missing",
+                                    done = state.discord != null,
+                                    onClick = onDiscord,
+                                )
+                            },
+                            {
+                                NavRow(
+                                    title = "Apps",
+                                    subtitle = "Choose which apps show on Discord",
+                                    icon = Icons.Rounded.PlayArrow,
+                                    trailing = state.apps,
+                                    onClick = onApps,
+                                )
+                            },
+                            {
+                                NavRow(
+                                    title = "Battery",
+                                    subtitle = if (state.batteryFree) "Android battery optimization is off."
+                                    else "Check Android battery settings",
+                                    icon = Icons.Rounded.Settings,
+                                    trailing = if (state.batteryFree) "Off" else "On",
+                                    done = state.batteryFree,
+                                    onClick = onBattery,
+                                )
+                            },
+                        )
+                        val huaweiRow: @Composable () -> Unit = {
+                            NavRow(
+                                title = "Huawei background",
+                                subtitle = "Manage auto-launch and background use",
+                                icon = Icons.Rounded.Settings,
+                                trailing = "Open",
+                                onClick = { showHuaweiHelp = true },
+                            )
+                        }
                         SettingsGroup(
-                            listOf(
-                                {
-                                    NavRow(
-                                        title = "Notification access",
-                                        subtitle = if (state.accessOn) {
-                                            if (state.connected) "On. Android lets Music Bridge see your music players"
-                                            else "On. Waiting for Android to start the listener"
-                                        } else "Off. Tap, then turn on Music Bridge",
-                                        icon = Icons.Rounded.Notifications,
-                                        trailing = if (state.accessOn) "On" else "Off",
-                                        done = state.accessOn,
-                                        onClick = onAccess,
-                                    )
-                                },
-                                {
-                                    NavRow(
-                                        title = "Discord",
-                                        subtitle = state.discord?.let { "$it found. Pick \"This phone\" in Multi Scrobbler's settings" }
-                                            ?: "Valenced isn't installed on this phone",
-                                        icon = Icons.AutoMirrored.Rounded.Send,
-                                        trailing = if (state.discord != null) "Found" else "Missing",
-                                        done = state.discord != null,
-                                        onClick = onDiscord,
-                                    )
-                                },
-                                {
-                                    NavRow(
-                                        title = "Apps",
-                                        subtitle = "Choose which apps show on Discord",
-                                        icon = Icons.Rounded.PlayArrow,
-                                        trailing = state.apps,
-                                        onClick = onApps,
-                                    )
-                                },
-                                {
-                                    NavRow(
-                                        title = "Battery",
-                                        subtitle = if (state.batteryFree) "Unrestricted, so it keeps working in the background"
-                                        else "Optional. Some phones stop background apps; tap to allow it",
-                                        icon = Icons.Rounded.Settings,
-                                        trailing = if (state.batteryFree) "Free" else "Limited",
-                                        done = state.batteryFree,
-                                        onClick = onBattery,
-                                    )
-                                },
-                            ),
+                            if (state.huawei) setupRows + huaweiRow else setupRows,
                         )
                     }
                 }
@@ -202,6 +217,31 @@ fun HomeScreen(
                     }
                 }
             }
+        }
+        if (showHuaweiHelp) {
+            AlertDialog(
+                onDismissRequest = { showHuaweiHelp = false },
+                title = { Text("Huawei background setup") },
+                text = {
+                    Text(
+                        "1. Open Settings > Battery > App launch. If it is not there, check Settings > Apps > App launch.\n\n" +
+                            "2. Turn off Manage automatically, select Music Bridge, then choose Manage manually.\n\n" +
+                            "3. Enable Auto-launch, Secondary launch and Run in background.\n\n" +
+                            "On older EMUI versions, also check Settings > Advanced settings > Battery manager > Protected apps and enable Music Bridge. Menu names vary, and Music Bridge cannot verify Huawei's switches.",
+                    )
+                },
+                confirmButton = {
+                    TextButton(
+                        onClick = {
+                            showHuaweiHelp = false
+                            onSystemSettings()
+                        },
+                    ) { Text("Open Settings") }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showHuaweiHelp = false }) { Text("Close") }
+                },
+            )
         }
     }
 }

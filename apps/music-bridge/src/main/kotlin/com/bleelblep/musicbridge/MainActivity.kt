@@ -63,6 +63,7 @@ class MainActivity : ComponentActivity() {
                         else -> null
                     },
                     batteryFree = getSystemService(PowerManager::class.java)?.isIgnoringBatteryOptimizations(packageName) == true,
+                    huawei = Build.MANUFACTURER.equals("HUAWEI", ignoreCase = true),
                     song = song,
                     apps = appsSummary(),
                 )
@@ -107,6 +108,7 @@ class MainActivity : ComponentActivity() {
                             onAccess = ::openAccess,
                             onDiscord = ::openDiscord,
                             onBattery = ::openBattery,
+                            onSystemSettings = ::openSystemSettings,
                             onApps = { showApps = true },
                         )
                     }
@@ -171,4 +173,6 @@ class MainActivity : ComponentActivity() {
         val info = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, pkg)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) open(usage, info) else open(list, info)
     }
+
+    private fun openSystemSettings() = open(Intent(Settings.ACTION_SETTINGS))
 }
