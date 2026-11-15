@@ -23,6 +23,7 @@ interface BridgeSong {
 	album: string | null
 	durationMs: number
 	positionMs: number
+	startedAtMs: number
 	playing: boolean
 	source: string | null
 	sourceName: string | null
@@ -123,6 +124,10 @@ export class MusicBridgeService extends BaseService {
 			const position = song.positionMs + (song.playing ? Math.max(0, age) : 0)
 			elapsed = Math.min(Math.floor(position / 1000), duration)
 		}
+		const from =
+			song.startedAtMs > 0
+				? Math.floor(song.startedAtMs / 1000)
+				: nowSec - elapsed
 
 		return {
 			name: song.title,
@@ -136,8 +141,8 @@ export class MusicBridgeService extends BaseService {
 			date: new Date().toISOString(),
 			nowPlaying: song.playing,
 			loved: false,
-			from: nowSec - elapsed,
-			to: duration ? nowSec - elapsed + duration : null,
+			from,
+			to: duration ? from + duration : null,
 			duration,
 			live: true,
 		}

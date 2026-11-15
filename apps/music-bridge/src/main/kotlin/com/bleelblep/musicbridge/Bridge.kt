@@ -58,11 +58,14 @@ object Bridge {
                 intent.putExtra("bridgeVersionName", name)
             }
             if (song != null) {
+                val positionMs = song.positionMs()
+                val elapsedMs = (positionMs.toDouble() / song.speed).toLong()
                 intent.putExtra("title", song.title.take(MAX_TEXT))
                 intent.putExtra("artist", song.artist?.take(MAX_TEXT))
                 intent.putExtra("album", song.album?.take(MAX_TEXT))
                 intent.putExtra("durationMs", song.durationMs)
-                intent.putExtra("positionMs", song.positionMs())
+                intent.putExtra("positionMs", positionMs)
+                intent.putExtra("startedAtMs", System.currentTimeMillis() - elapsedMs)
                 intent.putExtra("playing", song.playing)
                 intent.putExtra("source", song.source)
                 intent.putExtra("sourceName", song.sourceName?.take(MAX_TEXT))

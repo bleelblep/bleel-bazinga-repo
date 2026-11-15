@@ -37,6 +37,11 @@ enum ActivityType {
 	COMPETING = 5,
 }
 
+interface ResolvedArt {
+	url?: string
+	asset?: string
+}
+
 class PluginManager {
 	private static instance: PluginManager
 	private updateTimer?: any
@@ -61,6 +66,7 @@ class PluginManager {
 	private _artUrl?: string
 	/** The Discord asset id of the current song's cover, once resolved. */
 	private _artId?: string
+	private _artLookupId = 0
 	/** settingsKey() when the status was last sent. */
 	private _sentKey?: string
 	/** The song on the status now, for the Status details preview. */
@@ -136,6 +142,7 @@ class PluginManager {
 
 				if (ignoredActivity) {
 					setDebugInfo('ignoredActivity', ignoredActivity.name)
+					this._artLookupId++
 					pluginState.lastTrackUrl = undefined
 					// Only once: clearing again every check would churn Discord's presence.
 					if (pluginState.lastActivity) clearActivity()
@@ -153,6 +160,7 @@ class PluginManager {
 			if (!lastTrack.nowPlaying) {
 				setDebugInfo('lastTrack_nowPlaying', false)
 				// Forget the track so it is re-sent once playback resumes
+				this._artLookupId++
 				pluginState.lastTrackUrl = undefined
 				if (pluginState.lastActivity) clearActivity()
 				return
@@ -160,18 +168,39 @@ class PluginManager {
 
 			const sameSong = pluginState.lastTrackUrl === lastTrack.url
 			let art = sameSong ? this._artId : undefined
+			let pendingBridgeArt: Promise<ResolvedArt> | undefined
+			let bridgeArtLookupId = 0
 			if (!sameSong) {
 				setDebugInfo('componentMountErrors', [
 					...(debugInfo.componentMountErrors || []),
 					`Track changed: ${lastTrack.artist} - ${lastTrack.name}`,
 				])
-				art = await this.resolveArt(lastTrack)
-				// No art yet: try again on the next few checks while this song plays.
-				this._artTries = art ? ARTWORK_RETRIES : 0
+				this._artLookupId++
+				this._artUrl = undefined
+				this._artId = undefined
+				this._artTries = 0
+				if (lastTrack.live) {
+					// Don't hold the now-playing update behind a remote cover lookup.
+					bridgeArtLookupId = this._artLookupId
+					pendingBridgeArt = this.resolveArt(lastTrack)
+				} else {
+					const resolved = await this.resolveArt(lastTrack)
+					this._artUrl = resolved.url
+					art = resolved.asset
+					this._artTries = art ? ARTWORK_RETRIES : 0
+				}
 			} else if (!art && this._artTries < ARTWORK_RETRIES) {
-				this._artTries++
-				art = await this.resolveArt(lastTrack)
-				if (art) this._artTries = ARTWORK_RETRIES
+				if (lastTrack.live) {
+					this._artTries++
+					bridgeArtLookupId = ++this._artLookupId
+					pendingBridgeArt = this.resolveArt(lastTrack)
+				} else {
+					this._artTries++
+					const resolved = await this.resolveArt(lastTrack)
+					this._artUrl = resolved.url
+					art = resolved.asset
+					if (art) this._artTries = ARTWORK_RETRIES
+				}
 			}
 			// A newer check may have moved on while this one waited for art.
 			if (sameSong && pluginState.lastTrackUrl !== lastTrack.url) return
@@ -191,6 +220,9 @@ class PluginManager {
 			if (sameSong && !moved && art === this._artId && key === this._sentKey) {
 				recordSuccessfulUpdate()
 				this.consecutiveFailures = 0
+				if (pendingBridgeArt) {
+					this.publishBridgeArt(pendingBridgeArt, bridgeArtLookupId, lastTrack, serviceName)
+				}
 				return
 			}
 
@@ -209,6 +241,9 @@ class PluginManager {
 			this.consecutiveFailures = 0
 			this._lastUpdateTime = getCurrentTimestamp()
 			recordSuccessfulUpdate()
+			if (pendingBridgeArt) {
+				this.publishBridgeArt(pendingBridgeArt, bridgeArtLookupId, lastTrack, serviceName)
+			}
 		} catch (error) {
 			setDebugInfo('lastError', error as Error)
 			recordServiceError(
@@ -217,6 +252,49 @@ class PluginManager {
 			)
 			this.handleError(error as Error)
 		}
+	}
+
+	private publishBridgeArt(
+		lookup: Promise<ResolvedArt>,
+		lookupId: number,
+		track: Track,
+		serviceName: string,
+	) {
+		void lookup
+			.then(async resolved => {
+				if (
+					lookupId !== this._artLookupId ||
+					pluginState.pluginStopped ||
+					pluginState.lastTrackUrl !== track.url
+				) {
+					return
+				}
+				const currentTrack = this._shownTrack
+				if (!currentTrack || currentTrack.url !== track.url) return
+				this._artUrl = resolved.url
+				this._artId = resolved.asset
+				if (resolved.asset) this._artTries = ARTWORK_RETRIES
+				this.share(currentTrack, serviceName)
+				if (!resolved.asset) return
+
+				const activity = this.buildActivity(currentTrack, resolved.asset, serviceName)
+				await sendRequest(activity)
+				if (
+					lookupId !== this._artLookupId ||
+					pluginState.pluginStopped ||
+					pluginState.lastTrackUrl !== currentTrack.url
+				) {
+					return
+				}
+				this._currentActivity = activity
+				this._sentKey = this.settingsKey()
+				this._shownTrack = currentTrack
+				this._sentFrom = currentTrack.live ? currentTrack.from : undefined
+				pluginState.lastActivity = activity
+				this._lastUpdateTime = getCurrentTimestamp()
+				recordSuccessfulUpdate()
+			})
+			.catch(error => this.handleError(error as Error))
 	}
 
 	/** Everything the status depends on besides the song, so a change re-sends it. */
@@ -271,8 +349,8 @@ class PluginManager {
 		if (settings.showTimestamp && settings.listeningTo && track.from) {
 			const now = getCurrentTimestamp()
 			let startTime = track.from
-			// More than an hour old is a stale scrobble time: guess we're a little way in.
-			if (startTime < now - 3600) {
+			// Only scrobble timestamps can be stale; preserve the live bridge's player timestamp.
+			if (!track.live && startTime < now - 3600) {
 				startTime =
 					track.duration && track.duration > 0
 						? now - Math.min(track.duration * 0.1, 30)
@@ -291,19 +369,20 @@ class PluginManager {
 	 * The album art as a Discord asset id, or undefined. Uses the service's cover, or when it has
 	 * none, upstream's iTunes lookup by artist and album (lib/artwork.ts).
 	 */
-	private async resolveArt(track: Track): Promise<string | undefined> {
-		this._artUrl = undefined
+	private async resolveArt(track: Track): Promise<ResolvedArt> {
 		try {
 			const url =
 				track.albumArt ||
 				(await findAlbumArtUrl(track.artist, track.album, track.name))
-			if (!url) return undefined
-			// Kept even if Discord can't use it: Now Playing reads the cover link itself.
-			this._artUrl = url
-			const [asset] = await fetchAsset([url])
-			return asset || undefined
+			if (!url) return {}
+			try {
+				const [asset] = await fetchAsset([url])
+				return { url, asset: asset || undefined }
+			} catch {
+				return { url }
+			}
 		} catch {
-			return undefined
+			return {}
 		}
 	}
 
@@ -426,6 +505,7 @@ class PluginManager {
 		}
 
 		pluginState.pluginStopped = true
+		this._artLookupId++
 
 		try {
 			this.stopUpdates()

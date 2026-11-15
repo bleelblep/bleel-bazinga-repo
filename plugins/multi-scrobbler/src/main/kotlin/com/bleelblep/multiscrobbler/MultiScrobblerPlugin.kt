@@ -90,6 +90,7 @@ private object Bridge {
 				"album" to intent.text("album"),
 				"durationMs" to intent.getLongExtra("durationMs", 0L).coerceAtLeast(0L),
 				"positionMs" to intent.getLongExtra("positionMs", 0L).coerceAtLeast(0L),
+				"startedAtMs" to intent.getLongExtra("startedAtMs", 0L).coerceAtLeast(0L),
 				"playing" to intent.getBooleanExtra("playing", false),
 				"source" to intent.text("source"),
 				"sourceName" to intent.text("sourceName"),
