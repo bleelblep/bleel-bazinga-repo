@@ -3,6 +3,17 @@ import type { ChangelogEntry } from '../../../shared/changelog'
 /** Newest first. Every version users got gets an entry; see shared/changelog.tsx. */
 export const CHANGELOG: ChangelogEntry[] = [
 	{
+		version: '1.4.0',
+		date: '2026-11-16',
+		title: 'Faster with this phone',
+		changes: [
+			'"This phone" updates your status as soon as the song changes, instead of waiting up to 15 seconds.',
+			"The status's time now comes from your music player, so it matches where the song really is.",
+			'The song shows first and its cover follows, so a slow cover lookup no longer holds up the status.',
+			'Needs Music Bridge 0.4.5 for the player time; older versions still work.',
+		],
+	},
+	{
 		version: '1.3.13',
 		date: '2026-11-10',
 		title: 'Music Bridge updates',
