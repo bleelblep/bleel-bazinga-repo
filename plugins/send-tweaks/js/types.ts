@@ -125,6 +125,11 @@ export interface SendTweaksStorage {
 	 */
 	flickToPreview?: boolean
 	/**
+	 * Previews show as an "Only you can see this" message in the chat (lib/chatPreview.ts) instead
+	 * of a dialog. Optional: older storage has no value, which reads as off.
+	 */
+	previewInChat?: boolean
+	/**
 	 * Undo send: hold each new message for a few seconds with an Undo bar above the box. Optional:
 	 * older storage has no value, which reads as off.
 	 */

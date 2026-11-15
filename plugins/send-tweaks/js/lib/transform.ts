@@ -62,8 +62,13 @@ export function transform(text: string): TransformResult {
 	if (s.linkRewrite && linkRules.length) {
 		// Inside links only, never inside code -- the opposite of text rules, which skip links.
 		out = mapOutsideCode(out, prose =>
-			mapUrls(prose, url => {
+			mapUrls(prose, (url, before) => {
 				const result = applyRules(url, linkRules)
+				// Already the target of a masked link, `[text](url)`: a rule that wraps links (Hide GIF
+				// links) would wrap it a second time and send `[⠀]([⠀](url))`. That happens when the
+				// rule already ran while typing, and on every edit. A rule that only rewrites the link
+				// (twitter.com -> fxtwitter.com) still applies there.
+				if (/\]\($/.test(before) && /\s|\]\(/.test(result.text)) return url
 				if (result.text !== url) rewritten++
 				return result.text
 			}),

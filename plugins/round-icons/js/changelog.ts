@@ -3,6 +3,12 @@ import type { ChangelogEntry } from '../../../shared/changelog'
 /** Newest first. Every version users got gets an entry; see shared/changelog.tsx. */
 export const CHANGELOG: ChangelogEntry[] = [
 	{
+		version: '1.3.23',
+		date: '2026-11-12',
+		title: 'You bar: just icons',
+		changes: ['New "You bar: just icons" switch: the You bar’s buttons lose the square behind them, so only the icons show. Off by default.'],
+	},
+	{
 		version: '1.3.22',
 		date: '2026-11-07',
 		title: 'Call menu fixed',

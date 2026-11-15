@@ -1,7 +1,8 @@
 /**
  * Editing Discord's settings page in place, like the long-press menu's Edit mode and Hide Servers'
- * eye: every item shows, hidden ones darkened; tap one to hide or show it, hold it and drag to move
- * it anywhere, into another section too.
+ * eye: every item shows, hidden ones darkened; tap one to hide or show it, drag its grip (or hold
+ * it) to move it anywhere, into another section too. The page scrolls while dragging near its
+ * edges, and Undo puts back the last change of this visit.
  *
  * Discord draws its settings rows itself, from item keys, so while editing patches/settingsPage.tsx
  * shows this list instead: the same sections and items, titled and iconned from Discord's own item
@@ -13,7 +14,8 @@ import * as ReactNative from 'react-native'
 import { Design } from '@valenced/discord/design'
 import { arrange, moveSettingsItem, PROTECTED_ITEMS, rehome, sectionId, settingsOrder, toggleSettingsItem } from '../lib/layout'
 import { useSettings } from '../lib/state'
-import { DragSections } from './DragSections'
+import { DragSections, useDragScroller } from './DragSections'
+import { UndoStack } from '../lib/undo'
 import { itemConfig, prettyKey, TitleBoundary } from './SettingsItemsPage'
 
 // ---- Edit state ---------------------------------------------------------------------------------
@@ -75,6 +77,14 @@ export function SettingsEditor({ sections }: { sections: any[] }) {
 	const config = itemConfig() ?? {}
 	// While an item is held, the list must not scroll under the finger.
 	const [dragging, setDragging] = React.useState(false)
+	const { scroller, scrollProps } = useDragScroller()
+	const [, bump] = React.useReducer((n: number) => n + 1, 0)
+	const undo = React.useRef<UndoStack | null>(null)
+	if (!undo.current) undo.current = new UndoStack(['settingsOrder', 'hiddenSettingsItems', 'hiddenSettingsSections'])
+	const record = () => {
+		undo.current!.record()
+		bump()
+	}
 	const list = arrange(sections, section => sectionId(section), order.sections)
 	const itemsOf = (section: any): string[] =>
 		(Array.isArray(section?.settings) ? section.settings : []).filter((key: unknown): key is string => typeof key === 'string')
@@ -101,16 +111,18 @@ export function SettingsEditor({ sections }: { sections: any[] }) {
 
 	return (
 		<View style={{ flex: 1 }}>
-			<ScrollView scrollEnabled={!dragging} contentContainerStyle={{ padding: 16, paddingBottom: 120 }}>
+			<ScrollView {...scrollProps} scrollEnabled={!dragging} contentContainerStyle={{ padding: 16, paddingBottom: 120 }}>
 				<Stack spacing={24}>
 					<Text color="text-muted" variant="text-sm/normal">
-						Tap an item to hide or show it, or hold it and drag to move it. Hidden ones are darkened. Tap
-						Done when you're finished.
+						Tap an item to hide or show it. Drag the dots on the right (or hold the item) to move it, and
+						the page scrolls when you reach the edge. Hold and let go to pick a place from a list instead.
+						Hidden ones are darkened. Tap Done when you're finished.
 					</Text>
 					<DragSections
 						gap={24}
 						Group={TableRowGroup}
-						sections={groups.map(group => ({ id: group.id, keys: group.items, groupProps: { title: labelOf(group.id), hasIcons: true } }))}
+						scroller={scroller}
+						sections={groups.map(group => ({ id: group.id, keys: group.items, title: labelOf(group.id), groupProps: { title: labelOf(group.id), hasIcons: true } }))}
 						dimmed={isHidden}
 						renderRow={(key, id) => (
 							<ItemRow
@@ -118,22 +130,38 @@ export function SettingsEditor({ sections }: { sections: any[] }) {
 								config={config[key]}
 								subLabel={
 									PROTECTED_ITEMS.has(key)
-										? 'Always shown: it leads back to this setting. Hold to move.'
+										? 'Always shown: it leads back to this setting.'
 										: isHidden(key, id)
-											? 'Hidden. Tap to show, hold to move.'
-											: 'Tap to hide, hold to move.'
+											? 'Hidden. Tap to show.'
+											: 'Tap to hide.'
 								}
 							/>
 						)}
 						onPressRow={(key, id) => {
-							if (!PROTECTED_ITEMS.has(key)) toggleSettingsItem(id, keysOf(id), key)
+							if (PROTECTED_ITEMS.has(key)) return
+							record()
+							toggleSettingsItem(id, keysOf(id), key)
 						}}
-						onMove={(key, from, to, index) => moveSettingsItem(key, from, keysOf(from), to, keysOf(to), index)}
+						onMove={(key, from, to, index) => {
+							record()
+							moveSettingsItem(key, from, keysOf(from), to, keysOf(to), index)
+						}}
 						onDragging={setDragging}
 					/>
 				</Stack>
 			</ScrollView>
-			<View style={{ position: 'absolute', right: 16, bottom: 24 }}>
+			<View style={{ position: 'absolute', right: 16, bottom: 24, flexDirection: 'row', gap: 8 }}>
+				{undo.current.size ? (
+					<Button
+						text="Undo"
+						size="md"
+						variant="secondary"
+						onPress={() => {
+							undo.current!.undo()
+							bump()
+						}}
+					/>
+				) : null}
 				<Button text="Done" size="md" variant="primary" onPress={() => setSettingsEditing(false)} />
 			</View>
 		</View>

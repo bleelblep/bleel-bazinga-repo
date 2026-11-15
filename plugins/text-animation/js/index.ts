@@ -4,6 +4,7 @@ import { setCursorSupported, setStorage } from './ui/state'
 import { CHANGELOG } from './changelog'
 import { setupChangelog } from '../../../shared/changelog'
 import { reportError, setReporter } from '../../../shared/report'
+import { isAndroid, stopUnlessAndroid } from '../../../shared/androidOnly'
 
 export default plugin<{ jsonStorage: TextAnimationStorage }>({
 	jsonStorage: {
@@ -11,6 +12,8 @@ export default plugin<{ jsonStorage: TextAnimationStorage }>({
 		default: DEFAULTS,
 	},
 	start({ jsonStorage, cleanup, plugin }) {
+		// iOS: the native half never loads (shared/androidOnly.ts).
+		if (stopUnlessAndroid(plugin, 'Text Animation')) return
 		// Errors go to Valenced's plugin error list (shared/report.ts), not the log.
 		setReporter(plugin)
 		cleanup(() => setReporter(undefined))
@@ -29,6 +32,7 @@ export default plugin<{ jsonStorage: TextAnimationStorage }>({
 			.catch(error => reportError('[TextAnimation] getSettings failed:', error))
 	},
 	stop() {
+		if (!isAndroid()) return
 		callNative('setPreview', [false]).catch(() => {})
 	},
 	SettingsComponent: Settings,

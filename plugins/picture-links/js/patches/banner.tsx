@@ -5,10 +5,13 @@
  * open at all. Animated banners already have a PressableOpacity that pauses them on tap, so those
  * get a long-press instead and keep their tap.
  *
+ * When the banner on show is someone's server banner, the viewer opens with their main banner as a
+ * second image to swipe to.
+ *
  * Same `before` stash / `after` pair as patches/avatar.ts.
  */
 
-import { fullSize, openImage, TAG } from '../lib/media'
+import { cdnURL, fullSize, openImage, TAG } from '../lib/media'
 import * as finders from '@valenced/discord/utils/modules/finders'
 import { after, before } from '@valenced/patcher'
 import * as React from 'react'
@@ -19,14 +22,31 @@ const DEBUG: boolean = false
 
 const PATH = 'modules/user_profile/native/UserProfileBanner.tsx'
 
-function bannerURL(displayProfile: any): string | undefined {
+/**
+ * The banner on show, then the person's main banner when the one on show is a server banner.
+ * DisplayProfile (352) keeps the main profile on `_userProfile` and the server one on
+ * `_guildMemberProfile`; `isUsingGuildMemberBanner()` says which `getBannerURL` used.
+ */
+function bannerURLs(displayProfile: any): string[] {
+	const urls: string[] = []
 	try {
 		const url = displayProfile?.getBannerURL?.({ canAnimate: true, size: 4096 })
-		if (typeof url === 'string') return fullSize(url)
+		if (typeof url === 'string') urls.push(fullSize(url))
+		if (
+			displayProfile?.guildId &&
+			displayProfile.isUsingGuildMemberBanner?.()
+		) {
+			const main = cdnURL(
+				'banners',
+				displayProfile.userId,
+				displayProfile._userProfile?.banner,
+			)
+			if (main) urls.push(main)
+		}
 	} catch (error) {
 		reportError(`${TAG} banner URL failed:`, error)
 	}
-	return undefined
+	return urls
 }
 
 export default function patchBanner(): () => void {
@@ -50,21 +70,32 @@ export default function patchBanner(): () => void {
 					lastProps = undefined
 					try {
 						// Skip the edit-profile preview (a pending image, not a URL) and banners Discord made inert.
-						if (!ret?.props || props?.pendingBanner || props?.disableInteraction) return ret
-						const url = bannerURL(props?.displayProfile)
-						if (!url) return ret
+						if (
+							!ret?.props ||
+							props?.pendingBanner ||
+							props?.disableInteraction
+						)
+							return ret
+						const urls = bannerURLs(props?.displayProfile)
+						if (!urls.length) return ret
 
 						const { Pressable } = ReactNative
-						const open = () => openImage(url)
+						const open = () => openImage(urls)
 						const child = ret.props.children
 
 						// Animated banner: Discord's own pressable pauses it on tap. Keep that, add a hold.
 						if (child?.props && typeof child.props.onPress === 'function') {
-							return React.cloneElement(ret, { children: React.cloneElement(child, { onLongPress: open }) })
+							return React.cloneElement(ret, {
+								children: React.cloneElement(child, { onLongPress: open }),
+							})
 						}
 						return React.cloneElement(ret, {
 							children: (
-								<Pressable accessibilityRole="imagebutton" accessibilityLabel="View banner" onPress={open}>
+								<Pressable
+									accessibilityRole="imagebutton"
+									accessibilityLabel="View banner"
+									onPress={open}
+								>
 									{child}
 								</Pressable>
 							),

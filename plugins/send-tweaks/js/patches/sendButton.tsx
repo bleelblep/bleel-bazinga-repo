@@ -66,7 +66,9 @@ import { Vibration } from 'react-native'
 import { reportError } from '../../../../shared/report'
 import { composerContext, readComposer } from '../lib/composer'
 import { sendOnce } from '../lib/nextSend'
+import { clearInChat, previewFor } from '../lib/chatPreview'
 import { showPreview } from '../lib/preview'
+import { sendWithPreviewRandom } from '../lib/random'
 import { renderHost } from '../lib/renderHost'
 import { settings, TAG } from '../lib/state'
 import {
@@ -439,6 +441,13 @@ function tapProps(
 				send?.(...args)
 				return
 			}
+			// Previewed in the chat already, same text: this tap sends it, with the preview's picks.
+			const choices = previewFor(draft)
+			if (choices && send) {
+				clearInChat()
+				sendWithPreviewRandom(draft, choices, () => send(...args))
+				return
+			}
 			try {
 				if (showPreview(draft, send && (() => send(...args)))) {
 					if (DEBUG) status.tapped++
@@ -470,7 +479,20 @@ function SwipeButton({
 	const getDraft = () => readComposer(composer)
 	const swipe = actions.preview || actions.send
 	const send = element.props.onPress
-	const press = tapPreview ? tapProps(send, getDraft).onPress : send
+	// A plain send after an in-chat preview of the same text keeps the preview's {random} picks.
+	const plain: SendPress = send
+		? (...args: unknown[]) => {
+				const draft = getDraft()
+				const choices = previewFor(draft)
+				if (choices && draft !== undefined) {
+					clearInChat()
+					sendWithPreviewRandom(draft, choices, () => send(...args))
+					return
+				}
+				send(...args)
+			}
+		: send
+	const press = tapPreview ? tapProps(send, getDraft).onPress : plain
 	return React.cloneElement(
 		element,
 		{

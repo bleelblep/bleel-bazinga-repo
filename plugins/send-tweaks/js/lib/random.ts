@@ -1,4 +1,4 @@
-type Choice = { template: string; value: string }
+export type Choice = { template: string; value: string }
 let recording: Choice[] | undefined
 let replay: Choice[] | undefined
 let cursor = 0

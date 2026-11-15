@@ -1,0 +1,24 @@
+{
+	"format": 1,
+	"id": "bleelblep.show-tag",
+	"name": "Show Tag",
+	"description": "Shows usernames next to display names in chat, including in replies.",
+	"author": "bleelblep, Cynosphere",
+	"icon": "AtIcon",
+	"version": "1.3.6",
+	"dependencies": {
+		"valenced.api": {
+			"version": ">=1 <2"
+		},
+		"discord": {
+			"version": ">=350.2"
+		}
+	},
+	"dist": {
+		"script": "index.js",
+		"android": {
+			"path": "plugin.jar",
+			"class": "com.bleelblep.showtag.ShowTagPlugin"
+		}
+	}
+}

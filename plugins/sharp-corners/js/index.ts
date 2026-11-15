@@ -18,6 +18,7 @@ import { squareStatus } from './lib/status'
 import { squareStatusBubble } from './lib/statusBubble'
 import { sharpenTokens } from './lib/tokens'
 import Settings from './ui/Settings'
+import { isAndroid, stopUnlessAndroid } from '../../../shared/androidOnly'
 
 const TAG = '[Sharp Corners]'
 
@@ -25,6 +26,8 @@ export default plugin<{ jsonStorage: CirclesStorage }>({
 	jsonStorage: { load: true, default: DEFAULTS },
 
 	start(api) {
+		// iOS: the native half never loads (shared/androidOnly.ts).
+		if (stopUnlessAndroid(api.plugin, 'Sharp Corners')) return
 		setReporter(api.plugin)
 		api.cleanup(() => setReporter(undefined))
 		// Tells Round Corners' settings this is on: the two undo each other.
@@ -34,12 +37,30 @@ export default plugin<{ jsonStorage: CirclesStorage }>({
 		})
 		setStorage(api.jsonStorage)
 		api.cleanup(() => setStorage(undefined))
-		void sendOptions(settings())
+		// The native half starts with its own saved copy of the switches. Sent again a moment later,
+		// and retried while the bridge isn't answering, because a single early send could be lost and
+		// leave "Circles too" on natively while it showed off here (0.1.18 on the phone, 2026-11-10).
+		const push = (retries: number) => {
+			void sendOptions(settings()).then(ok => {
+				if (!ok && retries > 0) later(() => push(retries - 1), 1000)
+			})
+		}
+		const timers: ReturnType<typeof setTimeout>[] = []
+		const later = (fn: () => void, ms: number) => timers.push(setTimeout(fn, ms))
+		api.cleanup(() => {
+			for (const timer of timers) clearTimeout(timer)
+		})
+		push(5)
+		later(() => push(5), 3000)
 		for (const [what, install] of [
 			['changelog', () => setupChangelog(api, CHANGELOG)],
 			[
 				'tokens',
-				() => sharpenTokens(() => settings().app).cleanup,
+				() =>
+					sharpenTokens(
+						() => settings().app,
+						() => settings().ovals,
+					).cleanup,
 			],
 			['emoji row', () => squareEmojiRow(() => settings().app)],
 			// A round picture, not a shape, so it's swapped like the status dots.
@@ -66,6 +87,7 @@ export default plugin<{ jsonStorage: CirclesStorage }>({
 
 	// Native hooks and built views keep their corners until Discord restarts.
 	stop(api) {
+		if (!isAndroid()) return
 		void sendOptions({ app: false, native: false, ovals: false })
 		api.plugin.requireReload()
 	},

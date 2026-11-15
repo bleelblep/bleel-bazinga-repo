@@ -6,6 +6,7 @@ import {
 	wagonAllowsRule,
 } from './greetings'
 import { renderMarkdown } from './markdown'
+import { inChatEnabled, showInChat } from './chatPreview'
 import { captureRandom, sendWithPreviewRandom } from './random'
 import { makeSilent } from './silent'
 import { settings, TAG } from './state'
@@ -200,6 +201,16 @@ export function showPreview(
 			warnings.push(
 				`Output has ${content.length} characters. Check your account's message-length limit before sending.`,
 			)
+	}
+	// "Preview in the chat": an only-you-can-see-it message instead of the dialog, when it can.
+	try {
+		if (
+			inChatEnabled() &&
+			showInChat(draft, content, [...new Set(warnings)], choices)
+		)
+			return true
+	} catch (error) {
+		reportError(`${TAG} in-chat preview failed, using the dialog:`, error)
 	}
 	const { AlertModal, AlertActionButton } = Design
 	const alerts = AlertActionCreators

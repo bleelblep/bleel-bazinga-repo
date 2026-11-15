@@ -3,6 +3,12 @@ import type { ChangelogEntry } from '../../../shared/changelog'
 /** Newest first. Every version users got gets an entry; see shared/changelog.tsx. */
 export const CHANGELOG: ChangelogEntry[] = [
 	{
+		version: '0.1.14',
+		date: '2026-11-10',
+		title: 'Android only',
+		changes: ['On iPhone it now says it needs Android and turns itself off, instead of showing a red error.'],
+	},
+	{
 		version: '0.1.13',
 		date: '2026-11-02',
 		title: 'Tidier settings',

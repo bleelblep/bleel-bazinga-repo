@@ -32,6 +32,8 @@ export const DEFAULTS: SendTweaksStorage = {
 	tapToPreview: false,
 	// Off: a stray flick off the button would open a dialog nobody asked for.
 	flickToPreview: false,
+	// Off: the dialog is what everyone has had; the chat message is a choice.
+	previewInChat: false,
 	// Off: it delays every message, so it is a choice.
 	undoSend: false,
 	undoSendDelay: 5,

@@ -3,6 +3,41 @@ import type { ChangelogEntry } from '../../../shared/changelog'
 /** Newest first. Every version users got gets an entry; see shared/changelog.tsx. */
 export const CHANGELOG: ChangelogEntry[] = [
 	{
+		version: '0.7.28',
+		date: '2026-11-13',
+		title: 'Time before my name, for real',
+		changes: ['Fixed: "Time before my name" did nothing, and your time still sat after your name and tags. It now goes first.'],
+	},
+	{
+		version: '0.7.27',
+		date: '2026-11-12',
+		title: 'Role colours, subtext, your GIFs',
+		changes: [
+			'New "From their role colour" under Colour per person: in servers, each person\'s bubbles take the colour of their name.',
+			'Fixed: small grey text (-# subtext) was hard to read on bubbles. It now reads clearly while staying dimmer than the rest of the message.',
+			'Fixed: a GIF you sent as a link (Giphy and the like) sat on the left instead of on your side.',
+			'New "Time before my name" on the Times page (on by default): with Time next to names and Show my name on, your time goes left of your name, so a long time no longer pushes your name away from your bubbles.',
+		],
+	},
+	{
+		version: '0.7.24',
+		date: '2026-11-12',
+		title: 'Your name on wide screens',
+		changes: ['Fixed: with "Show my name" on, a long time or tag beside your name could throw it to the far left, mostly on tablets and wide screens. It now lines up above your bubbles on the right.'],
+	},
+	{
+		version: '0.7.23',
+		date: '2026-11-10',
+		title: 'Your name on tablets, again',
+		changes: ['Fixed: on tablets your name could still sit on the far left with "Show my name" on. It now moves above your bubbles every time the message is drawn.'],
+	},
+	{
+		version: '0.7.22',
+		date: '2026-11-10',
+		title: 'Your name on tablets',
+		changes: ['Fixed: with "Show my name" on, your name could land on the far left on tablets instead of above your bubbles on the right.', 'On iPhone it now says it needs Android and turns itself off, instead of showing a red error.'],
+	},
+	{
 		version: '0.7.21',
 		date: '2026-11-08',
 		title: 'Times next to names',

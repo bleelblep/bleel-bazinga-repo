@@ -12,7 +12,7 @@
  * still has its pre-redesign `circle` prop; patches/selectionFrame.ts sets it.
  */
 
-import { maskedBackground, pillNameplate } from './youBar'
+import { clearButtonFill, maskedBackground, pillNameplate } from './youBar'
 import { hookRender } from './hook'
 import { type Rule, rules } from './rounder'
 import { overrideToken, roundCorners, stockCorners } from './tokens'
@@ -95,7 +95,12 @@ export const TARGETS: Target[] = [
 			const nameplate = hookRender(`${YOU_BAR}YouBarNameplate.tsx`, 'default', (tree, props) =>
 				settings().youBar ? pillNameplate(tree, props) : tree,
 			)
+			// "Just icons": no fill behind the buttons, with or without the round shape.
+			const iconsOnly = hookRender(`${YOU_BAR}YouBarButton.tsx`, 'YouBarButtonContainer', tree =>
+				settings().youBarIconsOnly ? clearButtonFill(tree) : tree,
+			)
 			return () => {
+				iconsOnly()
 				nameplate()
 				background()
 				token()

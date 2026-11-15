@@ -18,7 +18,40 @@ import * as react from "@valenced/react"
 const TAG = "[HideServersDrawer:forumPosts]"
 const PATHS = ["modules/forums/native/ForumPost.tsx", "modules/forums/native/posts/ForumPostContainer.tsx"]
 // Logs each component's prop names once, to check where the post id sits. Off for release.
-const DEBUG_PROPS: boolean = true
+const DEBUG_PROPS: boolean = false
+
+/**
+ * Where a component's render function lives: a plain function export, or inside a memo (`type`)
+ * or forwardRef (`render`), which can be nested (memo(forwardRef(fn))). 1.8.12 only looked one
+ * level deep, and ForumPostContainer on 352.6 is wrapped deeper, so every forum open reported
+ * "isn't a function component" (Bazinga bug report, 2026-11-10).
+ */
+function renderSlot(host: any, key: string): { holder: any; key: string } | undefined {
+	let holder = host
+	let slot = key
+	for (let depth = 0; depth < 4; depth++) {
+		const value = holder?.[slot]
+		if (typeof value === "function") return value.prototype?.isReactComponent ? undefined : { holder, key: slot }
+		if (!value || typeof value !== "object") return undefined
+		if (value.type) slot = "type"
+		else if (value.render) slot = "render"
+		else return undefined
+		holder = value
+	}
+	return undefined
+}
+
+/** The default export's render function, or else the first named export that is a component. */
+function findRender(mod: any): { holder: any; key: string } | undefined {
+	const found = renderSlot(mod, "default")
+	if (found) return found
+	for (const name of Object.keys(mod ?? {})) {
+		if (name === "default" || !/^[A-Z]/.test(name)) continue
+		const named = renderSlot(mod, name)
+		if (named) return named
+	}
+	return undefined
+}
 
 /** The post's id, from whichever prop this component gets it in. */
 function postId(props: any): string | undefined {
@@ -42,12 +75,14 @@ export default function patchForumPosts(): () => void {
 				path,
 				null,
 				(mod: any) => {
-					const exported = mod?.default
-					// Plain function, or a memo/forwardRef holding one.
-					const holder = typeof exported === "function" ? mod : exported?.type ? exported : exported?.render ? exported : undefined
-					const key = holder === mod ? "default" : exported?.type ? "type" : "render"
-					const original = holder?.[key]
-					if (typeof original !== "function" || original.prototype?.isReactComponent) throw new Error(`${path} isn't a function component`)
+					const slot = findRender(mod)
+					if (!slot) {
+						// The other path still hides posts; a shape we can't wrap isn't the user's problem.
+						if (DEBUG_PROPS) console.warn(`${TAG} ${path}: no function component found`)
+						return
+					}
+					const { holder, key } = slot
+					const original = holder[key]
 					let logged = false
 					// Discord's component runs as a child, so its hooks never change count when a
 					// post is hidden and shown again (returning early in the same component would).

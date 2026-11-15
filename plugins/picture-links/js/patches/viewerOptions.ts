@@ -6,7 +6,14 @@
  * viewer (attachments, embeds) untouched. It returns the args array (coding rule 2).
  */
 
-import { FULL_SIZE, fullSize, MEDIA_PATH, TAG } from '../lib/media'
+import {
+	animatedSize,
+	FULL_SIZE,
+	fullSize,
+	isAnimated,
+	MEDIA_PATH,
+	TAG,
+} from '../lib/media'
 import * as finders from '@valenced/discord/utils/modules/finders'
 import { before } from '@valenced/patcher'
 import { reportError } from '../../../../shared/report'
@@ -33,16 +40,21 @@ export default function patchViewerOptions(): () => void {
 						options.disableDownload = false
 						options.disableMediaOverlayButton = false
 						options.disableMediaOverlayFooter = false
-						options.initialSources = (options.initialSources ?? []).map((source: any) =>
-							typeof source?.uri === 'string'
-								? {
-										...source,
-										uri: fullSize(source.uri),
-										sourceURI: fullSize(source.uri),
-										width: FULL_SIZE,
-										height: FULL_SIZE,
-									}
-								: source,
+						options.initialSources = (options.initialSources ?? []).map(
+							(source: any) =>
+								typeof source?.uri === 'string'
+									? {
+											...source,
+											uri: fullSize(source.uri),
+											sourceURI: fullSize(source.uri),
+											width: isAnimated(source.uri)
+												? animatedSize()
+												: FULL_SIZE,
+											height: isAnimated(source.uri)
+												? animatedSize()
+												: FULL_SIZE,
+										}
+									: source,
 						)
 					}
 				} catch (error) {

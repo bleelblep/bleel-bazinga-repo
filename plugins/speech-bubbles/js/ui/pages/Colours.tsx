@@ -215,6 +215,11 @@ export default function Colours() {
 								subLabel="Each person's bubbles take the main colour of their profile picture. A grey picture gets a soft shade"
 								value="avatar"
 							/>
+							<TableRadioRow
+								label="From their role colour"
+								subLabel="In servers, each person's bubbles take the colour of their name. No coloured role, or a DM, gets a soft shade"
+								value="role"
+							/>
 						</TableRadioGroup>
 					) : null}
 				</Stack>

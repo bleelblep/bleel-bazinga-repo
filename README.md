@@ -41,7 +41,8 @@ account, but these remove the known risky behaviour.
 
 Most are JavaScript only, so they work on Android and iOS. Ghost Log Next Gen, Live Markdown,
 Pocket Browser, Sharp Corners, Speech Bubbles, Text Animation and UI Tweaks have native Android
-code, so they are Android only.
+code, so they are Android only. On an iPhone they say so with a message and turn themselves
+off, instead of showing an error.
 
 ### Character Counter
 
@@ -120,7 +121,8 @@ you stay in the server, and your server order on other devices isn't touched.
   to finish.
 - Hide a channel or category from its long-press menu ("Hide channel").
 - A list in settings to bring anything back.
-- Hidden servers' emoji still show in the emoji picker, unless you turn on "Hide their emoji too".
+- Hidden servers' emoji and stickers still show in the pickers, unless you turn on "Hide their emoji and
+  stickers too".
 
 Credit: with blerp; one file adapted from kmmiio99o's ServerDrawer.
 
@@ -179,11 +181,12 @@ bring the lines back.
 
 ### Picture Links
 
-Tap profile pictures and banners to open them full size, with save and share. Nothing to set up.
+Tap profile pictures, banners and server icons to open them full size, with save and share. Nothing to set up.
 
 - Profile pictures open in Discord's own viewer at full size, with save and share turned on.
-- Tap a banner to view it; long-press for an animated banner.
+- Tap a banner to view it; long-press for an animated banner. On someone's server banner, swipe to their main one.
 - Long-press a server profile picture to see the person's main one.
+- In a server's menu, tap its icon or banner to view it.
 
 Credit: a port of redstonekasi's Picture Links (BSD-3-Clause, see `NOTICE.md`), as updated by Rico040.
 
@@ -242,7 +245,8 @@ Undoes the redesign's squares.
 - Servers, Home, Create and Discover round again; the selected server can stay round or use the
   classic selection shape.
 - Send, emoji, media, gift and apps buttons as circles; the message box as a pill.
-- The bottom bar and the You tab's floating bar as pills.
+- The bottom bar and the You tab's floating bar as pills, and optionally just icons on the You
+  bar, with nothing behind them.
 - Small things fully round: folders, channel rows, search bars, segmented controls.
 - Big containers (cards, settings rows, voice tiles) with their pre-redesign corners, on a switch
   of their own.
@@ -270,7 +274,8 @@ Tidies your messages as you send them. Link cleaning, polish and your rules neve
 - **Reply pings (opt-in):** start replies with the @ mention switched off. You can still turn it back on.
 - **Hold and swipe the send button:** let go halfway to preview the finished message before
   sending, or swipe all the way up to send it exactly as typed. You can also flick up off the
-  button to preview without holding, or make a plain tap open the preview.
+  button to preview without holding, or make a plain tap open the preview. The preview can show
+  as an "Only you can see this" message in the chat instead of a pop-up; it stays on your phone.
 - **Edits:** cleaning and rules apply to edited messages too (you can turn this off). An old
   message is tidied as soon as you open it for editing, so you see the result before saving.
 
@@ -281,7 +286,8 @@ Credit: with Rosie and WarFade.
 Every corner in Discord sharp: buttons, the message box, the You bar, menus, cards, sheets, server
 icons and pictures. Android only, because chat messages are drawn natively.
 
-- "Circles too" also squares avatars, status dots and round buttons.
+- "Circles too" also squares avatars, status dots and round buttons. With it off, they stay round,
+  pills and badges included.
 - Can't run together with Round Corners; it says so if both are on.
 
 ### Speech Bubbles
@@ -289,20 +295,28 @@ icons and pictures. Android only, because chat messages are drawn natively.
 Chat as speech bubbles: your messages on the right, everyone else's on the left. Android only.
 
 - Bubble colours from your theme (or swapped), or your own; optionally a colour per person (from
-  your theme, soft shades or each person's profile picture, with a dark-only option). Bubble
-  opacity, and colours that shift as you scroll.
+  your theme, soft shades, each person's profile picture or their role colour, with a dark-only
+  option). Bubble opacity, and colours that shift as you scroll. Small `-#` text stays readable.
 - Corner roundness from square to pill, tails on the bubbles, and bubbles in a row joined into one
   run. Breaks between messages sent far apart, pictures with the bubbles' corners.
 - Optionally no profile pictures, no names above their messages, or your own picture and name
   beside your messages. Profile pictures can take the bubbles' corner roundness.
 - Message times hidden, shown under the bubble when you tap it, or in a pop-up above it, and
-  optionally always beside names as Discord shows them. "Edited" under an edited message instead
-  of in its text.
+  optionally always beside names as Discord shows them (your time before your name, so the name
+  stays by your bubbles). "Edited" under an edited message instead of in its text.
 - Reactions as round iMessage-style badges, optionally on the bubble's corner.
 - Optional sounds and haptics when you send, receive or react, quiet with Do Not Disturb or silent.
 - Experimental, off by default and still buggy: a typing bubble while someone is typing,
   invisible ink on spoilers, a send animation, and a two-finger swipe to see every message's time.
 - On in DMs, and optionally in servers.
+
+### Show Tag
+
+Shows usernames next to display names in chat, including in replies. `Display Name (@username)`,
+the username in small, dim text after or (on Android) below the name, or just the username, each
+with a switch. Small and dim works beside a Staff Tags or Pronouns tag too (Android).
+
+Credit: a port of Cynosphere's Show Tag for Vendetta.
 
 ### Staff Tags
 
@@ -346,7 +360,8 @@ Hide the parts of Discord you don't use, and choose what double-tap and swipes d
 - Hide rows in the message long-press menu, items in the long-press + menu and sections of Discord's
   settings, each from a list of what it has seen.
 - Edit the long-press menu and Discord's settings page in place: Edit shows everything, hidden
-  ones darkened; tap to hide or show, hold and drag to move.
+  ones darkened; tap to hide or show, drag the grip (or hold) to move, with Undo. Rows slide apart
+  to show where one will land, and the settings page scrolls while you drag.
 - Hide the reaction bar, the GIFs or Stickers tab, Message Requests and Quests (display only:
   quests you started keep going). Keep the picker open after sending a GIF.
 - Double-tap and swipe on a message: reply, edit, react, copy, quote, mention, pin, forward, start a

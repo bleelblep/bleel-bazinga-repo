@@ -3,6 +3,22 @@ import type { ChangelogEntry } from '../../../shared/changelog'
 /** Newest first. Every public version gets an entry; see shared/changelog.tsx. */
 export const CHANGELOG: ChangelogEntry[] = [
 	{
+		version: '1.1.10',
+		date: '2026-11-12',
+		title: 'Preview in the chat',
+		changes: [
+			'New "Preview in the chat" in Options: the preview shows as an "Only you can see this" message at the bottom of the chat instead of a pop-up. With Tap send to preview on, tap send again to send it. It\'s only on your phone: nothing is sent until you send.',
+		],
+	},
+	{
+		version: '1.1.8',
+		date: '2026-11-10',
+		title: 'Hidden links stay hidden',
+		changes: [
+			'Fixed: a link rule that wraps links, like Hide GIF links, could wrap the same link twice and send [⠀]([⠀](link)). It happened when the rule had already run while typing, and when editing a message.',
+		],
+	},
+	{
 		version: '1.1.7',
 		date: '2026-11-06',
 		title: 'Only in these servers',

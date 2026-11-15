@@ -5,7 +5,7 @@
 	"description": "Shows bold, italics, code, spoilers and more styled as you type a message.",
 	"author": "bleelblep",
 	"icon": "TextIcon",
-	"version": "0.3.1",
+	"version": "0.3.2",
 	"dependencies": {
 		"valenced.api": {
 			"version": ">=1 <2"

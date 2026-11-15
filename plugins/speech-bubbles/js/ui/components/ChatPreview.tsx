@@ -90,9 +90,9 @@ const PIZZA: Card = {
 
 /** [picture]: the made-up main colour of their profile picture, for "From their profile picture". */
 /** [slot]: their soft shade (by id); [order]: when they show up, for theme colours. */
-const PEOPLE: Record<Exclude<Who, 'me'>, { name: string; slot: number; order: number; picture: string }> = {
-	alex: { name: 'Alex', slot: 2, order: 0, picture: '#E67E22' },
-	sam: { name: 'Sam', slot: 5, order: 1, picture: '#1ABC9C' },
+const PEOPLE: Record<Exclude<Who, 'me'>, { name: string; slot: number; order: number; picture: string; role: string }> = {
+	alex: { name: 'Alex', slot: 2, order: 0, picture: '#E67E22', role: '#E91E63' },
+	sam: { name: 'Sam', slot: 5, order: 1, picture: '#1ABC9C', role: '#3498DB' },
 }
 
 export type PreviewPage = 'visual' | 'colours' | 'times'
@@ -397,7 +397,9 @@ export function ChatPreview({
 	const personBg = (who: Exclude<Who, 'me'>) =>
 		s.personPalette === 'avatar'
 			? avatarBubble(PEOPLE[who].picture, s.personDark)
-			: palette[
+			: s.personPalette === 'role'
+				? avatarBubble(PEOPLE[who].role, s.personDark)
+				: palette[
 					(s.personPalette === 'theme' ? PEOPLE[who].order * 3 : PEOPLE[who].slot) %
 						palette.length
 				]

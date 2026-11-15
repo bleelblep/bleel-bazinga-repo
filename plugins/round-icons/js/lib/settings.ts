@@ -13,6 +13,8 @@ export interface SquaresStorage {
 	serverBarButtons: boolean
 	/** The You bar as a pill with round buttons. */
 	youBar: boolean
+	/** The You bar's buttons without the fill behind them: just the icons. Optional: unset is off. */
+	youBarIconsOnly?: boolean
 	/** The chat bar's buttons (send, emoji, media, gift, apps) as circles. */
 	chatButtons: boolean
 	/** The chat message box as a pill. */
