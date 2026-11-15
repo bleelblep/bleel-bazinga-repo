@@ -7,19 +7,7 @@ import { shareTrack } from './share'
 import { pluginState } from './state'
 import type { Activity } from '../types'
 
-/**
- * The fewest milliseconds between two status changes. Each change becomes a presence update on
- * Discord's own connection, so whatever the source or settings do (skipping songs, pausing and
- * playing, toggling settings), the plugin never changes the status more than four times a
- * minute. Changes inside the gap are merged: only the newest is sent when it ends.
- */
-const MIN_GAP_MS = 15_000
-
-let lastSentAt = 0
-let pendingTimer: ReturnType<typeof setTimeout> | undefined
-
 function dispatch(activity: Activity | null) {
-	lastSentAt = Date.now()
 	Dispatcher.dispatch({
 		type: 'LOCAL_ACTIVITY_UPDATE',
 		activity: activity,
@@ -28,50 +16,21 @@ function dispatch(activity: Activity | null) {
 	})
 }
 
-/** Clears the user's activity. [now] skips the gap; only the plugin stopping uses it. */
-export function clearActivity(now = false) {
+/** Clears the user's activity. */
+export function clearActivity() {
 	shareTrack(null)
-	return sendRequest(null, now)
+	return sendRequest(null)
 }
 
-/** Sends the activity details to Discord, at most once per MIN_GAP_MS (see above). */
-export function sendRequest(activity: Activity | null, now = false) {
+/** Sends the activity details to Discord immediately. */
+export function sendRequest(activity: Activity | null) {
 	if (pluginState.pluginStopped) {
 		stop()
 		activity = null
-		now = true
 	}
 
 	pluginState.lastActivity = activity
-
-	if (pendingTimer) {
-		clearTimeout(pendingTimer)
-		pendingTimer = undefined
-	}
-	const wait = lastSentAt + MIN_GAP_MS - Date.now()
-	if (now || wait <= 0) {
-		dispatch(activity)
-		return
-	}
-	pendingTimer = setTimeout(() => {
-		pendingTimer = undefined
-		dispatch(
-			pluginState.pluginStopped ? null : (pluginState.lastActivity ?? null),
-		)
-	}, wait)
-}
-
-/**
- * Sends a held-back change whose gap has passed. Its timer doesn't run while Discord is in the
- * background, so each check calls this; Music Bridge wakes a check after the gap (src/main).
- */
-export function flushPending() {
-	if (!pendingTimer || Date.now() - lastSentAt < MIN_GAP_MS) return
-	clearTimeout(pendingTimer)
-	pendingTimer = undefined
-	dispatch(
-		pluginState.pluginStopped ? null : (pluginState.lastActivity ?? null),
-	)
+	dispatch(activity)
 }
 
 /** Resolved asset ids by image URL, so a song that comes round again doesn't look it up twice. */

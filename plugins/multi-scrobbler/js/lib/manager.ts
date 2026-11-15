@@ -4,7 +4,6 @@ import { serviceFactory } from '../services/ServiceFactory'
 import {
 	clearActivity,
 	fetchAsset,
-	flushPending,
 	sendRequest,
 } from './activity'
 import { findAlbumArtUrl } from './artwork'
@@ -97,7 +96,7 @@ class PluginManager {
 		}
 	}
 
-	/** Music Bridge heard a change (or its 16 s follow-up): check now, even in the background. */
+	/** Music Bridge heard a change: check now, even in the background. */
 	public checkNow() {
 		if (pluginState.pluginStopped || getSettings().service !== 'bridge') return
 		void this.updateActivity(true)
@@ -116,9 +115,6 @@ class PluginManager {
 			}
 			return
 		}
-
-		// A change held back for the 15 s gap whose timer was frozen in the background.
-		flushPending()
 
 		const settings = getSettings()
 		const serviceName = serviceFactory.getCurrentService().getServiceName()
@@ -434,7 +430,7 @@ class PluginManager {
 		try {
 			this.stopUpdates()
 			this.stopReconnection()
-			clearActivity(true)
+			clearActivity()
 		} catch (_error) {
 			// don't let cleanup errors break things
 		}

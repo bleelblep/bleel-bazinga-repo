@@ -9,8 +9,6 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.os.Build
-import android.os.Handler
-import android.os.Looper
 import android.os.SystemClock
 import app.valenced.plugins.PluginScope
 import app.valenced.plugins.plugin
@@ -53,25 +51,12 @@ private const val MAX_TEXT = 512
 
 private fun Intent.text(key: String) = getStringExtra(key)?.take(MAX_TEXT)?.takeIf { it.isNotBlank() }
 
-/** Wait after a broadcast before waking JS, so a burst of changes wakes it once. */
-private const val WAKE_SETTLE_MS = 300L
-
-/**
- * A second wake this long after the last change. The status changes at most once per 15 s
- * (lib/activity.ts MIN_GAP_MS) and holds back newer changes on a JS timer, which doesn't run in
- * the background; this wake sends the held-back one.
- */
-private const val WAKE_AGAIN_MS = 16_000L
-
 /** Shared between start and stop. The bridge methods stay registered, so they read this. */
 private object Bridge {
 	@Volatile var context: Context? = null
 	@Volatile var scope: PluginScope? = null
 
-	private val main = Handler(Looper.getMainLooper())
 	private val jobs = CoroutineScope(SupervisorJob() + Dispatchers.Default)
-	private val wakeNow = Runnable { wake() }
-	private val wakeAgain = Runnable { wake() }
 
 	/** Tells JS to check the song now. Best effort: if JS isn't up, its own timer catches up. */
 	private fun wake() {
@@ -84,17 +69,6 @@ private object Bridge {
 		}
 	}
 
-	private fun scheduleWake() {
-		main.removeCallbacks(wakeNow)
-		main.removeCallbacks(wakeAgain)
-		main.postDelayed(wakeNow, WAKE_SETTLE_MS)
-		main.postDelayed(wakeAgain, WAKE_AGAIN_MS)
-	}
-
-	fun cancelWakes() {
-		main.removeCallbacks(wakeNow)
-		main.removeCallbacks(wakeAgain)
-	}
 	@Volatile var latest: Map<String, Any?>? = null
 	@Volatile var heardAt = 0L
 	@Volatile var registered = false
@@ -122,7 +96,7 @@ private object Bridge {
 				// elapsedRealtime, so JS can tell how stale it is and move the position on.
 				"heardAt" to at,
 			)
-			scheduleWake()
+			wake()
 		}
 	}
 
@@ -151,7 +125,6 @@ private object Bridge {
 			} catch (_: Throwable) {}
 			registered = false
 		}
-		cancelWakes()
 		latest = null
 		heardAt = 0L
 		bridgeVersion = 0L
