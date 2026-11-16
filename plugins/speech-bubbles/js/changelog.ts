@@ -3,6 +3,12 @@ import type { ChangelogEntry } from '../../../shared/changelog'
 /** Newest first. Every version users got gets an entry; see shared/changelog.tsx. */
 export const CHANGELOG: ChangelogEntry[] = [
 	{
+		version: '0.7.29',
+		date: '2026-11-17',
+		title: 'Edits fit their bubble',
+		changes: ['Fixed: after editing a message, its bubble could stay as wide as before and "Edited" could be missing under it. The bubble now fits the new text and the label shows every time.'],
+	},
+	{
 		version: '0.7.28',
 		date: '2026-11-13',
 		title: 'Time before my name, for real',

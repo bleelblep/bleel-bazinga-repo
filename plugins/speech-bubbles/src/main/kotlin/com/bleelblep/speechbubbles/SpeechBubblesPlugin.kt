@@ -472,6 +472,7 @@ internal class BubbleHooks(private val scope: PluginScope) {
 			"binds" to contentBinds.map { it.first.name + "/" + it.second },
 			"idIndex" to contentIdIndex,
 			"nulled" to editedNulled,
+			"relayouts" to contentRelayouts,
 		),
 	)
 
@@ -3585,14 +3586,36 @@ internal class BubbleHooks(private val scope: PluginScope) {
 	/** The message id: the bind's first String parameter. */
 	private val contentIdIndex: Int = contentBinds.firstOrNull()?.first?.parameterTypes?.indexOfFirst { it == String::class.java } ?: -1
 	private val unhookEdited: List<Unhook> = contentBinds.map { (m, at) ->
-		hookMethod(m, before = { param -> beforeContentBind(param, at) })
+		hookMethod(m, before = { param -> beforeContentBind(param, at) }, after = ::afterContentBind)
+	}
+	@Volatile private var contentRelayouts = 0
+
+	/**
+	 * Discord's text view isn't WRAP_CONTENT, so a new text with the same number of lines (an edit
+	 * that makes it shorter, or adds a word) is only redrawn, never measured: the bubble kept its
+	 * old width, and the room under it for "Edited" was never made, so the label was skipped while
+	 * "(edited)" was already gone. Every content bind of a bubble asks for a measure.
+	 */
+	private fun afterContentBind(param: HookParam) {
+		try {
+			val text = param.args.getOrNull(0) as? TextView ?: return
+			if (texts[text] == null || text.isLayoutRequested) return
+			text.requestLayout()
+			contentRelayouts++
+		} catch (e: Throwable) {
+			fail("contentRelayout", e)
+		}
 	}
 
 	private fun beforeContentBind(param: HookParam, at: Int) {
-		if (!config.editedLabel) return
 		try {
 			val args = param.args
 			val id = args.getOrNull(contentIdIndex) as? String ?: return
+			// An edit can rebind only the text, not the row: the label here is the latest word on it.
+			val text = args.getOrNull(0) as? TextView
+			val state = text?.let(::rowOf)
+			if (state != null && state.messageId == id) state.edited = !(args[at] as? String).isNullOrBlank()
+			if (!config.editedLabel) return
 			if (id !in bubbleIds || args[at] == null) return
 			args[at] = null
 			args[at + 1] = null
