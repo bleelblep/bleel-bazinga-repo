@@ -678,13 +678,26 @@
       "author": "bleelblep",
       "icon": "UserMinusIcon",
       "channels": {
-        "latest": "2.1.1"
+        "latest": "2.2.0"
       },
       "versions": {
         "2.1.1": {
           "url": "https://bleelblep.github.io/bleel-bazinga-repo/pool/bleelblep.relationship-notifier@2.1.1.zip",
           "sha256": "09cdb7d6becb218ed9bfd20d8dea9ae7a881e35aa1973d5780f3c708a0efe55b",
           "size": 12157,
+          "dependencies": {
+            "valenced.api": {
+              "version": ">=1 <2"
+            },
+            "discord": {
+              "version": "*"
+            }
+          }
+        },
+        "2.2.0": {
+          "url": "https://bleelblep.github.io/bleel-bazinga-repo/pool/bleelblep.relationship-notifier@2.2.0.zip",
+          "sha256": "8a4ee56c162f760fb3c21390446cb09a14b37f33aa792259039e1c7d32dca417",
+          "size": 13026,
           "dependencies": {
             "valenced.api": {
               "version": ">=1 <2"
@@ -1309,7 +1322,7 @@
       ],
       "icon": "ShieldIcon",
       "channels": {
-        "latest": "1.3.16"
+        "latest": "1.3.17"
       },
       "versions": {
         "1.3.13": {
@@ -1329,6 +1342,19 @@
           "url": "https://bleelblep.github.io/bleel-bazinga-repo/pool/bleelblep.staff-tags@1.3.16.zip",
           "sha256": "ae420399ebca86a0de581181cee5f8c781abfb4f376c27bc66218e5becef953d",
           "size": 12950,
+          "dependencies": {
+            "valenced.api": {
+              "version": ">=1 <2"
+            },
+            "discord": {
+              "version": ">=350.2"
+            }
+          }
+        },
+        "1.3.17": {
+          "url": "https://bleelblep.github.io/bleel-bazinga-repo/pool/bleelblep.staff-tags@1.3.17.zip",
+          "sha256": "dcb7723cefea5ab2fe034f58f3326070a316e19bcd04e2b8a0f8b6c1d0e03441",
+          "size": 13503,
           "dependencies": {
             "valenced.api": {
               "version": ">=1 <2"
