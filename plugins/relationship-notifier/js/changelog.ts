@@ -3,6 +3,15 @@ import type { ChangelogEntry } from '../../../shared/changelog'
 /** Newest first. Every version users got gets an entry; see shared/changelog.tsx. */
 export const CHANGELOG: ChangelogEntry[] = [
 	{
+		version: '2.2.0',
+		date: '2026-11-17',
+		title: 'Server details',
+		changes: [
+			"Tap a server you're no longer in to see its ID, its vanity link (or an invite, if Discord had already seen one) and its owner. Tap any of them to copy it.",
+			'Only what Discord already had on this phone is used: no invite is requested or created. Servers are filled in from the next time Discord connects.',
+		],
+	},
+	{
 		version: '2.1.1',
 		date: '2026-11-17',
 		title: 'On Bazinga',

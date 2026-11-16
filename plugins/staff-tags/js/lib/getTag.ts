@@ -3,6 +3,7 @@ import { isDarkColor } from './color'
 import { getPermissionHelper, getTagModule, stores } from './discord'
 import { iconById } from './icons'
 import { overrideFor } from './state'
+import { cachedTag } from './tagCache'
 import type {
 	Channel,
 	Guild,
@@ -133,6 +134,8 @@ export interface ResolvedTag {
 /** The props that draw [tag] with Discord's tag component. `type: 0` is a plain tag. */
 export function tagProps(tag: ResolvedTag): TagProps {
 	return {
+		// Marks our tags, so the tag painter can skip Discord's own (BOT, APP, ...) straight away.
+		staffTag: true,
 		type: 0,
 		text: tag.text,
 		textColor: tag.textColor,
@@ -219,7 +222,7 @@ function computePermissions(
 	return undefined
 }
 
-/** The tag [user] gets in [guild], or undefined. Reads the user's changes on every call. */
+/** The tag [user] gets in [guild], or undefined. Cached until a store or setting changes. */
 export default function getTag(
 	guild: Guild | undefined,
 	channel: Channel | undefined,
@@ -227,6 +230,19 @@ export default function getTag(
 	useRoleColor: boolean,
 ): ResolvedTag | undefined {
 	if (!user) return undefined
+	// Until both modules have loaded a "no tag" is only "not yet", so nothing is cached.
+	const canCache = !!getTagModule() && (!guild || !!getPermissionHelper())
+	const key = `${guild?.id ?? ''}|${channel?.id ?? ''}|${user.id}|${useRoleColor ? 1 : 0}`
+	const member = guild ? stores.guildMember()?.getMember(guild.id, user.id) : undefined
+	return cachedTag(key, canCache, member, () => resolveTag(guild, channel, user, useRoleColor))
+}
+
+function resolveTag(
+	guild: Guild | undefined,
+	channel: Channel | undefined,
+	user: User,
+	useRoleColor: boolean,
+): ResolvedTag | undefined {
 
 	const permissions = guild
 		? computePermissions(guild, channel, user)
@@ -240,8 +256,7 @@ export default function getTag(
 			(!user.bot && tag.permissions?.some(has))
 		if (!matches) continue
 
-		// Everything the user changed about this one tag. Read per call, so a settings change shows
-		// up on the next row Discord draws.
+		// Everything the user changed about this one tag. A settings change clears the cache.
 		const custom = overrideFor(tag.id)
 		if (custom.enabled === false) continue
 

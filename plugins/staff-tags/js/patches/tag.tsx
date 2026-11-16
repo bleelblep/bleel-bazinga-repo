@@ -55,7 +55,7 @@ function paint(rendered: ReactNode, props: TagProps | undefined): ReactNode {
 		customSvg,
 		iconOnly,
 	} = props ?? {}
-	if (!isElement(rendered)) return rendered
+	if (!props?.staffTag || !isElement(rendered)) return rendered
 	const label = findInTree(
 		rendered,
 		node => typeof node.props.children === 'string',

@@ -8,6 +8,7 @@
  */
 
 import { Stores } from '@valenced/discord/flux'
+import { clearTagCache } from './tagCache'
 import type { DiscordModules } from '@valenced/discord/types'
 import type { ReactNode } from 'react'
 
@@ -40,6 +41,8 @@ export interface TagProps {
 	iconOnly?: boolean
 	verified?: boolean
 	style?: unknown
+	/** Set on tags this plugin draws (tagProps in getTag.ts). */
+	staffTag?: boolean
 }
 
 /** Discord's tag component. `Types` is its enum of built-in tags (BOT, SYSTEM, ...). */
@@ -75,7 +78,7 @@ export const stores = {
 					getMember(
 						guildId: string,
 						userId: string,
-					): { colorString?: string } | undefined
+					): { colorString?: string; roles?: string[] } | undefined
 			  }>
 			| undefined,
 }
@@ -84,6 +87,7 @@ let tagModule: TagModule | undefined
 
 export function setTagModule(module: TagModule | undefined) {
 	tagModule = module
+	clearTagCache()
 }
 
 export function getTagModule(): TagModule | undefined {
@@ -104,6 +108,8 @@ export function offerPermissionHelper(helper: unknown, rank: number) {
 	if (typeof helper !== 'function' || rank > permissionRank) return
 	permissionHelper = helper as PermissionHelper
 	permissionRank = rank
+	// Answers worked out with a worse helper (or none) are stale.
+	clearTagCache()
 }
 
 export function getPermissionHelper(): PermissionHelper | undefined {
@@ -111,6 +117,7 @@ export function getPermissionHelper(): PermissionHelper | undefined {
 }
 
 export function clearDiscordModules() {
+	clearTagCache()
 	tagModule = undefined
 	permissionHelper = undefined
 	permissionRank = Number.POSITIVE_INFINITY

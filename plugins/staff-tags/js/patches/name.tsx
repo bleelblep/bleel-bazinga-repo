@@ -60,9 +60,7 @@ function addTag(
 	const { guildId, user } = props ?? {}
 	if (!user || !guildId) return rendered
 
-	const existing = findInTree(rendered, isTagElement)
-	if (existing && isBuiltInTag(existing.props.type)) return rendered
-
+	// Most names have no tag, so ask first and only walk the tree when there is one.
 	const tag = getTag(
 		stores.guild()?.getGuild(guildId),
 		channelFor(guildId),
@@ -70,6 +68,9 @@ function addTag(
 		settings().useRoleColor,
 	)
 	if (!tag) return rendered
+
+	const existing = findInTree(rendered, isTagElement)
+	if (existing && isBuiltInTag(existing.props.type)) return rendered
 
 	if (existing)
 		return replaceInTree(

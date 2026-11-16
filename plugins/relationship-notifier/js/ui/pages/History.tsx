@@ -10,7 +10,7 @@ import { forget } from '../../lib/avatars'
 import { getStorage } from '../../lib/state'
 import { ago, detail } from '../../lib/text'
 import Avatar from '../components/Avatar'
-import { AVATAR_ROUTE } from '../routes'
+import { AVATAR_ROUTE, SERVER_ROUTE } from '../routes'
 import type { EventKind, RelationshipEvent } from '../../types'
 import type { AvatarKind } from '../components/Avatar'
 
@@ -122,7 +122,13 @@ export default function History() {
 												onPress: () =>
 													navigation.navigate(AVATAR_ROUTE, { id: e.id }),
 											}
-										: {})}
+										: e.kind === 'guild'
+											? {
+													arrow: true,
+													onPress: () =>
+														navigation.navigate(SERVER_ROUTE, { id: e.id }),
+												}
+											: {})}
 									label={label(e)}
 									subLabel={[
 										detail(e),

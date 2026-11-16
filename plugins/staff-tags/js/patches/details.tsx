@@ -46,18 +46,19 @@ function withRowTag(
 	props: RowProps | undefined,
 ): ReactNode {
 	if (!isElement(rendered)) return rendered
+	// Most rows have no tag, so ask first and only walk the tree when there is one.
+	const guild = props?.guildId
+		? stores.guild()?.getGuild(props.guildId)
+		: undefined
+	const tag = getTag(guild, undefined, props?.user, settings().useRoleColor)
+	if (!tag) return rendered
+
 	const label = rendered.props.label as ReactNode
 	const nameContainer = findInTree(label, isNameContainer)
 	if (!nameContainer) return rendered
 
 	const existing = findInTree(nameContainer, isTagElement)
 	if (existing && isBuiltInTag(existing.props.type)) return rendered
-
-	const guild = props?.guildId
-		? stores.guild()?.getGuild(props.guildId)
-		: undefined
-	const tag = getTag(guild, undefined, props?.user, settings().useRoleColor)
-	if (!tag) return rendered
 
 	let nextLabel: ReactNode
 	if (existing) {

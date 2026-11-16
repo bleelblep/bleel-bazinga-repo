@@ -240,6 +240,8 @@ Tells you when friends, servers or group DMs disappear from your lists, and keep
   public picture servers with no account attached.
 - Changes made while Discord was closed show up as one toast when it connects.
 - Things you removed or left yourself are marked "by you" and never pop up.
+- Servers you're no longer in keep their ID, vanity link (or an invite Discord had already seen)
+  and owner, to copy from the history.
 - A history page, with a detail page for each change. Nothing is sent anywhere.
 
 ### ReviewDB

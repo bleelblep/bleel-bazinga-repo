@@ -5,6 +5,7 @@ import { processColor } from 'react-native'
 import { reportError } from '../../../../shared/report'
 import { stores } from '../lib/discord'
 import getTag from '../lib/getTag'
+import type { ResolvedTag } from '../lib/getTag'
 import { settings } from '../lib/state'
 import type { PluginCleanupApi } from '@valenced/plugins/types'
 import type { User } from '../lib/discord'
@@ -46,15 +47,26 @@ function withStaffTag(
 	const tag = getTag(guild, channel, message.author, settings().useRoleColor)
 	if (!tag) return ret
 
-	const glyph = tag.iconGlyph
-	return {
-		...ret,
-		tagText: glyph ? (tag.iconOnly ? glyph : `${glyph} ${tag.text}`) : tag.text,
-		tagTextColor: processColor(tag.textColor),
-		tagBackgroundColor: processColor(tag.backgroundColor),
-		tagVerified: tag.verified,
-		tagType: undefined,
+	return { ...ret, ...rowProps(tag) }
+}
+
+/** Built once per tag: the cache hands back the same ResolvedTag until something changes. */
+const rowPropsFor = new WeakMap<ResolvedTag, TagProperties>()
+
+function rowProps(tag: ResolvedTag): TagProperties {
+	let props = rowPropsFor.get(tag)
+	if (!props) {
+		const glyph = tag.iconGlyph
+		props = {
+			tagText: glyph ? (tag.iconOnly ? glyph : `${glyph} ${tag.text}`) : tag.text,
+			tagTextColor: processColor(tag.textColor),
+			tagBackgroundColor: processColor(tag.backgroundColor),
+			tagVerified: tag.verified,
+			tagType: undefined,
+		}
+		rowPropsFor.set(tag, props)
 	}
+	return props
 }
 
 export default function patchChat(cleanup: PluginCleanupApi) {

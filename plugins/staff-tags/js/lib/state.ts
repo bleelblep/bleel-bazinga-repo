@@ -1,4 +1,5 @@
 import { reportError } from '../../../../shared/report'
+import { clearTagCache } from './tagCache'
 import type { JsonStorage } from '@valenced/json-storage'
 import type { StaffTagsStorage, TagOverride } from '../types'
 
@@ -10,9 +11,21 @@ export const DEFAULTS: StaffTagsStorage = { useRoleColor: false, tags: {} }
 type Storage = JsonStorage<StaffTagsStorage>
 
 let storage: Storage | undefined
+/** The merged settings, built once and dropped on every change (only once storage has loaded). */
+let merged: StaffTagsStorage | undefined
+let unsubscribe: (() => void) | undefined
 
 export function setStorage(value: Storage | undefined) {
+	unsubscribe?.()
+	unsubscribe = undefined
 	storage = value
+	merged = undefined
+	clearTagCache()
+	if (value)
+		unsubscribe = value.subscribe(() => {
+			merged = undefined
+			clearTagCache()
+		})
 }
 
 /** Sub-pages are plain navigator routes with no plugin `api` prop, so they read through this. */
@@ -21,7 +34,10 @@ export function getStorage(): Storage | undefined {
 }
 
 export function settings(): StaffTagsStorage {
-	return { ...DEFAULTS, ...(storage?.cache ?? {}) }
+	if (merged) return merged
+	const value = { ...DEFAULTS, ...(storage?.cache ?? {}) } as StaffTagsStorage
+	if (storage?.cache) merged = value
+	return value
 }
 
 /** One tag's changes, or an empty object when it has never been touched. */

@@ -70,6 +70,14 @@ export function diff(
 			targetId: item.id,
 			name: item.name,
 			iconHash: item.icon,
+			...(kind === 'guild'
+				? {
+						vanity: item.vanity,
+						invite: item.invite,
+						ownerId: item.ownerId,
+						ownerName: item.ownerName,
+					}
+				: {}),
 			at,
 			...(away ? { away: true } : {}),
 			...extra,

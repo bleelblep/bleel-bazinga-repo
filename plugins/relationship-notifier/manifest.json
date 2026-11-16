@@ -5,7 +5,7 @@
 	"description": "Tells you about lost and new friends, lost servers and group DMs, and friends' new names and avatars.",
 	"author": "bleelblep",
 	"icon": "UserMinusIcon",
-	"version": "2.1.1",
+	"version": "2.2.0",
 	"dependencies": {
 		"valenced.api": {
 			"version": ">=1 <2"

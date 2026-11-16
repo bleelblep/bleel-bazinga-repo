@@ -2,12 +2,14 @@ import * as modulesSettings from '@valenced/discord/modules/settings'
 import AvatarChange from './pages/AvatarChange'
 import History from './pages/History'
 import Options from './pages/Options'
+import ServerInfo from './pages/ServerInfo'
 
 const PREFIX = 'bleelblep.relationship-notifier'
 
 export const HISTORY_ROUTE = `${PREFIX}.history`
 export const OPTIONS_ROUTE = `${PREFIX}.options`
 export const AVATAR_ROUTE = `${PREFIX}.avatar`
+export const SERVER_ROUTE = `${PREFIX}.server`
 
 /** Whichever refresh this Valenced build has (see Hide Servers' routes.tsx). */
 function refreshSettingsUI() {
@@ -45,6 +47,12 @@ export function registerPages(): () => void {
 				type: 'route',
 				useTitle: () => 'Avatar change',
 				screen: { route: AVATAR_ROUTE, getComponent: () => AvatarChange },
+			}),
+			registerSettingsItem(SERVER_ROUTE, {
+				parent: null,
+				type: 'route',
+				useTitle: () => 'Server',
+				screen: { route: SERVER_ROUTE, getComponent: () => ServerInfo },
 			}),
 		]
 		refreshSettingsUI()

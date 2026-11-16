@@ -118,6 +118,7 @@ export function readCurrent(previous: Snapshot | undefined): Current {
 		}
 		const icon = guild?.icon ?? was.guilds.get(id)?.icon
 		if (typeof icon === 'string') item.icon = icon
+		Object.assign(item, serverInfo(id, guild, was.guilds.get(id)))
 		current.guilds.push(item)
 	}
 	for (const [id, old] of was.guilds) {
@@ -137,6 +138,54 @@ export function readCurrent(previous: Snapshot | undefined): Current {
 }
 
 /** Whether the stores this reads are there at all; if not, nothing can be compared. */
+const CODE = /^[A-Za-z0-9-]{2,64}$/
+
+/** A code, or undefined. Invite keys can carry `?event=<id>` after the code. */
+function code(value: unknown): string | undefined {
+	if (typeof value !== 'string') return undefined
+	const plain = value.split('?')[0]
+	return CODE.test(plain) ? plain : undefined
+}
+
+/**
+ * An invite to [guildId] that Discord's InviteStore already holds (links seen in chat, the one you
+ * joined with). Read only: nothing is requested and no invite is ever created. Traced on 352.2:
+ * InviteStore has getInvite, getInvites and getInviteKeyForGuildId.
+ */
+function knownInvite(guildId: string): string | undefined {
+	const store = stores().InviteStore
+	try {
+		const key = code(store?.getInviteKeyForGuildId?.(guildId))
+		if (key) return key
+		for (const [key, invite] of entries(store?.getInvites?.())) {
+			if (String(invite?.guild?.id ?? invite?.guild_id ?? '') === guildId)
+				return code(invite?.code ?? key)
+		}
+	} catch {
+		/* store shape changed: no invite */
+	}
+	return undefined
+}
+
+/** ID, vanity or a known invite, and the owner; what isn't loaded now is kept from last time. */
+function serverInfo(id: string, guild: any, previous: Known | undefined): Partial<Known> {
+	const info: Partial<Known> = {}
+	const vanity = code(guild?.vanityURLCode) ?? previous?.vanity
+	if (vanity) info.vanity = vanity
+	const invite = knownInvite(id) ?? previous?.invite
+	if (invite) info.invite = invite
+	const ownerId = guild?.ownerId != null ? String(guild.ownerId) : previous?.ownerId
+	if (ownerId) {
+		info.ownerId = ownerId
+		const owner = stores().UserStore?.getUser?.(ownerId)
+		const name = owner?.globalName ?? owner?.global_name ?? owner?.username
+		const ownerName =
+			typeof name === 'string' && name ? name : ownerId === previous?.ownerId ? previous?.ownerName : undefined
+		if (ownerName) info.ownerName = ownerName
+	}
+	return info
+}
+
 export function storesReady(): boolean {
 	const s = stores()
 	return (

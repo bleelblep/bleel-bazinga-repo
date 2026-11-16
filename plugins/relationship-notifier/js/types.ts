@@ -17,6 +17,13 @@ export interface Known {
 	username?: string
 	/** Avatar or icon hash. */
 	icon?: string
+	/** Servers only: the vanity code (discord.gg/<code>), if it has one. */
+	vanity?: string
+	/** Servers only: an invite code Discord had already seen for it this session. Never requested. */
+	invite?: string
+	/** Servers only: the owner's id, and their name if Discord had them loaded. */
+	ownerId?: string
+	ownerName?: string
 }
 
 /**
@@ -58,6 +65,13 @@ export interface RelationshipEvent {
 	blocked?: boolean
 	/** Found when Discord connected, so it happened while the app was closed. */
 	away?: boolean
+	/** Servers only: the vanity code (discord.gg/<code>), if it has one. */
+	vanity?: string
+	/** Servers only: an invite code Discord had already seen for it this session. Never requested. */
+	invite?: string
+	/** Servers only: the owner's id, and their name if Discord had them loaded. */
+	ownerId?: string
+	ownerName?: string
 }
 
 export interface RelationshipNotifierStorage {

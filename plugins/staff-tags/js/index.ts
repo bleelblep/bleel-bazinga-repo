@@ -6,6 +6,7 @@ import { CHANGELOG } from './changelog'
 import { clearDiscordModules, setTagModule } from './lib/discord'
 import { watchPermissionHelper } from './lib/permissions'
 import { DEFAULTS, setStorage } from './lib/state'
+import { startTagCache, stopTagCache } from './lib/tagCache'
 import patchChat from './patches/chat'
 import patchDetails from './patches/details'
 import patchName from './patches/name'
@@ -27,10 +28,12 @@ export default plugin<{ jsonStorage: StaffTagsStorage }>({
 		// Errors go to Valenced's plugin error list (shared/report.ts), not the log.
 		setReporter(plugin)
 		setStorage(jsonStorage)
+		startTagCache()
 		cleanup(() => {
 			setReporter(undefined)
 			setStorage(undefined)
 			clearDiscordModules()
+			stopTagCache()
 		})
 
 		// The changelog: clock icon on the settings page, "What's new" after an update.

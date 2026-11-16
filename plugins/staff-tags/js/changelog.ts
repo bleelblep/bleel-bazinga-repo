@@ -3,6 +3,14 @@ import type { ChangelogEntry } from '../../../shared/changelog'
 /** Newest first. Every version users got gets an entry; see shared/changelog.tsx. */
 export const CHANGELOG: ChangelogEntry[] = [
 	{
+		version: '1.3.17',
+		date: '2026-11-17',
+		title: 'Faster',
+		changes: [
+			"Much less work while scrolling: a person's tag is worked out once per channel and remembered until their roles, the server, the channel or your settings change.",
+		],
+	},
+	{
 		version: '1.3.16',
 		date: '2026-11-02',
 		title: 'Credit line',
