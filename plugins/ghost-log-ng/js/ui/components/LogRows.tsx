@@ -1,7 +1,8 @@
 /**
  * The rows of the log screens, in the grouped-box look (Boxes.tsx):
  *
- * - Recent: compact, one line of text, a tag only when it matters.
+ * - Recent: compact, one line of text, a tag only when it matters. Tapping one opens it out in
+ *   place: the full message as in a conversation, and a bar of actions under it.
  * - One conversation: the full text, media in a grid, "sent → deleted", earlier text struck through.
  * - Conversations: one row per channel or person, with a preview and a count.
  *
@@ -14,15 +15,26 @@ import * as ReactNative from "react-native";
 import type { EditRecord } from "../../lib/edits";
 import { formatContent } from "../../lib/formatContent";
 import type { SavedMedia } from "../../lib/media";
-import { savedMedia } from "../../lib/media";
+import { savedMedia, savedStickers } from "../../lib/media";
 import { Glyph, GuildIcon, UserAvatar } from "../native";
-import { openDeletedSheet, openEditSheet, pressMedia } from "../sheets";
+import { jumpToDeletedMessage } from "../../lib/navigate";
+import {
+	copy,
+	editHistoryText,
+	openDeletedSheet,
+	openEditSheet,
+	openUserProfile,
+	pressMedia,
+	removeDeleted,
+	removeEdit,
+} from "../sheets";
 import type { DeletedMessage } from "../state";
 import { token } from "../theme";
 import {
 	BoxRow,
 	ChannelTile,
 	CountPill,
+	firstToken,
 	plural,
 	shortWhen,
 	span,
@@ -71,6 +83,285 @@ export function mediaLabel(media: SavedMedia[]): string {
 
 const oneLine = (text: string) => text.replace(/\s+/g, " ").trim();
 
+/** The words of one link preview or bot embed. */
+interface EmbedText {
+	/** Site or author, then the title: "YouTube · Video name". */
+	title: string;
+	body: string;
+}
+
+const str = (value: unknown) => (typeof value === "string" ? value.trim() : "");
+
+/**
+ * What a message's link previews and bot embeds say. They were saved all along and never drawn,
+ * so a message that was only a link preview or a bot's embed read "(no text)". Discord's stored
+ * embeds name the text `rawTitle`/`rawDescription`; the API's own names are read too. Capped: an
+ * embed can carry 6000 characters, and this is a log row.
+ */
+export function embedTexts(entry: DeletedMessage): EmbedText[] {
+	if (!Array.isArray(entry?.embeds)) return [];
+	const out: EmbedText[] = [];
+	for (const embed of entry.embeds.slice(0, 5)) {
+		if (!embed || typeof embed !== "object") continue;
+		const source = str(embed.provider?.name) || str(embed.author?.name);
+		const heading = str(embed.rawTitle) || str(embed.title);
+		const fields = (Array.isArray(embed.fields) ? embed.fields : [])
+			.slice(0, 10)
+			.map((field: any) =>
+				[str(field?.rawName) || str(field?.name), str(field?.rawValue) || str(field?.value)]
+					.filter(Boolean)
+					.join(": "),
+			)
+			.filter(Boolean);
+		const body = [
+			str(embed.rawDescription) || str(embed.description),
+			...fields,
+			str(embed.footer?.text),
+		]
+			.filter(Boolean)
+			.join("\n")
+			.slice(0, 1000);
+		const title = [source, heading].filter(Boolean).join(" · ").slice(0, 200);
+		if (title || body) out.push({ title, body });
+	}
+	return out;
+}
+
+/** One line for a compact row: the first embed's title, or the start of its text. */
+function embedLine(entry: DeletedMessage): string {
+	const first = embedTexts(entry)[0];
+	return first ? oneLine(first.title || first.body) : "";
+}
+
+const stickerNames = (entry: DeletedMessage): string[] =>
+	(Array.isArray(entry?.stickers) ? entry.stickers : [])
+		.map((sticker) => str(sticker?.name))
+		.filter(Boolean);
+
+/** A forward's text as plain reading text, like the message's own. */
+function forwardedText(entry: DeletedMessage): string {
+	return formatContent(str(entry?.forwarded?.content), {
+		guildId: entry?.guildId,
+	}).trim();
+}
+
+/**
+ * What a message with no text of its own says, on one line: its link preview, the message it
+ * forwarded, or its sticker. Empty when it has none of those.
+ */
+function fallbackLine(entry: DeletedMessage): string {
+	const preview = embedLine(entry);
+	if (preview) return preview;
+	if (entry?.forwarded) {
+		const text = oneLine(forwardedText(entry));
+		return text ? `Forwarded: ${text}` : "Forwarded message";
+	}
+	const names = stickerNames(entry);
+	if (names.length) return `Sticker: ${names.join(", ")}`;
+	const question = str(entry?.poll?.question);
+	return entry?.poll ? `Poll: ${question || "(no question)"}` : "";
+}
+
+/** A small rounded label: one reaction with its count, or one button's name. Not pressable. */
+function Chip({ label }: { label: string }) {
+	const { View } = ReactNative;
+	const { Text } = Design as any;
+	return (
+		<View
+			style={{
+				borderRadius: 8,
+				paddingHorizontal: 8,
+				paddingVertical: 3,
+				backgroundColor: firstToken(
+					["BACKGROUND_MOD_STRONG", "BACKGROUND_SURFACE_HIGHEST"],
+					"#3f4147",
+				),
+			}}
+		>
+			<Text variant="text-xs/medium" color="text-default" lineClamp={1}>
+				{label}
+			</Text>
+		</View>
+	);
+}
+
+/**
+ * What stood on a message besides its text when it was deleted: its poll, a bot message's buttons
+ * and menus, and its reactions. All of it is for reading: nothing here can be pressed, voted on or
+ * reacted to (the message is gone, and those actions are refused on it in chat too).
+ */
+function Extras({ entry }: { entry: DeletedMessage }) {
+	const { View } = ReactNative;
+	const { Text } = Design as any;
+	const poll = entry?.poll;
+	const answers = Array.isArray(poll?.answers) ? poll.answers : [];
+	const buttons = Array.isArray(entry?.buttons) ? entry.buttons : [];
+	const reactions = Array.isArray(entry?.reactions) ? entry.reactions : [];
+	if (!poll && !buttons.length && !reactions.length) return null;
+	const wrap = {
+		flexDirection: "row" as const,
+		flexWrap: "wrap" as const,
+		gap: 6,
+	};
+	return (
+		<View style={{ gap: 6, marginTop: 2 }}>
+			{poll ? (
+				<View
+					style={{
+						borderLeftWidth: 3,
+						borderLeftColor: token("BORDER_SUBTLE", "#4e5058"),
+						paddingLeft: 8,
+						gap: 2,
+					}}
+				>
+					<Text variant="text-xs/semibold" color="text-muted">
+						{`Poll${poll.ended ? " · ended" : ""}${poll.multiselect ? " · pick several" : ""}`}
+					</Text>
+					{str(poll.question) ? (
+						<Text variant="text-sm/semibold" color="text-default">
+							{str(poll.question)}
+						</Text>
+					) : null}
+					{answers.map((answer, index) => (
+						<Text
+							key={index}
+							variant="text-sm/normal"
+							color="text-muted"
+							lineClamp={2}
+						>
+							{`• ${str(answer?.text)}${
+								typeof answer?.votes === "number"
+									? ` · ${plural(answer.votes, "vote")}`
+									: ""
+							}`}
+						</Text>
+					))}
+				</View>
+			) : null}
+			{buttons.length ? (
+				<View style={wrap} accessibilityLabel="Buttons on the message">
+					{buttons.map((button, index) => (
+						<Chip
+							key={index}
+							label={
+								button?.kind === "menu"
+									? `${str(button?.label)} ▾`
+									: str(button?.label)
+							}
+						/>
+					))}
+				</View>
+			) : null}
+			{reactions.length ? (
+				<View style={wrap} accessibilityLabel="Reactions on the message">
+					{reactions.map((reaction, index) => (
+						<Chip
+							key={index}
+							label={`${reaction?.id ? `:${str(reaction?.name)}:` : str(reaction?.name)} ${reaction?.count ?? ""}`}
+						/>
+					))}
+				</View>
+			) : null}
+		</View>
+	);
+}
+
+/** The message a forward carried: a bar down the side, "Forwarded" over its text. */
+function ForwardedBlock({ entry }: { entry: DeletedMessage }) {
+	const { View } = ReactNative;
+	const { Text } = Design as any;
+	if (!entry?.forwarded) return null;
+	const text = forwardedText(entry);
+	return (
+		<View
+			style={{
+				borderLeftWidth: 3,
+				borderLeftColor: token("BORDER_SUBTLE", "#4e5058"),
+				paddingLeft: 8,
+				gap: 2,
+				marginTop: 2,
+			}}
+		>
+			<Text variant="text-xs/semibold" color="text-muted">
+				↪ Forwarded
+			</Text>
+			{text ? (
+				<Text variant="text-sm/normal" color="text-default">
+					{text}
+				</Text>
+			) : null}
+		</View>
+	);
+}
+
+/** A message's stickers: the saved pictures, and the names of any with none (Lottie, not saved). */
+function Stickers({
+	entry,
+	onPress,
+}: {
+	entry: DeletedMessage;
+	onPress: (items: SavedMedia[], index: number) => void;
+}) {
+	const { View } = ReactNative;
+	const { Text } = Design as any;
+	const names = stickerNames(entry);
+	if (!names.length) return null;
+	const saved = savedStickers(entry);
+	return (
+		<View style={{ gap: 4, marginTop: 2 }}>
+			{saved.length ? (
+				<View style={{ flexDirection: "row", gap: 6 }}>
+					{saved.map((item, index) => (
+						<MediaTile
+							key={item.key}
+							item={item}
+							size={96}
+							onPress={() => onPress(saved, index)}
+						/>
+					))}
+				</View>
+			) : null}
+			<Text variant="text-xs/medium" color="text-muted" lineClamp={1}>
+				{`Sticker: ${names.join(", ")}`}
+			</Text>
+		</View>
+	);
+}
+
+/** Link previews and embeds under a message: a bar down the side, title over text, like chat. */
+function EmbedBlocks({ entry }: { entry: DeletedMessage }) {
+	const { View } = ReactNative;
+	const { Text } = Design as any;
+	const embeds = embedTexts(entry);
+	if (!embeds.length) return null;
+	return (
+		<View style={{ gap: 6, marginTop: 2 }}>
+			{embeds.map((embed, index) => (
+				<View
+					key={index}
+					style={{
+						borderLeftWidth: 3,
+						borderLeftColor: token("BORDER_SUBTLE", "#4e5058"),
+						paddingLeft: 8,
+						gap: 2,
+					}}
+				>
+					{embed.title ? (
+						<Text variant="text-sm/semibold" color="text-default" lineClamp={2}>
+							{embed.title}
+						</Text>
+					) : null}
+					{embed.body ? (
+						<Text variant="text-sm/normal" color="text-muted" lineClamp={8}>
+							{embed.body}
+						</Text>
+					) : null}
+				</View>
+			))}
+		</View>
+	);
+}
+
 const lower = (value: unknown) =>
 	typeof value === "string" ? value.toLowerCase() : "";
 
@@ -80,10 +371,22 @@ export function matchesDeleted(entry: DeletedMessage, query: string): boolean {
 	const haystack = [
 		entry?.content,
 		entry?.authorName,
+		entry?.authorUsername,
+		entry?.authorNick,
 		entry?.channelName,
 		entry?.guildName,
 		...(Array.isArray(entry?.attachments) ? entry.attachments : []).map(
 			(attachment) => attachment?.filename,
+		),
+		...embedTexts(entry).flatMap((embed) => [embed.title, embed.body]),
+		entry?.forwarded?.content,
+		...stickerNames(entry),
+		entry?.poll?.question,
+		...(Array.isArray(entry?.poll?.answers) ? entry.poll.answers : []).map(
+			(answer) => answer?.text,
+		),
+		...(Array.isArray(entry?.buttons) ? entry.buttons : []).map(
+			(button) => button?.label,
 		),
 	];
 	return haystack.some((text) => lower(text).includes(query));
@@ -111,10 +414,13 @@ function NameLine({
 	name,
 	where,
 	time,
+	bot,
 }: {
 	name?: string;
 	where?: string;
 	time?: string;
+	/** The author is a bot (entries from 0.4.0 on say). */
+	bot?: boolean;
 }) {
 	const { View } = ReactNative;
 	const { Text } = Design as any;
@@ -128,6 +434,15 @@ function NameLine({
 			>
 				{name || "Unknown user"}
 			</Text>
+			{bot ? (
+				<Text
+					variant="text-xxs/bold"
+					color="text-muted"
+					style={{ letterSpacing: 0.5 }}
+				>
+					BOT
+				</Text>
+			) : null}
 			<Text
 				variant="text-sm/medium"
 				color="text-muted"
@@ -203,7 +518,140 @@ type RowProps<T> = {
 	last: boolean;
 	selection: Selection;
 	item: T;
+	/** Recent only: this row is the one opened out, and what a tap does (open or close it). */
+	expanded?: boolean;
+	onToggle?: () => void;
 };
+
+/** What an opened-out row adds to the conversation row it borrows. */
+type OpenedProps = {
+	/** The channel, which a conversation's own rows don't need to say. */
+	where?: string;
+	/** A tap closes the row instead of opening the sheet. */
+	onPress?: () => void;
+	withActions?: boolean;
+};
+
+interface Action {
+	label: string;
+	icon: string;
+	danger?: boolean;
+	onPress: () => void;
+}
+
+/**
+ * The actions under an opened-out row: icon over label, evenly spaced, each a full touch target.
+ * On a darker strip across the card's full width (the track colour of the Recent/Conversations
+ * switch), so it reads as the row's menu and not as more of the message. A tray of raised keys was
+ * tried (0.3.7) and looked heavier without being any clearer.
+ */
+function Actions({ items }: { items: Action[] }) {
+	const { View, Pressable } = ReactNative;
+	const { Text } = Design as any;
+	// The strongest text colour on the darkest surface: muted grey on the strip was hard to read.
+	const normal = firstToken(
+		["TEXT_STRONG", "HEADER_PRIMARY", "TEXT_DEFAULT"],
+		"#f2f3f5",
+	);
+	const red = token("TEXT_FEEDBACK_CRITICAL", "#f23f43");
+	return (
+		<View
+			accessibilityRole="menu"
+			style={{
+				flexDirection: "row",
+				backgroundColor: firstToken(
+					["BACKGROUND_BASE_LOWEST", "MOBILE_SEGMENTED_CONTROL_BACKGROUND"],
+					"#111214",
+				),
+			}}
+		>
+			{items.map((item) => (
+				<Pressable
+					key={item.label}
+					onPress={item.onPress}
+					accessibilityRole="menuitem"
+					accessibilityLabel={item.label}
+					android_ripple={{ color: token("BACKGROUND_MOD_SUBTLE", "#2e3035") }}
+					style={{
+						flex: 1,
+						minHeight: 56,
+						alignItems: "center",
+						justifyContent: "center",
+						gap: 4,
+						paddingVertical: 8,
+					}}
+				>
+					<Glyph
+						name={item.icon}
+						color={item.danger ? red : normal}
+						size={20}
+					/>
+					<Text
+						variant="text-xs/semibold"
+						color={item.danger ? "text-feedback-critical" : "text-strong"}
+						lineClamp={1}
+					>
+						{item.label}
+					</Text>
+				</Pressable>
+			))}
+		</View>
+	);
+}
+
+function deletedActions(entry: DeletedMessage): Action[] {
+	const text = realText(entry);
+	const actions: Action[] = [
+		{
+			label: "View in chat",
+			icon: "ChatIcon",
+			onPress: () => jumpToDeletedMessage(entry),
+		},
+	];
+	if (text)
+		actions.push({ label: "Copy", icon: "CopyIcon", onPress: () => copy(text) });
+	if (entry?.authorId)
+		actions.push({
+			label: "Profile",
+			icon: "UserCircleIcon",
+			onPress: () => openUserProfile(String(entry.authorId)),
+		});
+	actions.push({
+		label: "Remove",
+		icon: "TrashIcon",
+		danger: true,
+		onPress: () => removeDeleted(entry),
+	});
+	return actions;
+}
+
+function editActions(record: EditRecord): Action[] {
+	const actions: Action[] = [
+		{
+			label: "View in chat",
+			icon: "ChatIcon",
+			onPress: () => jumpToDeletedMessage(record),
+		},
+		{
+			label: "Copy all",
+			icon: "CopyIcon",
+			onPress: () => copy(editHistoryText(record)),
+		},
+	];
+	if (record?.authorId)
+		actions.push({
+			label: "Profile",
+			icon: "UserCircleIcon",
+			onPress: () => openUserProfile(String(record.authorId)),
+		});
+	actions.push({
+		label: "Remove",
+		icon: "TrashIcon",
+		danger: true,
+		onPress: () => removeEdit(record),
+	});
+	return actions;
+}
 
 function pressHandlers(
 	selection: Selection,
@@ -219,12 +667,30 @@ function pressHandlers(
 
 // ── Deleted ───────────────────────────────────────────────────────────────────────────────────────
 
-/** Recent: avatar, name, channel, time, one line (or "2 photos" and a thumbnail), tags. */
-export function DeletedRecentRow({
+/**
+ * Recent: the compact row, or the full message with its actions once tapped. Two components, so
+ * each keeps the same hooks from one render to the next. Select mode always shows the compact row.
+ */
+export function DeletedRecentRow(props: RowProps<DeletedMessage>) {
+	if (props.expanded && !props.selection.active)
+		return (
+			<DeletedFullRow
+				{...props}
+				where={placeLabel(props.item ?? {})}
+				onPress={props.onToggle}
+				withActions
+			/>
+		);
+	return <DeletedCompactRow {...props} />;
+}
+
+/** Avatar, name, channel, time, one line (or "2 photos" and a thumbnail), tags. */
+function DeletedCompactRow({
 	item: entry,
 	first,
 	last,
 	selection,
+	onToggle,
 }: RowProps<DeletedMessage>) {
 	const { React } = react;
 	const { View } = ReactNative;
@@ -242,7 +708,11 @@ export function DeletedRecentRow({
 	);
 	const unsaved = unsavedCount(entry, media);
 	const id = String(entry?.id ?? "");
-	const handlers = pressHandlers(selection, id, () => openDeletedSheet(entry));
+	const handlers = pressHandlers(
+		selection,
+		id,
+		onToggle ?? (() => openDeletedSheet(entry)),
+	);
 	const date = validDate(entry?.deletedAt);
 	const thumb = media.find((m) => m.kind !== "file");
 	const muted = token("TEXT_MUTED", "#949ba4");
@@ -261,6 +731,7 @@ export function DeletedRecentRow({
 			<View style={{ flex: 1, minWidth: 0, gap: 2 }}>
 				<NameLine
 					name={entry?.authorName}
+					bot={entry?.authorBot}
 					where={placeLabel(entry ?? {})}
 					time={date ? clock(date) : undefined}
 				/>
@@ -288,7 +759,7 @@ export function DeletedRecentRow({
 						color={text ? "text-default" : "text-muted"}
 						lineClamp={1}
 					>
-						{text || "(no text)"}
+						{text || fallbackLine(entry) || "(no text)"}
 					</Text>
 				)}
 				<Tags entry={entry} unsaved={unsaved} />
@@ -315,7 +786,10 @@ export function DeletedFullRow({
 	first,
 	last,
 	selection,
-}: RowProps<DeletedMessage>) {
+	where,
+	onPress,
+	withActions,
+}: RowProps<DeletedMessage> & OpenedProps) {
 	const { React } = react;
 	const { View } = ReactNative;
 	const { Text } = Design as any;
@@ -335,13 +809,27 @@ export function DeletedFullRow({
 		replyAuthor?.username;
 	const unsaved = unsavedCount(entry, media);
 	const id = String(entry?.id ?? "");
-	const handlers = pressHandlers(selection, id, () => openDeletedSheet(entry));
+	const handlers = pressHandlers(
+		selection,
+		id,
+		onPress ?? (() => openDeletedSheet(entry)),
+	);
+	const replyText = withActions
+		? oneLine(
+				formatContent(String(entry?.referencedMessage?.content ?? ""), format),
+			)
+		: "";
 	return (
 		<BoxRow
 			first={first}
 			last={last}
 			selected={selection.active ? selection.has(id) : undefined}
 			accessibilityLabel={`${entry?.authorName ?? "Unknown user"}: ${text || "no text"}`}
+			footer={
+				withActions && !selection.active ? (
+					<Actions items={deletedActions(entry)} />
+				) : undefined
+			}
 			{...handlers}
 		>
 			<UserAvatar
@@ -351,22 +839,37 @@ export function DeletedFullRow({
 			<View style={{ flex: 1, minWidth: 0, gap: 3 }}>
 				<NameLine
 					name={entry?.authorName}
+					bot={entry?.authorBot}
+					where={where}
 					time={span(entry?.sentAt, entry?.deletedAt)}
 				/>
 				{replyName ? (
-					<Text variant="text-xs/medium" color="text-muted" lineClamp={1}>
-						{`Replying to @${replyName}`}
+					<Text
+						variant="text-xs/medium"
+						color="text-muted"
+						lineClamp={replyText ? 2 : 1}
+					>
+						{`Replying to @${replyName}${replyText ? `: ${replyText}` : ""}`}
 					</Text>
 				) : null}
 				{text ? (
 					<Text variant="text-sm/normal" color="text-default">
 						{text}
 					</Text>
-				) : media.length ? null : (
+				) : media.length || fallbackLine(entry) ? null : (
 					<Text variant="text-sm/normal" color="text-muted">
 						(no text)
 					</Text>
 				)}
+				<ForwardedBlock entry={entry} />
+				<EmbedBlocks entry={entry} />
+				<Stickers
+					entry={entry}
+					onPress={(items, index) =>
+						selection.active ? selection.toggle(id) : pressMedia(items, index)
+					}
+				/>
+				<Extras entry={entry} />
 				{media.length ? (
 					<MediaGrid
 						media={media}
@@ -390,12 +893,27 @@ function editWhere(record: EditRecord): string {
 		: place;
 }
 
-/** Recent: the text now, "was ~~before~~" on one line each, and how many versions there are. */
-export function EditedRecentRow({
+/** Recent: the compact row, or every version with its actions once tapped. See DeletedRecentRow. */
+export function EditedRecentRow(props: RowProps<EditRecord>) {
+	if (props.expanded && !props.selection.active)
+		return (
+			<EditedFullRow
+				{...props}
+				where={editWhere(props.item)}
+				onPress={props.onToggle}
+				withActions
+			/>
+		);
+	return <EditedCompactRow {...props} />;
+}
+
+/** The text now, "was ~~before~~" on one line each, and how many versions there are. */
+function EditedCompactRow({
 	item: record,
 	first,
 	last,
 	selection,
+	onToggle,
 }: RowProps<EditRecord>) {
 	const { React } = react;
 	const { View } = ReactNative;
@@ -411,7 +929,11 @@ export function EditedRecentRow({
 		[versions, format],
 	);
 	const id = String(record?.id ?? "");
-	const handlers = pressHandlers(selection, id, () => openEditSheet(record));
+	const handlers = pressHandlers(
+		selection,
+		id,
+		onToggle ?? (() => openEditSheet(record)),
+	);
 	const date = validDate(record?.editedAt);
 	const count = versions.length + 1;
 	return (
@@ -429,6 +951,7 @@ export function EditedRecentRow({
 			<View style={{ flex: 1, minWidth: 0, gap: 3 }}>
 				<NameLine
 					name={record?.authorName}
+					bot={record?.authorBot}
 					where={editWhere(record)}
 					time={date ? clock(date) : undefined}
 				/>
@@ -454,7 +977,10 @@ export function EditedFullRow({
 	first,
 	last,
 	selection,
-}: RowProps<EditRecord>) {
+	where,
+	onPress,
+	withActions,
+}: RowProps<EditRecord> & OpenedProps) {
 	const { React } = react;
 	const { View } = ReactNative;
 	const { Text } = Design as any;
@@ -472,7 +998,11 @@ export function EditedFullRow({
 		[versions, format],
 	);
 	const id = String(record?.id ?? "");
-	const handlers = pressHandlers(selection, id, () => openEditSheet(record));
+	const handlers = pressHandlers(
+		selection,
+		id,
+		onPress ?? (() => openEditSheet(record)),
+	);
 	const count = versions.length + 1;
 	return (
 		<BoxRow
@@ -480,6 +1010,11 @@ export function EditedFullRow({
 			last={last}
 			selected={selection.active ? selection.has(id) : undefined}
 			accessibilityLabel={`${record?.authorName ?? "Unknown user"}: ${now || "no text"}, ${count} versions`}
+			footer={
+				withActions && !selection.active ? (
+					<Actions items={editActions(record)} />
+				) : undefined
+			}
 			{...handlers}
 		>
 			<UserAvatar
@@ -489,6 +1024,8 @@ export function EditedFullRow({
 			<View style={{ flex: 1, minWidth: 0, gap: 3 }}>
 				<NameLine
 					name={record?.authorName}
+					bot={record?.authorBot}
+					where={where}
 					time={span(record?.sentAt, record?.editedAt)}
 				/>
 				<Text
@@ -542,7 +1079,7 @@ export function ConversationRow<T extends Placed>({
 		);
 		if (text) return text;
 		const media = savedMedia(latest);
-		return media.length ? mediaLabel(media) : "";
+		return media.length ? mediaLabel(media) : fallbackLine(latest);
 	}, [latest, kind]);
 	const line = `${latest?.authorName || "Unknown user"}: ${preview || "(no text)"}`;
 	const count = convo.items.length;

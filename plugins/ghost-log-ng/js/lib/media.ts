@@ -1,4 +1,10 @@
+import { ImportTrackerModuleId } from "@valenced/discord/common/import-tracker";
 import * as finders from "@valenced/discord/utils/modules/finders";
+import { lookupModule } from "@valenced/modules/finders";
+import {
+	withDependencies,
+	withProps,
+} from "@valenced/modules/finders/filters";
 import * as react from "@valenced/react";
 import { getModuleByPath } from "../../../../shared/modules";
 import { reportError } from "../../../../shared/report";
@@ -50,14 +56,46 @@ function nameFrom(url: unknown, fallback: string): string {
  * message. Embed author and footer icons are saved too, but they are not media anyone wants listed.
  */
 export function savedMedia(entry: DeletedMessage): SavedMedia[] {
+	// The message's own files, then those of the message it forwarded (keys f and g, so the
+	// count of the message's own attachments, which reads ":a", is not thrown off).
+	return [
+		...collectMedia(entry, entry, "a", "e"),
+		...(entry.forwarded && typeof entry.forwarded === "object"
+			? collectMedia(entry, entry.forwarded, "f", "g")
+			: []),
+	];
+}
+
+/** A message's stickers that have a saved image. Shown with the message, not in the media grid. */
+export function savedStickers(entry: DeletedMessage): SavedMedia[] {
 	const out: SavedMedia[] = [];
-	for (const [index, attachment] of (entry.attachments ?? []).entries()) {
+	for (const [index, sticker] of (entry.stickers ?? []).entries()) {
+		if (!sticker?.localFile) continue;
+		out.push({
+			key: `${entry.id}:s${index}`,
+			entry,
+			localFile: sticker.localFile,
+			kind: "image",
+			filename: String(sticker.name ?? "sticker"),
+		});
+	}
+	return out;
+}
+
+function collectMedia(
+	entry: DeletedMessage,
+	source: { attachments?: any[]; embeds?: any[] },
+	attachmentSlot: string,
+	embedSlot: string,
+): SavedMedia[] {
+	const out: SavedMedia[] = [];
+	for (const [index, attachment] of (source.attachments ?? []).entries()) {
 		if (!attachment?.localFile) continue;
 		const filename = String(
 			attachment.filename ?? nameFrom(attachment.remoteUrl, "file"),
 		);
 		out.push({
-			key: `${entry.id}:a${index}`,
+			key: `${entry.id}:${attachmentSlot}${index}`,
 			entry,
 			localFile: attachment.localFile,
 			kind: kindOf(attachment.content_type, filename),
@@ -68,7 +106,7 @@ export function savedMedia(entry: DeletedMessage): SavedMedia[] {
 			contentType: attachment.content_type ?? undefined,
 		});
 	}
-	for (const [index, embed] of (entry.embeds ?? []).entries()) {
+	for (const [index, embed] of (source.embeds ?? []).entries()) {
 		// A GIF link's embed has both: the video is the GIF, the thumbnail its first frame.
 		const parts: Array<[any, MediaKind, string]> = embed?.video?.localFile
 			? [[embed.video, "video", "v"]]
@@ -79,7 +117,7 @@ export function savedMedia(entry: DeletedMessage): SavedMedia[] {
 		for (const [part, kind, slot] of parts) {
 			if (!part?.localFile) continue;
 			out.push({
-				key: `${entry.id}:e${index}${slot}`,
+				key: `${entry.id}:${embedSlot}${index}${slot}`,
 				entry,
 				localFile: part.localFile,
 				kind,
@@ -162,6 +200,54 @@ let stopWaiting: (() => void) | undefined;
  * dependency reads) ran again on every tap while it kept missing. Now a miss starts one wait for the
  * real module by its path and answers "not yet" at once; the next tap after Discord loads it works.
  */
+let loadTried = false;
+
+/**
+ * Loads the viewer's module when Discord hasn't yet, the way the community plugins find a module
+ * that isn't loaded: by the shape of its dependency list, which is known before it runs.
+ *
+ * In the 352.2 bundle `openMediaModal.tsx` is module 8688 with fifteen dependencies:
+ * `[32, 5, 5172, 1087, 1499, 8689, 2002, 8690, 8691, 38, 5171, 8716, 6623, 8717, 2]`. Ids move
+ * between builds, so only what holds still is matched: the count, its own next three modules at
+ * positions 5, 7 and 8, and the import tracker last. A module with that shape is loaded and kept
+ * only if it exports `openMediaModal`. Tried once a session; a Discord build that moved the list
+ * simply doesn't match, and the wait below still catches the module when Discord loads it.
+ */
+function loadViewer(): ((options: any) => void) | undefined {
+	if (loadTried) return undefined;
+	loadTried = true;
+	try {
+		const { relative } = withDependencies as any;
+		const found = (lookupModule as any)(
+			(withProps as any)("openMediaModal").and(
+				(withDependencies as any)([
+					null,
+					null,
+					null,
+					null,
+					null,
+					relative(1),
+					null,
+					relative(2),
+					relative(3),
+					null,
+					null,
+					null,
+					null,
+					null,
+					ImportTrackerModuleId,
+				]),
+			),
+		);
+		const mod = found?.[0];
+		const open = mod?.openMediaModal ?? mod?.default?.openMediaModal;
+		if (typeof open === "function") return open;
+	} catch (error) {
+		reportError(`${TAG} loading the media viewer failed:`, error);
+	}
+	return undefined;
+}
+
 function openMediaModal(): ((options: any) => void) | undefined {
 	if (viewer) return viewer;
 	try {
@@ -173,6 +259,8 @@ function openMediaModal(): ((options: any) => void) | undefined {
 	} catch {
 		/* not loaded yet */
 	}
+	const loaded = loadViewer();
+	if (loaded) return (viewer = loaded);
 	if (!stopWaiting) {
 		stopWaiting = getModuleByPath(
 			MEDIA_VIEWER_PATH,
@@ -191,6 +279,7 @@ function openMediaModal(): ((options: any) => void) | undefined {
 export function resetMediaState() {
 	thumbs.clear();
 	viewer = undefined;
+	loadTried = false;
 	try {
 		stopWaiting?.();
 	} catch {

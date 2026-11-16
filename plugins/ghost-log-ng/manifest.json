@@ -5,7 +5,7 @@
 	"description": "Ground-up Ghost Log rewrite: encrypted deleted-message log, edit history and saved media.",
 	"author": "bleelblep",
 	"icon": "TrashIcon",
-	"version": "0.3.1",
+	"version": "0.4.3",
 	"dependencies": {
 		"valenced.api": {
 			"version": ">=1 <2"

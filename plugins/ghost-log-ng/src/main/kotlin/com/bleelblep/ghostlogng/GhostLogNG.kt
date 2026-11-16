@@ -186,6 +186,40 @@ private fun parseEnvelope(bytes: ByteArray): Envelope? {
 // process is hard-killed inside it.
 private const val PERSIST_DEBOUNCE_MS = 400L
 
+// How long after a trim the media it orphaned is cleared out. Not at once: the prune decrypts every
+// shard, and at the limit every catch trims one entry.
+private const val PRUNE_DELAY_MS = 15 * 60 * 1000L
+
+// While the pre-trim copy is this young, the prune keeps the media of the entries in it, so
+// restoring it brings back pictures as well as text.
+private const val SAFETY_KEEP_MS = 7 * 24 * 60 * 60 * 1000L
+
+// One file may take this long to download, and one message's files this long together.
+private const val DOWNLOAD_FILE_MS = 5 * 60 * 1000L
+private const val DOWNLOAD_MESSAGE_MS = 8 * 60 * 1000L
+
+// Saved media is only ever fetched from Discord's own hosts. An embed's `url` is the site the
+// link points at: fetching that told the site's owner this phone's address, and that a message
+// logger was running, as soon as they deleted the message. Discord's copy (`proxy_url`) is used.
+private val MEDIA_HOSTS = listOf("discordapp.com", "discordapp.net", "discord.com")
+
+/**
+ * Where this plugin's storage was before Valenced 1.7 moved it from `storage/<id>/` to
+ * `storage/<slot>/<id>/`, when that folder is still there.
+ */
+internal fun legacyStorageDir(storageDir: File): File? {
+	val slotRoot = storageDir.parentFile ?: return null
+	val storage = slotRoot.parentFile ?: return null
+	if (slotRoot.name == "storage" || storage.name != "storage") return null
+	return File(storage, storageDir.name).takeIf { it.isDirectory }
+}
+
+internal fun isDiscordMediaUrl(url: String): Boolean = runCatching {
+	val parsed = URL(url)
+	val host = parsed.host.lowercase()
+	parsed.protocol == "https" && MEDIA_HOSTS.any { host == it || host.endsWith(".$it") }
+}.getOrDefault(false)
+
 // `stop {}` is a separate lambda from `start {}` and cannot see its locals, so the final flush is
 // published here for it to call.
 private var flushOnStop: (() -> Unit)? = null
@@ -424,6 +458,19 @@ val ghostLogNg = plugin {
         // the base dir: the base dir can be shared storage, and a bundle import writes into it.
         // The constructor never throws (a broken Keystore at start used to take the plugin's start
         // down with it); a ring that could not start reports `broken` and nothing is written.
+        //
+        // Before the ring exists: after Valenced 1.7's storage move (see mergeLegacyStorage) this
+        // folder starts empty, and the ring would make a fresh key. The old folder's logs then read
+        // as another install's, nothing merged, and the old keys.json was copied over the new one,
+        // locking everything written in between. The old key file comes along first instead.
+        runCatching {
+            val mine = File(storageDir, "keys.json")
+            val old = legacyStorageDir(storageDir)?.let { File(it, "keys.json") }
+            if (old != null && old.isFile && !mine.exists()) {
+                storageDir.mkdirs()
+                copyAtomic(old, mine)?.let { Log.e(TAG, "could not bring the old key file along (${cls(it)})") }
+            }
+        }
         val ring = KeyRing(
             File(storageDir, "keys.json"),
             listOf(
@@ -662,6 +709,9 @@ val ghostLogNg = plugin {
 				put("deletedAt", deletedAt)
 				if (rich.has("attachments")) put("attachments", rich.optJSONArray("attachments"))
 				if (rich.has("embeds")) put("embeds", rich.optJSONArray("embeds"))
+				// From 0.4.1: a message's stickers, and what a forwarded message carried.
+				if (rich.has("stickers")) put("stickers", rich.optJSONArray("stickers"))
+				if (rich.has("forwarded")) put("forwarded", rich.optJSONObject("forwarded"))
 			})
 		}
 
@@ -742,6 +792,15 @@ val ghostLogNg = plugin {
 			val shardPattern = Regex("""^deleted-embeds-\d{5}\.json$""")
 			if (indexRead == null && l.base.listFiles().orEmpty().any { shardPattern.matches(it.name) }) return
 			val live = entries.map { it.optString("id") }.toHashSet()
+			// The pre-trim copy holds text only. While it is recent, what it names keeps its rich
+			// records and media too, or restoring it after a limit cut (a settings reset putting an
+			// unlimited log back to 100) would bring the messages back with every picture gone. A copy
+			// that won't open says nothing about what it protects, so nothing is pruned.
+			val safety = File(l.base, PRE_TRIM_NAME)
+			if (safety.isFile && System.currentTimeMillis() - safety.lastModified() < SAFETY_KEEP_MS) {
+				val body = runCatching { decrypt(safety.readText())?.let { JSONObject(it) } }.getOrNull() ?: return
+				objectsOf(body.optJSONArray("deleted")).forEach { live.add(it.optString("id")) }
+			}
 			val referenced = HashSet<String>()
 			fun collect(value: Any?) {
 				when (value) {
@@ -892,6 +951,24 @@ val ghostLogNg = plugin {
 			}
 		}
 
+		var pruneJob: Job? = null
+
+		/**
+		 * Caller must hold the mutex. Clears out what a trim orphaned, some minutes later and once
+		 * however many trims ask. Media was only pruned at start, so in a long session a log at its
+		 * limit kept every file it had ever downloaded.
+		 */
+		fun schedulePruneLocked() {
+			if (pruneJob != null) return
+			pruneJob = scope.launch {
+				delay(PRUNE_DELAY_MS)
+				mutex.withLock {
+					pruneJob = null
+					pruneOrphansLocked()
+				}
+			}
+		}
+
 		/** Caller must hold the mutex. Marks the deleted log dirty and coalesces the write. */
 		fun schedulePersistLocked() {
 			dirty = true
@@ -932,11 +1009,15 @@ val ghostLogNg = plugin {
 		 * With a declared length it is read straight into one array of that size: a growing
 		 * ByteArrayOutputStream holds up to twice the body and then copies it once more.
 		 */
-		fun readBody(input: java.io.InputStream, declared: Long): ByteArray? {
+		fun readBody(input: java.io.InputStream, declared: Long, deadline: Long): ByteArray? {
+			// A body that trickles in resets the read timeout with every byte, so the whole file has
+			// its own limit.
+			fun late() = System.currentTimeMillis() > deadline
 			if (declared in 1..maxMediaBytes) {
 				val out = ByteArray(declared.toInt())
 				var off = 0
 				while (off < out.size) {
+					if (late()) return null
 					val read = input.read(out, off, out.size - off)
 					if (read < 0) break
 					off += read
@@ -953,7 +1034,7 @@ val ghostLogNg = plugin {
 				while (true) {
 					val read = input.read(buffer)
 					if (read < 0) break
-					if (rest.size() + read > maxMediaBytes) return null
+					if (rest.size() + read > maxMediaBytes || late()) return null
 					rest.write(buffer, 0, read)
 				}
 				return rest.toByteArray()
@@ -965,6 +1046,7 @@ val ghostLogNg = plugin {
 				val read = input.read(buffer)
 				if (read < 0) break
 				total += read
+				if (late()) return null
 				if (total > maxMediaBytes) {
 					Log.w(TAG, "downloadMedia aborted oversize mid-stream")
 					return null
@@ -979,41 +1061,61 @@ val ghostLogNg = plugin {
 			// Reuse an existing download.
 			if (File(dir, name).exists()) return name
 			try {
-				val conn = (URL(url).openConnection() as HttpURLConnection).apply {
-					connectTimeout = 15000
-					// Large videos need a long read window; otherwise the socket dies mid-transfer.
-					readTimeout = 120000
-					instanceFollowRedirects = true
-					requestMethod = "GET"
-					setRequestProperty("User-Agent", "Mozilla/5.0 (Android) GhostLogNG")
-				}
-				try {
-					val code = conn.responseCode
-					// The status only: the url names the channel, the attachment and its file name (AS-08).
-					if (code !in 200..299) {
-						Log.i(TAG, "downloadMedia HTTP $code")
+				val deadline = System.currentTimeMillis() + DOWNLOAD_FILE_MS
+				var current = url
+				var hops = 0
+				while (true) {
+					// Every hop, not just the first: a redirect must not lead off Discord's hosts.
+					if (!isDiscordMediaUrl(current)) {
+						Log.w(TAG, "downloadMedia skipped: not a Discord media host")
 						return null
 					}
-					val contentType = conn.contentType
-					val declaredLen = conn.contentLengthLong
-					if (declaredLen > maxMediaBytes) {
-						Log.w(TAG, "downloadMedia skipped oversize=$declaredLen")
-						return null
+					val conn = (URL(current).openConnection() as HttpURLConnection).apply {
+						connectTimeout = 15000
+						// Large videos need a long read window; otherwise the socket dies mid-transfer.
+						readTimeout = 120000
+						// Followed by hand below, so each hop is checked.
+						instanceFollowRedirects = false
+						requestMethod = "GET"
+						// No User-Agent of our own: it used to name the plugin to every server asked.
 					}
-					val bytes = conn.inputStream.use { readBody(it, declaredLen) } ?: return null
-					if (bytes.isEmpty()) { Log.w(TAG, "downloadMedia empty body"); return null }
-					val mime = contentType?.substringBefore(';')?.trim()?.ifBlank { null }
-						?: "application/" + extensionFor(null, url)
-					// Written beside the target and renamed into place, so a crash or kill mid-write can
-					// never leave a truncated .enc that the "reuse an existing download" check trusts.
-					writeMediaEnvelope(File(dir, name), bytes, mime)?.let { error ->
-						Log.w(TAG, "downloadMedia could not save the file (${cls(error)})")
-						return null
+					try {
+						val code = conn.responseCode
+						if (code in 300..399) {
+							val next = conn.getHeaderField("Location")
+							if (next.isNullOrBlank() || ++hops > 3) {
+								Log.i(TAG, "downloadMedia gave up on a redirect")
+								return null
+							}
+							current = URL(URL(current), next).toString()
+							continue
+						}
+						// The status only: the url names the channel, the attachment and its file name (AS-08).
+						if (code !in 200..299) {
+							Log.i(TAG, "downloadMedia HTTP $code")
+							return null
+						}
+						val contentType = conn.contentType
+						val declaredLen = conn.contentLengthLong
+						if (declaredLen > maxMediaBytes) {
+							Log.w(TAG, "downloadMedia skipped oversize=$declaredLen")
+							return null
+						}
+						val bytes = conn.inputStream.use { readBody(it, declaredLen, deadline) } ?: return null
+						if (bytes.isEmpty()) { Log.w(TAG, "downloadMedia empty body"); return null }
+						val mime = contentType?.substringBefore(';')?.trim()?.ifBlank { null }
+							?: "application/" + extensionFor(null, url)
+						// Written beside the target and renamed into place, so a crash or kill mid-write can
+						// never leave a truncated .enc that the "reuse an existing download" check trusts.
+						writeMediaEnvelope(File(dir, name), bytes, mime)?.let { error ->
+							Log.w(TAG, "downloadMedia could not save the file (${cls(error)})")
+							return null
+						}
+						Log.i(TAG, "media saved (${bytes.size} bytes)")
+						return name
+					} finally {
+						conn.disconnect()
 					}
-					Log.i(TAG, "media saved (${bytes.size} bytes)")
-					return name
-				} finally {
-					conn.disconnect()
 				}
 			} catch (e: Throwable) {
 				Log.e(TAG, "downloadMedia failed (${cls(e)})")
@@ -1023,8 +1125,9 @@ val ghostLogNg = plugin {
 
 		/** Into [dir], which the caller snapshots once for the whole capture (see Layout). */
 		fun downloadMedia(url: String, dir: File): String? {
-			if (url.isBlank() || !(url.startsWith("http://") || url.startsWith("https://"))) {
-				Log.w(TAG, "downloadMedia skipped: non-http url")
+			// Here as well as at each hop, so a repair (whose url comes from an older log) is held to it too.
+			if (!isDiscordMediaUrl(url)) {
+				Log.w(TAG, "downloadMedia skipped: not a Discord media host")
 				return null
 			}
 			val name = mediaNameFor(url)
@@ -1046,16 +1149,16 @@ val ghostLogNg = plugin {
 		 */
 		fun downloadRichMedia(rich: JSONObject, dir: File) {
 			Log.i(TAG, "downloadRichMedia: attachments=${rich.optJSONArray("attachments")?.length() ?: 0} embeds=${rich.optJSONArray("embeds")?.length() ?: 0}")
+			val giveUp = System.currentTimeMillis() + DOWNLOAD_MESSAGE_MS
 			fun stampImage(obj: JSONObject?) {
-				if (obj == null) return
+				if (obj == null || System.currentTimeMillis() > giveUp) return
 				// image/thumbnail/video use `url`/`proxy_url`; author/footer icons use
-				// `icon_url`/`proxy_icon_url`. Accept either shape.
-				val url = obj.optString("url").ifBlank {
-					obj.optString("proxy_url").ifBlank {
-						obj.optString("icon_url").ifBlank { obj.optString("proxy_icon_url") }
-					}
-				}
-				if (url.isBlank()) return
+				// `icon_url`/`proxy_icon_url`. The first that is on a Discord host: an attachment's
+				// `url` is (the original file), an embed's `url` is the linked site and is passed over
+				// for Discord's copy. With no Discord copy the media is not saved.
+				val url = listOf("url", "proxy_url", "icon_url", "proxy_icon_url")
+					.map { obj.optString(it) }
+					.firstOrNull { isDiscordMediaUrl(it) } ?: return
 				val localFile = downloadMedia(url, dir) ?: return
 				if (!obj.has("remoteUrl")) obj.put("remoteUrl", url)
 				// Store the .enc file name only. The bytes are encrypted at rest; the JS side asks the
@@ -1063,21 +1166,31 @@ val ghostLogNg = plugin {
 				obj.put("localFile", localFile)
 			}
 
-			rich.optJSONArray("attachments")?.let { arr ->
-				for (i in 0 until arr.length()) {
-					val att = arr.optJSONObject(i) ?: continue
-					stampImage(att)
+			/** The attachments and embeds of a message, or of the message a forward carries. */
+			fun walk(source: JSONObject) {
+				source.optJSONArray("attachments")?.let { arr ->
+					for (i in 0 until arr.length()) {
+						val att = arr.optJSONObject(i) ?: continue
+						stampImage(att)
+					}
+				}
+				source.optJSONArray("embeds")?.let { arr ->
+					for (i in 0 until arr.length()) {
+						val embed = arr.optJSONObject(i) ?: continue
+						stampImage(embed.optJSONObject("image"))
+						stampImage(embed.optJSONObject("thumbnail"))
+						stampImage(embed.optJSONObject("video"))
+						stampImage(embed.optJSONObject("author"))
+						stampImage(embed.optJSONObject("footer"))
+					}
 				}
 			}
-			rich.optJSONArray("embeds")?.let { arr ->
-				for (i in 0 until arr.length()) {
-					val embed = arr.optJSONObject(i) ?: continue
-					stampImage(embed.optJSONObject("image"))
-					stampImage(embed.optJSONObject("thumbnail"))
-					stampImage(embed.optJSONObject("video"))
-					stampImage(embed.optJSONObject("author"))
-					stampImage(embed.optJSONObject("footer"))
-				}
+			walk(rich)
+			rich.optJSONObject("forwarded")?.let { walk(it) }
+			// Each sticker names its image on Discord's sticker host (`url`); one without (an
+			// animated Lottie sticker, which nothing here can draw) keeps its name only.
+			rich.optJSONArray("stickers")?.let { arr ->
+				for (i in 0 until arr.length()) stampImage(arr.optJSONObject(i))
 			}
 		}
 
@@ -1151,12 +1264,12 @@ val ghostLogNg = plugin {
 		 */
 		fun mergeLegacyStorage() {
 			val slotRoot = storageDir.parentFile ?: return
-			val storage = slotRoot.parentFile ?: return
-			if (slotRoot.name == "storage" || storage.name != "storage") return
-			val legacy = File(storage, storageDir.name)
-			if (!legacy.isDirectory) return
+			val legacy = legacyStorageDir(storageDir) ?: return
 			val marker = File(legacy, ".merged-into-${slotRoot.name}")
 			if (marker.exists()) return
+			// An old log this install has no key for. It can't be merged now, so the merge isn't
+			// marked done: it runs again once the key is here (the recovery password).
+			var needsKey = false
 
 			fun readArray(file: File): JSONArray? = (readLogFile(file) as? LogRead.Ok)?.arr
 
@@ -1176,6 +1289,11 @@ val ghostLogNg = plugin {
 				// union would replace it.
 				if (listOf(mineLog, mineEdits).any { it is LogRead.UnknownKey || it is LogRead.Bad }) {
 					Log.w(TAG, "legacy merge skipped for one folder: its log does not open")
+					return
+				}
+				if (listOf(LOG_NAME, EDITS_NAME).any { readLogFile(File(from, it)) is LogRead.UnknownKey }) {
+					Log.w(TAG, "legacy merge waiting: an old log needs a key this install lacks")
+					needsKey = true
 					return
 				}
 				to.mkdirs()
@@ -1227,13 +1345,14 @@ val ghostLogNg = plugin {
 						// A top-level .json is the JS settings (jsonStorage), which the move reset to
 						// defaults. The old one wins, or the 100-entry default would trim the merged log
 						// straight back down at the next setLimits. The reset copy is kept beside it.
-						val settings = src.parentFile == legacy && src.name.endsWith(".json")
+						// Never the key file: copied over the new one, it locked this folder's log.
+						val settings = src.parentFile == legacy && src.name.endsWith(".json") && src.name != "keys.json"
 						if (!dst.exists() || (settings && dst.readText() != src.readText())) {
 							if (dst.exists() && copyAtomic(dst, File(dst.parentFile, "${dst.name}.before-merge")) != null) return@forEach
 							if (copyAtomic(src, dst) == null) copied++
 						}
 					}
-				marker.writeText(System.currentTimeMillis().toString())
+				if (!needsKey) marker.writeText(System.currentTimeMillis().toString())
 				Log.i(TAG, "legacy merge: $copied files copied")
 			}.onFailure { Log.e(TAG, "legacy merge failed (${cls(it)})") }
 		}
@@ -1546,28 +1665,40 @@ val ghostLogNg = plugin {
 			// One folder for the whole download. If it changes before the record is queued, the
 			// blobs are carried over below rather than left behind.
 			val target = layout.get()
-			// Fetch image bytes to local files BEFORE taking the persistence lock: this is network
-			// I/O and must not block other captures serializing through the mutex. Capped by
-			// downloadSemaphore because a bulk delete starts one of these per attachment-bearing
-			// message at once -- see the semaphore's own note for why that matters.
-			if (rich != null) downloadSemaphore.withPermit { runCatching { downloadRichMedia(rich, target.media) } }
+			// The message is logged FIRST, with its attachments and embeds as they came (remote urls
+			// only). The download used to run before this, so a message waiting on a slow or stalled
+			// download was not in the log at all, and was lost if Discord closed meanwhile.
             val count = mutex.withLock {
                 entries.removeAll { it.optString("id") == id }
                 entries.add(0, entry)
 				if (id.isNotEmpty()) sessionDeleted.add(id)
+				val had = entries.size
                 trimLocked()
+				if (entries.size < had) schedulePruneLocked()
                 // Coalesced, not written outright: see PERSIST_DEBOUNCE_MS. Every read path flushes
                 // first, so nothing can observe the gap.
                 schedulePersistLocked()
-				if (rich != null) {
-					// Queued for the same coalesced flush as the log, not written outright.
-					queueRichLocked(rich, id, entry.optString("channelId"), entry.optLong("deletedAt"))
-					val now = layout.get()
-					if (now !== target) carryBlobsLocked(listOf(rich), now.media, listOf(target.media))
-				}
+				// A copy: the download below fills `rich` in off the lock while a flush may be writing this.
+				if (rich != null) queueRichLocked(JSONObject(rich.toString()), id, entry.optString("channelId"), entry.optLong("deletedAt"))
                 entries.size
             }
             log.i("captured deletion, log holds $count")
+			if (rich != null) {
+				// Network I/O, so outside the persistence lock. Capped by downloadSemaphore because a
+				// bulk delete starts one of these per attachment-bearing message at once -- see the
+				// semaphore's own note for why that matters.
+				downloadSemaphore.withPermit { runCatching { downloadRichMedia(rich, target.media) } }
+				mutex.withLock {
+					// Removed, cleared or trimmed away while it downloaded: nothing to attach to.
+					if (entries.any { it.optString("id") == id }) {
+						// Replaces the record queued above, now naming the saved copies.
+						queueRichLocked(rich, id, entry.optString("channelId"), entry.optLong("deletedAt"))
+						scheduleFlushLocked()
+						val now = layout.get()
+						if (now !== target) carryBlobsLocked(listOf(rich), now.media, listOf(target.media))
+					}
+				}
+			}
 			// The rich content as saved, each media object now naming its encrypted copy, so the JS
 			// cache can show the saved media without waiting for a reload.
 			rich?.toString() ?: true
@@ -1619,7 +1750,7 @@ val ghostLogNg = plugin {
 			mutex.withLock {
 				val index = edits.indexOfFirst { it.optString("id") == id }
 				val record = if (index >= 0) edits.removeAt(index) else JSONObject().apply {
-					for (key in listOf("id", "channelId", "guildId", "authorId", "authorName", "channelName", "guildName", "authorAvatar", "guildIcon")) {
+					for (key in listOf("id", "channelId", "guildId", "authorId", "authorName", "channelName", "guildName", "authorAvatar", "guildIcon", "authorUsername", "authorBot", "authorNick", "authorColor", "accountId")) {
 						incoming.opt(key)?.takeIf { it != JSONObject.NULL }?.let { put(key, it) }
 					}
 					(incoming.opt("sentAt") as? Number)?.let { put("sentAt", it.toLong()) }
@@ -1813,6 +1944,30 @@ val ghostLogNg = plugin {
 		// fails to decrypt (damaged by the concurrent-write bug fixed in beta19): if Discord's CDN
 		// still serves the original, download it again. The name must be the one this url hashes
 		// to, so a caller can't point one file's name at someone else's url.
+		// openProfile(userId) -> true when Discord was handed its own profile link for that user.
+		//
+		// Discord's profile sheet is a JS module that only exists once a profile has been opened this
+		// session, so the log's "Profile" action found nothing on a fresh start. A discord.com/users
+		// link is what Discord itself opens a profile from, and aiming it at this package (a patched
+		// install has another package name, so Android would otherwise pick a browser, and has no app
+		// for discord://) delivers it to the running app, which shows the sheet over the current screen.
+		registerNativeAsyncMethod("${manifest.id}.openProfile") { args ->
+			val userId = args.getOrNull(0) as? String ?: return@registerNativeAsyncMethod false
+			if (!Regex("^\\d{17,20}$").matches(userId)) return@registerNativeAsyncMethod false
+			val context = appContext ?: return@registerNativeAsyncMethod false
+			runCatching {
+				context.startActivity(
+					android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse("https://discord.com/users/$userId"))
+						.setPackage(context.packageName)
+						.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK),
+				)
+				true
+			}.getOrElse { error ->
+				Log.w(TAG, "profile link not opened (${cls(error)})")
+				false
+			}
+		}
+
 		registerNativeAsyncMethod("${manifest.id}.repairMedia") { args ->
 			val name = args.getOrNull(0) as? String ?: return@registerNativeAsyncMethod false
 			val url = args.getOrNull(1) as? String ?: return@registerNativeAsyncMethod false

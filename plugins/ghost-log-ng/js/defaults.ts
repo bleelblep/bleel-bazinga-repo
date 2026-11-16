@@ -49,6 +49,6 @@ export const DEFAULTS: GhostLogSettings = {
 	logOwnEdits: false,
 	showEditHistory: true,
 	warningDismissed: false,
-	tapToJump: false,
-	removeFromChat: false,
+	ignoredGuilds: [],
+	ignoredUsers: [],
 };

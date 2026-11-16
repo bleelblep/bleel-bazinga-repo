@@ -33,6 +33,7 @@ import {
 	getSettings,
 	initSettings,
 	loadSettings,
+	setSettings,
 	stopSettings,
 } from "./settings";
 import type { GhostLogSettings } from "./types";
@@ -44,6 +45,7 @@ import {
 	refreshStorageStatus,
 	resetState,
 } from "./ui/state";
+import { isAndroid, stopUnlessAndroid } from "../../../shared/androidOnly";
 
 const DEBUG: boolean = false;
 
@@ -56,6 +58,8 @@ export default plugin<{ jsonStorage: GhostLogSettings }>({
 	},
 
 	start(api) {
+		// iOS: the native half never loads (shared/androidOnly.ts).
+		if (stopUnlessAndroid(api.plugin, "Ghost Log Next Gen")) return;
 		// Errors go to Valenced's plugin error list (shared/report.ts), not the log.
 		setReporter(api.plugin);
 		api.cleanup(() => setReporter(undefined));
@@ -81,6 +85,11 @@ export default plugin<{ jsonStorage: GhostLogSettings }>({
 			// the log at 100 and dropped the rest of a purge mid-burst even though the user had
 			// unlimited on). Await the load first; see settings.ts for the full story.
 			await loadSettings();
+			// Logging has one "My own messages" switch now. Someone who had only one of the two old
+			// switches on gets both, rather than a switch that reads on while half of it is off.
+			const loaded = getSettings();
+			if (!!loaded.countOwnMessages !== !!loaded.logOwnEdits)
+				await setSettings({ countOwnMessages: true, logOwnEdits: true });
 			const cfg = getSettings();
 			await native
 				.setBaseDir(cfg.backupFilePath || DEFAULT_BACKUP_PATH)
@@ -177,7 +186,7 @@ export default plugin<{ jsonStorage: GhostLogSettings }>({
 				["log navigation", () => installJump()],
 				// Remove from chat menu (patches/chatSheet.tsx).
 				["message sheet rows", () => patchChatSheet()],
-				// Dormant unless Logging > Tap the notice to jump is on.
+				// Used when In chat > Notify me when a message is deleted is on.
 				["tap-to-jump notice", () => installJumpBanner()],
 			] as const) {
 				try {
@@ -200,6 +209,7 @@ export default plugin<{ jsonStorage: GhostLogSettings }>({
 	},
 
 	stop(api) {
+		if (!isAndroid()) return;
 		api.plugin.requireReload();
 		// The reload means these would never be observed in-session, but the next start must not
 		// inherit a half-lived session's state either (module-scope state was the old plugin's

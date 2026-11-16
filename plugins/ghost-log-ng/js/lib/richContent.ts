@@ -21,7 +21,70 @@ type RichContent = {
 	// restored MessageRecord has the same shape as the deleted message.
 	attachments?: any[];
 	embeds?: any[];
+	/** From 0.4.1. Each: { id, name, format_type, url? } and, once saved, localFile. */
+	stickers?: any[];
+	/** From 0.4.1. What a forwarded message carried: its text, attachments and embeds. */
+	forwarded?: ForwardedContent;
 };
+
+export interface ForwardedContent {
+	content?: string;
+	sentAt?: number;
+	attachments?: any[];
+	embeds?: any[];
+}
+
+export interface StickerInfo {
+	id: string;
+	name: string;
+	/** Discord's sticker format: 1 PNG, 2 APNG, 3 Lottie, 4 GIF. */
+	format_type: number;
+}
+
+/** A message's stickers as plain data. Discord allows three a message. */
+export function stickersOf(message: any): StickerInfo[] {
+	const raw = [
+		message?.stickerItems,
+		message?.sticker_items,
+		message?.stickers,
+	].find((list) => Array.isArray(list) && list.length);
+	if (!raw) return [];
+	return (raw as any[])
+		.filter((sticker) => sticker?.id)
+		.slice(0, 3)
+		.map((sticker) => ({
+			id: String(sticker.id),
+			name: String(sticker.name ?? "Sticker").slice(0, 100),
+			format_type: Number(sticker.format_type ?? sticker.formatType ?? 1),
+		}));
+}
+
+/** The message a forward carries (its first snapshot), or undefined for an ordinary message. */
+export function forwardedOf(message: any): any | undefined {
+	const snapshots = message?.messageSnapshots ?? message?.message_snapshots;
+	const inner = Array.isArray(snapshots) ? snapshots[0]?.message : undefined;
+	return inner && typeof inner === "object" ? inner : undefined;
+}
+
+/** A sticker's image on Discord's sticker host; none for Lottie, which is not an image. */
+function stickerUrl(sticker: StickerInfo): string | undefined {
+	if (!/^\d{17,20}$/.test(sticker.id)) return undefined;
+	const ext = { 1: "png", 2: "png", 4: "gif" }[sticker.format_type];
+	return ext
+		? `https://media.discordapp.net/stickers/${sticker.id}.${ext}`
+		: undefined;
+}
+
+function cleanAttachments(list: unknown): any[] | undefined {
+	if (!Array.isArray(list)) return undefined;
+	const out = list
+		.map(clone)
+		.filter(
+			(attachment: any) =>
+				typeof attachment?.url === "string" && attachment.url.length > 0,
+		);
+	return out.length ? out : undefined;
+}
 
 function clone(value: any): any {
 	try {
@@ -41,16 +104,32 @@ export function richContentForCapture(
 		Array.isArray(message?.embeds) && message.embeds.length
 			? message.embeds.map(clone)
 			: undefined;
-	const attachments = Array.isArray(message?.attachments)
-		? message.attachments
-				.map(clone)
-				.filter(
-					(attachment: any) =>
-						typeof attachment?.url === "string" && attachment.url.length > 0,
-				)
+	const attachments = cleanAttachments(message?.attachments);
+	const stickers = stickersOf(message).map((sticker) => {
+		const url = stickerUrl(sticker);
+		return url ? { ...sticker, url } : sticker;
+	});
+	const inner = forwardedOf(message);
+	// The text rides here as well as on the entry: the saved record is laid over the entry when
+	// the log loads, so a `forwarded` without it would wipe the text.
+	const forwarded: ForwardedContent | undefined = inner
+		? {
+				content: String(inner.content ?? "").slice(0, 4000),
+				attachments: cleanAttachments(inner.attachments),
+				embeds:
+					Array.isArray(inner.embeds) && inner.embeds.length
+						? inner.embeds.slice(0, 10).map(clone)
+						: undefined,
+			}
 		: undefined;
-	if (!embeds && !attachments?.length) return undefined;
-	return { embeds, attachments: attachments?.length ? attachments : undefined };
+	if (!embeds && !attachments && !stickers.length && !forwarded)
+		return undefined;
+	return {
+		embeds,
+		attachments,
+		stickers: stickers.length ? stickers : undefined,
+		forwarded,
+	};
 }
 
 // Memoize resolved media URIs by .enc file name so repeated restores of the same image don't
@@ -114,6 +193,10 @@ async function repairMediaUri(
 /** Collect every media sub-object in a rich record that carries a saved encrypted copy. */
 function mediaObjects(rich: RichContent): any[] {
 	const out: any[] = [];
+	if (Array.isArray(rich.stickers))
+		for (const sticker of rich.stickers) if (sticker?.localFile) out.push(sticker);
+	if (rich.forwarded && typeof rich.forwarded === "object")
+		out.push(...mediaObjects(rich.forwarded as RichContent));
 	if (Array.isArray(rich.attachments))
 		for (const att of rich.attachments) if (att?.localFile) out.push(att);
 	if (Array.isArray(rich.embeds)) {

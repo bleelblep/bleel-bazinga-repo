@@ -4,6 +4,7 @@ import Backup from "./pages/Backup";
 import Conversation from "./pages/Conversation";
 import Debug from "./pages/Debug";
 import Edits from "./pages/Edits";
+import Ignored from "./pages/Ignored";
 import License from "./pages/License";
 import Log from "./pages/Log";
 import Media from "./pages/Media";
@@ -18,6 +19,7 @@ export const LOG_ROUTE = `${PREFIX}.log`;
 export const EDITS_ROUTE = `${PREFIX}.edits`;
 export const MEDIA_ROUTE = `${PREFIX}.media`;
 export const OPTIONS_ROUTE = `${PREFIX}.options`;
+export const IGNORED_ROUTE = `${PREFIX}.ignored`;
 export const VISUALS_ROUTE = `${PREFIX}.visuals`;
 export const BACKUP_ROUTE = `${PREFIX}.backup`;
 export const LICENSE_ROUTE = `${PREFIX}.license`;
@@ -73,10 +75,16 @@ export function registerPages(): () => void {
 				useTitle: () => "Logging",
 				screen: { route: OPTIONS_ROUTE, getComponent: () => Options },
 			}),
+			registerSettingsItem(IGNORED_ROUTE, {
+				parent: null,
+				type: "route",
+				useTitle: () => "Ignored",
+				screen: { route: IGNORED_ROUTE, getComponent: () => Ignored },
+			}),
 			registerSettingsItem(VISUALS_ROUTE, {
 				parent: null,
 				type: "route",
-				useTitle: () => "Visual style",
+				useTitle: () => "In chat",
 				screen: { route: VISUALS_ROUTE, getComponent: () => Visuals },
 			}),
 			registerSettingsItem(BACKUP_ROUTE, {

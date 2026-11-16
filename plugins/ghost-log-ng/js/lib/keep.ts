@@ -24,7 +24,7 @@ import { getSettings } from "../settings";
 import type { GhostLogSettings } from "../types";
 import { isLoggedId } from "../ui/state";
 import { safeLookup } from "./finders";
-import { isEphemeral } from "./sanitize";
+import { isEphemeral, shouldLog } from "./sanitize";
 import { getStores } from "./stores";
 
 const TAG = "[GhostLogNG:keep]";
@@ -224,12 +224,14 @@ export function shouldKeep(message: any, cfg: GhostLogSettings): boolean {
 	if (isEphemeral(message)) return false;
 	// Your own messages, deleted by you or anyone, stay only with "count own messages" on. A kept one
 	// can't be deleted (or edited, pinned...) again: blockGhostActions refuses every action on it.
-	if (!cfg.countOwnMessages) {
-		const me = getStores().UserStore?.getCurrentUser?.()?.id;
-		if (me && message.author?.id === me) return false;
-	}
-	if (cfg.ignoreBots && message.author?.bot) return false;
-	return true;
+	// The same check capture uses, so what isn't logged (a bot, an ignored person or server) never
+	// stays in chat either.
+	return shouldLog(
+		message,
+		String(message.channel_id ?? message.channelId ?? ""),
+		cfg.countOwnMessages,
+		cfg,
+	);
 }
 
 /**

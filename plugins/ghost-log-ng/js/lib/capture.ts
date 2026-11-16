@@ -22,14 +22,21 @@ import {
 import { native } from "./bridge";
 import { showJumpBanner } from "./jumpBanner";
 import { isOwnUserDelete } from "./keep";
-import { richContentForCapture } from "./richContent";
+import {
+	forwardedOf,
+	richContentForCapture,
+	stickersOf,
+} from "./richContent";
 import {
 	clip,
+	describeMessage,
 	epochMs,
 	isEphemeral,
 	mentionUsers,
 	plainUser,
+	shouldLog,
 } from "./sanitize";
+import { buttonsOf, pollOf, reactionsOf } from "./snapshot";
 import { getStores } from "./stores";
 
 const DEBUG: boolean = false;
@@ -38,27 +45,6 @@ const TAG = "[GhostLogNG:capture]";
 
 /** Longest text kept for a deleted message (Discord's own limit with Nitro). */
 const MAX_CONTENT = 4000;
-
-/** Channel/guild/author names for one message, read from the stores at capture time. */
-function describe(message: any, channelId: string) {
-	const s = getStores();
-	const channel = s.ChannelStore?.getChannel?.(channelId);
-	const guild = channel?.guild_id
-		? s.GuildStore?.getGuild?.(channel.guild_id)
-		: undefined;
-
-	return {
-		channelName: channel?.name ? `#${channel.name}` : "Direct message",
-		guildId: channel?.guild_id as string | undefined,
-		guildName: guild?.name as string | undefined,
-		guildIcon: guild?.icon as string | undefined,
-		authorName:
-			message.author?.globalName ??
-			message.author?.global_name ??
-			message.author?.username ??
-			"Unknown",
-	};
-}
 
 interface JumpTarget {
 	id: string;
@@ -90,7 +76,8 @@ function showNotice(notice: PendingNotice) {
 		notice.count === 1
 			? `Message deleted by ${notice.authorName} in ${notice.channelName}`
 			: `${notice.count} messages deleted in ${notice.channelName}`;
-	if (getSettings().tapToJump && showJumpBanner(text, notice.target)) return;
+	// Always the tappable notice; "Tap the notice to jump" was a second switch for one feature.
+	if (showJumpBanner(text, notice.target)) return;
 	// One toast key per channel, so a later burst replaces this one rather than queueing behind it.
 	showToast(text, `bleelblep.ghost-log-ng:${notice.target.channelId}`);
 }
@@ -166,7 +153,7 @@ async function capture(
 		if (typeof result === "string" && result) {
 			try {
 				const saved = JSON.parse(result);
-				updateCachedMedia(id, saved.attachments, saved.embeds);
+				updateCachedMedia(id, saved);
 			} catch (error) {
 				reportError(`${TAG} saved media reply unreadable:`, error);
 			}
@@ -255,6 +242,16 @@ function alreadyCaptured(messageId: string): boolean {
 	return false;
 }
 
+/** An extra that fails to read costs that extra, never the whole entry. */
+function optional<T>(read: () => T): T | undefined {
+	try {
+		return read();
+	} catch (error) {
+		reportError(`${TAG} an optional part of a capture failed:`, error);
+		return undefined;
+	}
+}
+
 /**
  * One deletion: read the message from MessageStore before it is removed, apply the capture
  * filters, and hand a snake_case entry to native. Nothing here throws out of a flux handler --
@@ -272,17 +269,17 @@ export function handleDelete(channelId: string, messageId: string) {
 	const cfg = getSettings();
 	// Your own delete, started here (keep.ts isOwnUserDelete): labelled "Deleted by you" in the log.
 	const byYou = isOwnUserDelete(message);
-	if (!cfg.countOwnMessages) {
-		const me = s.UserStore?.getCurrentUser?.()?.id;
-		if (me && message.author?.id === me) return;
-	}
-	if (cfg.ignoreBots && message.author?.bot) return;
 	if (!cfg.logDeletions) return;
+	if (!shouldLog(message, channelId, cfg.countOwnMessages, cfg)) return;
 
-	const meta = describe(message, channelId);
+	const meta = describeMessage(message, channelId);
 	const deletedAt = Date.now();
 	const richContent = richContentForCapture(message, cfg);
 	const content = String(message.content ?? "");
+	// Names and text are kept on the entry itself, so they survive with "Save attachments and
+	// embeds" off; the pictures go with the rich content, when that is on.
+	const stickers = optional(() => stickersOf(message)) ?? [];
+	const inner = optional(() => forwardedOf(message));
 	void capture(
 		{
 			id: String(messageId),
@@ -290,11 +287,24 @@ export function handleDelete(channelId: string, messageId: string) {
 			guildId: meta.guildId,
 			authorId: String(message.author?.id ?? ""),
 			authorName: meta.authorName,
+			authorUsername: meta.authorUsername,
+			authorBot: meta.authorBot,
+			authorNick: meta.authorNick,
+			authorColor: meta.authorColor,
+			accountId: meta.accountId,
 			channelName: meta.channelName,
 			guildName: meta.guildName,
 			authorAvatar: message.author?.avatar,
 			guildIcon: meta.guildIcon,
 			content: clip(content, MAX_CONTENT),
+			stickers: stickers.length ? stickers : undefined,
+			forwarded: inner
+				? { content: clip(inner.content, MAX_CONTENT) }
+				: undefined,
+			// As they stood at the delete (lib/snapshot.ts): for reading, not for rebuilding.
+			reactions: optional(() => reactionsOf(message)),
+			poll: optional(() => pollOf(message)),
+			buttons: optional(() => buttonsOf(message)),
 			byYou: byYou ? true : undefined,
 			// Everything below is what a bulk-deleted message needs to come back looking like itself.
 			// A single delete never leaves the store, so it keeps its real record; a bulk delete is a

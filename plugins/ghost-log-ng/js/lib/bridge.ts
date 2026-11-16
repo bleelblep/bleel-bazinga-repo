@@ -107,6 +107,9 @@ export const native = {
 		callNativeMethod(`${PREFIX}.getMediaThumb`, [name]),
 	repairMedia: (name: string, url: string) =>
 		callNativeMethod(`${PREFIX}.repairMedia`, [name, url]),
+	/** Hands Discord its own profile link for this user; false when it couldn't. */
+	openProfile: (userId: string): Promise<boolean> =>
+		callNativeMethod(`${PREFIX}.openProfile`, [userId]),
 	mediaCheck: (name: string) =>
 		callNativeMethod(`${PREFIX}.mediaCheck`, [name]),
 	/** LocalVideoHook's state as JSON: hooked method count, files served, recent player opens. */
@@ -198,6 +201,10 @@ declare module "@valenced/modules/native" {
 		];
 		"bleelblep.ghost-log-ng.repairMedia": [
 			args: [name: string, url: string],
+			returnValue: boolean,
+		];
+		"bleelblep.ghost-log-ng.openProfile": [
+			args: [userId: string],
 			returnValue: boolean,
 		];
 		"bleelblep.ghost-log-ng.mediaCheck": [

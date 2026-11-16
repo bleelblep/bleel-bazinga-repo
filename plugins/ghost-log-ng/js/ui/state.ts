@@ -35,9 +35,34 @@ export interface DeletedMessage {
 	guildName?: string;
 	authorAvatar?: string;
 	guildIcon?: string;
+	/** From 0.4.0; older entries lack them. The @username, and whether the author is a bot. */
+	authorUsername?: string;
+	authorBot?: boolean;
+	/** The server nickname and role colour ("#rrggbb") at the time. */
+	authorNick?: string;
+	authorColor?: string;
+	/** The account that caught it. Nothing reads it yet: it is what per-account logs will need. */
+	accountId?: string;
 	content: string;
 	attachments?: any[];
 	embeds?: any[];
+	/** From 0.4.1: the message's stickers ({ id, name, format_type }, plus localFile once saved). */
+	stickers?: any[];
+	/** From 0.4.1: what a forwarded message carried (lib/richContent.ts ForwardedContent). */
+	forwarded?: {
+		content?: string;
+		attachments?: any[];
+		embeds?: any[];
+	};
+	/** From 0.4.2 (lib/snapshot.ts): reactions, poll and bot buttons as they stood at the delete. */
+	reactions?: Array<{ name: string; id?: string; count: number }>;
+	poll?: {
+		question: string;
+		answers: Array<{ text: string; votes?: number }>;
+		multiselect?: boolean;
+		ended?: boolean;
+	};
+	buttons?: Array<{ kind: "button" | "menu"; label: string }>;
 	// Captured so a message rebuilt from the log is not a stripped-down copy of itself. A single
 	// delete keeps its real record in the store (the delete event is blocked), but a BULK
 	// delete does not -- those messages are genuinely removed and come back only through
@@ -365,15 +390,22 @@ export function addToCache(entry: DeletedMessage) {
  */
 export function updateCachedMedia(
 	messageId: string,
-	attachments?: any[],
-	embeds?: any[],
+	saved: {
+		attachments?: any[];
+		embeds?: any[];
+		stickers?: any[];
+		forwarded?: DeletedMessage["forwarded"];
+	},
 ) {
 	const entry =
 		pendingAdds.find((e) => e.id === messageId) ??
 		cache.find((e) => e.id === messageId);
-	if (!entry) return;
-	if (Array.isArray(attachments)) entry.attachments = attachments;
-	if (Array.isArray(embeds)) entry.embeds = embeds;
+	if (!entry || !saved) return;
+	if (Array.isArray(saved.attachments)) entry.attachments = saved.attachments;
+	if (Array.isArray(saved.embeds)) entry.embeds = saved.embeds;
+	if (Array.isArray(saved.stickers)) entry.stickers = saved.stickers;
+	if (saved.forwarded && typeof saved.forwarded === "object")
+		entry.forwarded = saved.forwarded;
 	rehydratedChannels.delete(entry.channelId);
 	rehydrateAttempts.delete(entry.channelId);
 	// A staged entry is picked up by the flush, which notifies; one already in the cache needs it now.

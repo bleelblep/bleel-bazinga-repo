@@ -34,7 +34,10 @@ const STYLE_OPTIONS: Array<{
 	},
 ];
 
-/** How deleted and edited messages look in chat. */
+/**
+ * In chat: everything Ghost Log shows outside its own screens. How a deleted message is marked,
+ * whether edit history is drawn above a message, and the notice when one is deleted.
+ */
 export default function Visuals() {
 	const { Page } = components;
 	const { ScrollView } = ReactNative;
@@ -73,16 +76,26 @@ export default function Visuals() {
 
 					<TableRowGroup title="Edited messages" hasIcons>
 						<TableSwitchRow
-							label="Show edit history in chat"
+							label="Show edit history"
 							subLabel={
 								s.logEdits
 									? "Earlier versions appear as small grey lines above the message."
-									: "Turn on Log edits (in Logging) to use this."
+									: "Turn on Edited messages (in Logging) to use this."
 							}
 							icon={rowIcon("ClockIcon", "ic_timer")}
 							disabled={!s.logEdits}
 							value={!!s.showEditHistory}
 							onValueChange={(v) => set({ showEditHistory: v })}
+						/>
+					</TableRowGroup>
+
+					<TableRowGroup title="Notices" hasIcons>
+						<TableSwitchRow
+							label="Notify me when a message is deleted"
+							subLabel="A short notice says who deleted a message and where. Tap it to open the message."
+							icon={rowIcon("BellIcon", "ic_notification")}
+							value={!!s.toastOnCatch}
+							onValueChange={(v) => set({ toastOnCatch: v })}
 						/>
 					</TableRowGroup>
 				</Stack>

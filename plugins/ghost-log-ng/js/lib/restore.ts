@@ -63,7 +63,10 @@ function hasLocalMedia(entry: DeletedMessage): boolean {
 /** Every media URL an entry would render, as one comparable string. */
 function mediaKey(entry: DeletedMessage): string {
 	const urls: string[] = [];
-	for (const attachment of entry.attachments ?? [])
+	for (const attachment of [
+		...(entry.attachments ?? []),
+		...(entry.forwarded?.attachments ?? []),
+	])
 		urls.push(
 			String(attachment?.url ?? ""),
 			String(attachment?.proxy_url ?? ""),
@@ -219,20 +222,40 @@ function mergeSorted(source: any[], records: any[]): any[] | undefined {
 
 /** Raw snake_case message, same shape the store normalizes on LOAD_MESSAGES_SUCCESS. */
 function buildRaw(entry: DeletedMessage, channelId: string): any {
+	// A forward is rebuilt as an ordinary message saying what it forwarded, with the forwarded
+	// files as its own. Its real shape (a message snapshot) is not rebuilt: a half-right snapshot
+	// is the kind of record that has crashed Discord's renderer before, and plain text can't.
+	const forwarded = entry.forwarded;
+	const forwardedText = forwarded
+		? `↪ Forwarded${forwarded.content ? `\n${forwarded.content}` : ""}`
+		: "";
+	// Stickers go back as Discord's own sticker items; it draws them from the sticker's id.
+	const stickers = (entry.stickers ?? [])
+		.filter((sticker: any) => sticker?.id && sticker?.name)
+		.map((sticker: any) => ({
+			id: String(sticker.id),
+			name: String(sticker.name),
+			format_type: Number(sticker.format_type) || 1,
+		}));
 	return {
 		id: entry.id,
 		channel_id: channelId,
-		content: entry.content,
+		content: entry.content || forwardedText,
 		author: {
 			id: entry.authorId,
-			username: entry.authorName,
+			username: entry.authorUsername ?? entry.authorName,
 			global_name: entry.authorName,
 			avatar: entry.authorAvatar,
 			discriminator: "0",
 			public_flags: 0,
+			...(entry.authorBot ? { bot: true } : {}),
 		},
-		attachments: entry.attachments ?? [],
-		embeds: entry.embeds ?? [],
+		attachments: [
+			...(entry.attachments ?? []),
+			...(forwarded?.attachments ?? []),
+		],
+		embeds: [...(entry.embeds ?? []), ...(forwarded?.embeds ?? [])],
+		...(stickers.length ? { sticker_items: stickers } : {}),
 		// These were hardcoded empty in the old plugin's first cut, which is why a bulk-deleted
 		// message came back stripped: no mentions (they rendered as raw <@id> markup), no reply
 		// context, no edited marker, and every message forced to type 0 regardless of what it

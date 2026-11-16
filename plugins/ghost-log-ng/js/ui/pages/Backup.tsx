@@ -278,9 +278,9 @@ export default function Backup() {
 				);
 			} else if (res.portable === false)
 				toast(
-					`Bundle saved to ${res.path}. It opens on this phone only until you set a recovery password.`,
+					`Full copy saved to ${res.path}. It opens on this phone only until you set a recovery password.`,
 				);
-			else toast(`Bundle saved to ${res.path} (${res.count} messages).`);
+			else toast(`Full copy saved to ${res.path} (${res.count} messages).`);
 		})();
 	};
 
@@ -293,8 +293,8 @@ export default function Backup() {
 			).catch(() => -1);
 			if (restored === BUNDLE_NEEDS_PASSWORD) {
 				askPassword(
-					"Bundle from another phone",
-					"Type the recovery password that was set on the phone this bundle came from.",
+					"Full copy from another phone",
+					"Type the recovery password that was set on the phone this full copy came from.",
 					"Import",
 					(typed) => importBundle(typed, uri),
 				);
@@ -304,13 +304,13 @@ export default function Backup() {
 			await refreshEdits();
 			const after = await refreshStorageStatus();
 			if (restored === BUNDLE_WRONG_PASSWORD)
-				toast("That password doesn't open this bundle.");
+				toast("That password doesn't open this full copy.");
 			else if (typeof restored === "number" && restored >= 0)
 				toast(
-					`Imported ${restored} message${restored === 1 ? "" : "s"} from the bundle.`,
+					`Imported ${restored} message${restored === 1 ? "" : "s"} from the full copy.`,
 				);
 			else if (restored === BUNDLE_DAMAGED)
-				toast("Couldn't import: that bundle is damaged. Nothing was changed.");
+				toast("Couldn't import: that full copy is damaged. Nothing was changed.");
 			else if (
 				restored === false ||
 				(typeof restored === "number" && restored < -1) ||
@@ -325,9 +325,9 @@ export default function Backup() {
 				);
 			} else if (uri)
 				toast(
-					"Couldn't import: that file isn't a Ghost Log bundle, or it's damaged.",
+					"Couldn't import: that file isn't a Ghost Log full copy, or it's damaged.",
 				);
-			else toast(`No bundle found at ${bundlePath}, or it's damaged.`);
+			else toast(`No full copy found at ${bundlePath}, or it's damaged.`);
 		})();
 	};
 
@@ -340,8 +340,8 @@ export default function Backup() {
 		confirmDestructive({
 			title: "Replace the log?",
 			body: canPickFiles()
-				? `Pick a bundle (.zip). The current log${here}, edit history and saved media are replaced with it.`
-				: `The current log${here}, edit history and saved media are replaced with the bundle at ${bundlePath}.`,
+				? `Pick a full copy (.zip). The current log${here}, edit history and saved media are replaced with it.`
+				: `The current log${here}, edit history and saved media are replaced with the full copy at ${bundlePath}.`,
 			action: canPickFiles() ? "Choose file" : "Replace",
 			onConfirm: () => {
 				if (!canPickFiles()) {
@@ -362,7 +362,7 @@ export default function Backup() {
 		const replacing = !!status?.recoverySet;
 		askPassword(
 			replacing ? "Change recovery password" : "Set recovery password",
-			`At least ${MIN_RECOVERY_PASSWORD} characters. You need it to open backups and bundles on another phone or after reinstalling Discord. It can't be recovered if you forget it.${replacing ? " Backups made before the change still need the old password." : ""}`,
+			`At least ${MIN_RECOVERY_PASSWORD} characters. You need it to open backups and full copies on another phone or after reinstalling Discord. It can't be recovered if you forget it.${replacing ? " Backups made before the change still need the old password." : ""}`,
 			"Next",
 			(first) => {
 				if (first.length < MIN_RECOVERY_PASSWORD) {
@@ -385,7 +385,7 @@ export default function Backup() {
 							await refreshStorageStatus();
 							if (res?.ok)
 								toast(
-									"Recovery password set. Backups and bundles now open on another phone with it.",
+									"Recovery password set. Backups and full copies now open on another phone with it.",
 								);
 							else toast("Could not set the recovery password.");
 						})();
@@ -455,10 +455,10 @@ export default function Backup() {
 	};
 
 	const recoveryLabel = !status?.recoverySet
-		? "Not set. Backups and bundles open on this phone only."
+		? "Not set. Backups and full copies open on this phone only."
 		: status.recoveryCurrent === false
 			? "Set it again: it doesn't cover this phone's current key."
-			: "Set. Backups and bundles open on another phone with it.";
+			: "Set. Backups and full copies open on another phone with it.";
 
 	// ---- old plugin ----
 
@@ -478,7 +478,7 @@ export default function Backup() {
 							if (!res) toast("Import failed.");
 							else if (!res.found)
 								toast(
-									"No Revenge Next log found in this Discord. If Revenge Next was a separate app, export a bundle there and use Import bundle.",
+									"No Revenge Next log found in this Discord. If Revenge Next was a separate app, save a full copy there and use Replace log from a full copy.",
 								);
 							else if (!res.added && !res.edits && !res.rich && !res.media)
 								toast("Found the old log. Everything in it is already here.");
@@ -513,21 +513,21 @@ export default function Backup() {
 						<StatusCard
 							tone="critical"
 							title="This log is locked"
-							body="It was written by another install (before a reinstall, or on another phone). Nothing in it is changed until you unlock it. New catches are held safely in the meantime and added once it's sorted out."
+							body="It was written by another install (before a reinstall, or on another phone). Nothing in it is changed until you unlock it. New messages are held safely in the meantime and added once it's sorted out."
 						/>
 					) : null}
 					{!locked && block === "unreadable" ? (
 						<StatusCard
 							tone="critical"
 							title="This log couldn't be read"
-							body="Its files are there, but they couldn't be opened, so nothing is written to them. Backups, imports and clearing are paused so a good backup isn't overwritten. New catches are held safely in the meantime. Restore a backup, or start a new log (the damaged one is moved aside, not deleted)."
+							body="Its files are there, but they couldn't be opened, so nothing is written to them. Backups, imports and clearing are paused so a good backup isn't overwritten. New messages are held safely in the meantime. Restore a backup, or start a new log (the damaged one is moved aside, not deleted)."
 						/>
 					) : null}
 					{status?.usingFallback ? (
 						<StatusCard
 							tone="critical"
 							title="Location unusable"
-							body={`Android refused ${status.requestedDir}, and Discord has no permission that would allow it, so the log is being saved to app storage instead. Pick App storage below, and use Export bundle to keep a copy you can move.`}
+							body={`Android refused ${status.requestedDir}, and Discord has no permission that would allow it, so the log is being saved to app storage instead. Pick App storage below, and use Save a full copy to keep a copy you can move.`}
 						/>
 					) : null}
 					{status?.lastWriteError && !block ? (
@@ -552,7 +552,7 @@ export default function Backup() {
 						<TableRowGroup title="Locked log" hasIcons>
 							<TableRow
 								label="Unlock with recovery password"
-								subLabel="Opens the old log and keeps what was caught since."
+								subLabel="Opens the old log and keeps what was logged since."
 								icon={rowIcon("LockIcon", "ic_lock")}
 								onPress={unlock}
 							/>
@@ -565,42 +565,22 @@ export default function Backup() {
 						</TableRowGroup>
 					) : null}
 
-					<TableRowGroup title="Automatic backup" hasIcons>
+					<TableRowGroup
+						title="Backup"
+						description="An encrypted copy of the text: deleted messages and edit history, without saved media."
+						hasIcons
+					>
 						<TableSwitchRow
 							label="Back up automatically"
 							subLabel={
 								block
 									? `Paused: ${blockReason(block)}.`
-									: "Updates an encrypted backup a moment after each new catch or edit."
+									: `Updates the backup a moment after anything new is logged. ${s.lastBackupAt ? `Last backup ${ago(s.lastBackupAt)}.` : "No backup yet."}`
 							}
 							icon={rowIcon("RefreshIcon", "ic_sync")}
 							value={!!s.autoBackupEnabled}
 							onValueChange={setAutoBackup}
 						/>
-						<TableRow
-							label="Last backup"
-							subLabel={s.lastBackupAt ? ago(s.lastBackupAt) : "None yet."}
-							icon={rowIcon("ClockIcon", "ic_clock")}
-						/>
-						<TableRow
-							label="Location"
-							subLabel={
-								shared
-									? "Download folder. Survives uninstalling Discord, if Android allows it."
-									: "App storage. Always works, but it's erased if Discord is uninstalled."
-							}
-							icon={rowIcon("FolderIcon", "ic_folder")}
-							arrow
-							onPress={choosePath}
-						/>
-						<TableRow
-							label="Where it's saved"
-							subLabel={`${logFolder ? `Log: ${logFolder}\n` : ""}Backup file: ${backupFile}`}
-							icon={rowIcon("FileIcon", "ic_file")}
-						/>
-					</TableRowGroup>
-
-					<TableRowGroup title="Back up now" hasIcons>
 						<TableRow
 							label="Back up now"
 							subLabel={
@@ -618,19 +598,23 @@ export default function Backup() {
 						/>
 						<TableRow
 							label="Restore backup"
-							subLabel="Pick a backup file, or use the one at the backup location. If the log is full, its oldest entries make way."
+							subLabel="Adds a backup's messages to this log. Pick a file, or use the one at the backup location. If the log is full, its oldest entries make way."
 							icon={rowIcon("UploadIcon", "ic_upload")}
 							onPress={askAndRestore}
 						/>
 					</TableRowGroup>
 
-					<TableRowGroup title="Move to another phone" hasIcons>
+					<TableRowGroup
+						title="Full copy"
+						description="Everything in one .zip file: messages, edit history and saved media. For moving to another phone."
+						hasIcons
+					>
 						<TableRow
-							label="Export bundle"
+							label="Save a full copy"
 							subLabel={
 								portable
-									? "Saves the whole log, edits and media as one .zip file in Download/GhostLogNG. Opens on another phone with the recovery password."
-									: "Saves the whole log, edits and media as one .zip file in Download/GhostLogNG. It opens only on this phone until you set a recovery password."
+									? "Saved in Download/GhostLogNG. Opens on another phone with the recovery password."
+									: "Saved in Download/GhostLogNG. It opens only on this phone until you set a recovery password."
 							}
 							icon={rowIcon("DownloadIcon", "ic_download")}
 							disabled={anything <= 0}
@@ -638,8 +622,10 @@ export default function Backup() {
 						/>
 						<TableRow
 							variant="danger"
-							label="Import bundle"
-							subLabel={blocked ?? "Pick a bundle file. It replaces this log."}
+							label="Replace log from a full copy"
+							subLabel={
+								blocked ?? "Pick a full copy. It replaces everything in this log."
+							}
 							icon={dangerIcon("UploadIcon", "ic_upload")}
 							disabled={!!block}
 							onPress={askAndImportBundle}
@@ -648,7 +634,11 @@ export default function Backup() {
 
 					<TableRowGroup
 						title="Encryption"
-						description="Everything is encrypted with a key made for this phone. Copied anywhere else, it can't be opened without the recovery password."
+						description={`Everything is encrypted with a key made for this phone. Copied anywhere else, it can't be opened without the recovery password. ${
+							status?.deviceKey === "file"
+								? "Android's secure key storage isn't available here, so the key is kept in app storage."
+								: "The key is kept in Android's secure key storage and never leaves this phone."
+						}`}
 						hasIcons
 					>
 						<TableRow
@@ -662,18 +652,24 @@ export default function Backup() {
 							arrow
 							onPress={setRecovery}
 						/>
-						<TableRow
-							label="Device protection"
-							subLabel={
-								status?.deviceKey === "file"
-									? "Android's secure key storage isn't available, so the key is kept in app storage."
-									: "The key is kept in Android's secure key storage and never leaves this phone."
-							}
-							icon={rowIcon("ShieldIcon", "ic_shield")}
-						/>
 					</TableRowGroup>
 
-					<TableRowGroup title="Revenge Next" hasIcons>
+					<TableRowGroup
+						title="Advanced"
+						description="Most people never need these."
+						hasIcons
+					>
+						<TableRow
+							label="Storage location"
+							subLabel={`${
+								shared
+									? "Download folder. Survives uninstalling Discord, if Android allows it."
+									: "App storage. Always works, but it's erased if Discord is uninstalled."
+							}\n${logFolder ? `Log: ${logFolder}\n` : ""}Backup file: ${backupFile}`}
+							icon={rowIcon("FolderIcon", "ic_folder")}
+							arrow
+							onPress={choosePath}
+						/>
 						<TableRow
 							label="Import from Revenge Next"
 							subLabel="Brings in Ghost Log Native Beta's log from Revenge Next, if it ran in this Discord. No export needed."

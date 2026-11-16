@@ -39,6 +39,12 @@ export const boxSurface = () =>
 		"#2b2d31",
 	);
 
+/**
+ * The gap between a box and the screen edge. Narrower than the 16 the settings rows use: a log row
+ * is a message, and the extra width is a few more words per line.
+ */
+export const BOX_GUTTER = 8;
+
 export type BoxItem<T> =
 	| { type: "title"; key: string; label: string }
 	| { type: "row"; key: string; item: T; first: boolean; last: boolean };
@@ -119,7 +125,7 @@ export function BoxTitle({ label, first }: { label: string; first?: boolean }) {
 		<View
 			accessibilityRole="header"
 			style={{
-				paddingHorizontal: 20,
+				paddingHorizontal: BOX_GUTTER + 6,
 				paddingTop: first ? 12 : 20,
 				paddingBottom: 8,
 			}}
@@ -148,11 +154,14 @@ export function BoxRow({
 	onPress,
 	onLongPress,
 	accessibilityLabel,
+	footer,
 	children,
 }: {
 	first: boolean;
 	last: boolean;
 	inset?: number;
+	/** Drawn under the row, inside the box and outside the row's own press area (an action bar). */
+	footer?: any;
 	/** Select mode: true/false draws a tick circle (and a highlight when ticked); undefined is normal. */
 	selected?: boolean;
 	onPress?: () => void;
@@ -166,7 +175,7 @@ export function BoxRow({
 	return (
 		<View
 			style={{
-				marginHorizontal: 16,
+				marginHorizontal: BOX_GUTTER,
 				backgroundColor: boxSurface(),
 				borderTopLeftRadius: first ? radius : 0,
 				borderTopRightRadius: first ? radius : 0,
@@ -205,6 +214,7 @@ export function BoxRow({
 				{selected === undefined ? null : <Tick on={selected} />}
 				{children}
 			</Pressable>
+			{footer ?? null}
 		</View>
 	);
 }

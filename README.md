@@ -85,12 +85,17 @@ A message logger: keeps deleted and edited messages, encrypted, on your phone.
 - Deleted messages stay in chat, marked as deleted (an overlay, red text, or off). Replying,
   reacting, editing and other actions are blocked on them, so nothing is sent for them.
 - Edited messages keep their earlier versions, shown above the message in chat if you want.
-- Saves text, mentions, replies, embeds and media. Only messages Discord had loaded can be caught.
+- Saves text, mentions, replies, embeds, stickers, forwarded messages, reactions, polls, bot button
+  labels and media. Media is downloaded from Discord's own servers
+  only. Only messages Discord had loaded can be caught.
 - The log has Recent and Conversations views, search, Jump to the message, Copy, and Remove.
+  Tap a message in Recent to open it out in place with its actions.
+- Ignore lists: servers, people and bots nothing is logged from.
 - Everything is encrypted with a key made for this phone and kept in Android's secure key storage.
   An optional recovery password lets backups and bundles open on another phone or after a
   reinstall. A log this phone can't open is never written over.
-- Automatic backups, export and import bundles, and import from Ghost Log Native Beta (Revenge Next).
+- Automatic backups, full copies (one .zip with everything, for moving phones), and import from
+  Ghost Log Native Beta (Revenge Next).
 - Nothing is sent anywhere: the log stays on the phone.
 
 Message loggers are the kind of plugin most associated with accounts being actioned. Only you can
@@ -225,6 +230,18 @@ People's pronouns as a small tag next to their name in chat, and after their nam
 - Set someone's pronouns yourself from the long-press menu on their message, or by user ID.
 - One badge colour for everyone, each person's role colour, or a colour per person.
 
+### Relationship Notifier
+
+Tells you when friends, servers or group DMs disappear from your lists, and keeps a history.
+
+- Lost friends, new friends (accepted by you or by them), cancelled or turned-down friend requests,
+  servers and group DMs you're no longer in, and friends' new display names and usernames.
+- Avatar changes: the old and new pictures are saved on your phone, downloaded from Discord's
+  public picture servers with no account attached.
+- Changes made while Discord was closed show up as one toast when it connects.
+- Things you removed or left yourself are marked "by you" and never pop up.
+- A history page, with a detail page for each change. Nothing is sent anywhere.
+
 ### ReviewDB
 
 Read and write reviews on people's profiles and on servers, from [ReviewDB](https://reviewdb.mantikafasi.dev).
@@ -251,6 +268,21 @@ Undoes the redesign's squares.
 - Big containers (cards, settings rows, voice tiles) with their pre-redesign corners, on a switch
   of their own.
 - Each group of shapes has its own switch.
+
+### Screenshot Redactor
+
+Swaps names, avatars and personal details for placeholders so a chat is safe to screenshot.
+Only on your screen: nobody else sees any of it.
+
+- Turn it on or off from a message's long-press menu, or in settings.
+- Placeholders as User 1, User 2…, U1, U2… or ████████, numbered per person, with an option to
+  start again from User 1 each time.
+- Optionally covers @mentions, the member list, profile sheets and the DM header too; can replace
+  avatars with Discord's defaults and hide server tags.
+- Blanks emails, phone numbers, addresses, card numbers, invite links and API keys in message text,
+  matched on the phone.
+- Pickers for choosing people (adding to a group, sending to someone) keep real names, and a
+  placeholder is never saved as someone's nickname.
 
 ### Send Tweaks
 

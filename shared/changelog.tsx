@@ -54,6 +54,8 @@ interface Registered {
 	latestOnly?: boolean
 	/** Versions newer than the last-seen one, waiting for the settings page to open. */
 	pending?: ChangelogEntry[]
+	/** Set by the cleanup, so a check still in flight never writes after stop. */
+	stopped?: boolean
 }
 
 interface ChangelogOptions {
@@ -127,6 +129,8 @@ export function setupChangelog(api: any, entries: ChangelogEntry[], options: Cha
 	checkForUpdate(plugin).catch(error => reportError(`[${plugin.name}] changelog check failed:`, error))
 
 	return () => {
+		// The check above may still be waiting on storage; it looks at this before writing anything.
+		plugin.stopped = true
 		if (registered === plugin) registered = undefined
 		unregisterPage()
 	}
@@ -138,6 +142,8 @@ async function checkForUpdate(plugin: Registered) {
 		return
 	}
 	const data = await plugin.storage.get()
+	// Stopped while storage was being read: no late write after cleanup.
+	if (plugin.stopped) return
 	// Through versionString: a test build stored the parsed `{ nums, label }` object here.
 	const seen: string | undefined = data?.[SEEN_KEY] ? versionString(data[SEEN_KEY]) : undefined
 	if (seen === plugin.current) return

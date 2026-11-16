@@ -3,6 +3,82 @@ import type { ChangelogEntry } from "../../../shared/changelog";
 /** Newest first. Every public version gets an entry; see shared/changelog.tsx. */
 export const CHANGELOG: ChangelogEntry[] = [
 	{
+		version: "0.4.3",
+		date: "2026-11-10",
+		title: "Simpler settings",
+		changes: [
+			"Settings are in four pages now: Logging (what gets logged, log size), In chat (how messages look, notices), Ignored and Backup & encryption.",
+			"One My own messages switch covers both your deletes and your edits. If you had either one on, it is on.",
+			"One Notify me when a message is deleted switch. The notice can always be tapped to open the message.",
+			"Remove from Ghost Log is always in the long-press menu of a logged message; its switch is gone.",
+			"Ignore bots moved to Ignored, as All bots.",
+			"Backup & encryption is regrouped: Backup (text only), Full copy (everything, was called a bundle), Encryption, and Advanced for the storage location and the Revenge Next import.",
+		],
+	},
+	{
+		version: "0.4.2",
+		date: "2026-11-10",
+		title: "Reactions, polls and bot buttons",
+		changes: [
+			"A deleted message's reactions are logged with their counts, as they stood when it was deleted.",
+			"Polls are logged: the question, the answers and how many votes each had.",
+			"The labels of a bot message's buttons and menus are logged.",
+			"All three are for reading in the log and apply to messages caught from now on.",
+		],
+	},
+	{
+		version: "0.4.1",
+		date: "2026-11-10",
+		title: "Stickers and forwarded messages",
+		changes: [
+			"Stickers are logged: the name, and the picture for PNG and GIF stickers. Animated Lottie stickers keep the name only.",
+			"Forwarded messages are logged with the text and files of the message they forwarded, where they used to read \"(no text)\".",
+			"Both apply to messages caught from now on. The pictures need Save attachments and embeds on.",
+		],
+	},
+	{
+		version: "0.4.0",
+		date: "2026-11-10",
+		title: "Ignore lists, link previews in the log",
+		changes: [
+			"New in Logging: Ignored. Pick servers nothing is logged from, and ignore a person or bot from one of their messages (Conversations, open one, tap the message, Ignore). Ignoring offers to remove what's already logged from them.",
+			"Link previews and bot embeds show their title and text in the log, so those messages no longer read \"(no text)\".",
+			"Bots are marked BOT in the log, and search also finds usernames and preview text. This applies to messages caught from now on.",
+		],
+	},
+	{
+		version: "0.3.11",
+		date: "2026-11-10",
+		title: "Tap to open a message",
+		changes: [
+			"In Recent, tapping a deleted or edited message opens it out in place: the full text, its pictures, what it replied to, and View in chat, Copy, Profile and Remove underneath. Tap again to close it.",
+		],
+	},
+	{
+		version: "0.3.4",
+		date: "2026-11-10",
+		title: "Wider log, profile fix",
+		changes: [
+			"View profile in the log works even when you haven't opened a profile yet since starting Discord.",
+			"Log cards are wider, so more of each message fits on a line.",
+		],
+	},
+	{
+		version: "0.3.2",
+		date: "2026-11-10",
+		title: "Safer saving",
+		changes: [
+			"Saved pictures and videos are only downloaded from Discord's own servers. Link previews used to be fetched from the linked website itself, which could show that site your phone's address.",
+			"A deleted message is logged straight away and its pictures are added after, so a slow download can no longer hold up or lose the message.",
+			"Choosing a smaller log size keeps the removed messages' pictures for a week, in case the size was changed by mistake.",
+			"Saved media from messages that left the log is cleaned up while Discord is open, not only at the next start.",
+			"Buttons and menus on bot messages, poll votes and Report are blocked on deleted messages kept in chat, like replies and reactions.",
+			"Editing your own messages works again inside a thread whose first message was deleted.",
+			"Updating Valenced from before 1.7 no longer risks locking the log.",
+			"On iPhone it now says it needs Android and turns itself off, instead of showing a red error.",
+		],
+	},
+	{
 		version: "0.3.1",
 		date: "2026-11-08",
 		title: "Fixes",

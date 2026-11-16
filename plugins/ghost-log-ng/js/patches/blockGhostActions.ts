@@ -8,6 +8,7 @@
  * (`lib/restore.ts`) look the same. Reply, react, edit, delete, pin, forward, create thread and mark
  * unread are therefore offered exactly as they are on a live message, and each one goes out to an
  * id the server has already deleted (account-safety AS-05: no requests to ids the server rejected).
+ * So do a bot message's buttons and menus, a poll's votes and Report.
  *
  * ## Why this hooks the action creators and not the sheet
  *
@@ -73,10 +74,17 @@ function toast(content: string) {
  */
 export function targetsDeletedMessage(args: any[]): boolean {
 	const list = args ?? [];
-	// The first loose id, when it's a channel and another loose id follows: the channel argument of
-	// (channelId, messageId, ...). Inside a thread that id is also the starter message's.
+	// The first loose id, when it's a channel and something else names the message: the channel
+	// argument of (channelId, messageId, ...) or (channelId, record). Inside a thread that id is also
+	// the starter message's, so reading it as a message refused every edit in a thread whose first
+	// message was deleted. A lone id is still read as a message.
 	const ids = list.filter((a) => typeof a === "string" && SNOWFLAKE.test(a));
-	const channelArg = ids.length > 1 && isChannelId(ids[0]) ? ids[0] : undefined;
+	const channelArg =
+		ids.length > 0 &&
+		(ids.length > 1 || list.some(namesMessage)) &&
+		isChannelId(ids[0])
+			? ids[0]
+			: undefined;
 	let skipped = false;
 	for (const arg of list) {
 		if (typeof arg === "string") {
@@ -97,6 +105,16 @@ export function targetsDeletedMessage(args: any[]): boolean {
 		if (typeof messageId === "string" && isDeletedId(messageId)) return true;
 	}
 	return false;
+}
+
+/** An object argument that carries the message itself or its id. */
+function namesMessage(arg: any): boolean {
+	if (!arg || typeof arg !== "object") return false;
+	return (
+		looksLikeMessage(arg) ||
+		(arg.message != null && typeof arg.message === "object") ||
+		typeof (arg.messageId ?? arg.message_id) === "string"
+	);
 }
 
 function isChannelId(id: string): boolean {
@@ -206,6 +224,27 @@ const TARGETS: Target[] = [
 		methods: ["openThreadCreationForMobile"],
 		notice: `${DELETED} — you can't start a thread from it.`,
 	},
+	{
+		// Buttons and select menus on a bot's message. Takes one object with `messageId`.
+		path: "modules/interactions/InteractionUtils.tsx",
+		props: ["executeMessageComponentInteraction", "handleInteractionResponse"],
+		methods: ["executeMessageComponentInteraction"],
+		notice: `${DELETED} — its buttons no longer work.`,
+	},
+	{
+		// One object with `channelId` and `messageId`.
+		path: "modules/polls/PollsHttpApi.tsx",
+		props: ["submitPollVote", "endPollEarly"],
+		methods: ["submitPollVote", "endPollEarly"],
+		notice: `${DELETED} — its poll is closed.`,
+	},
+	{
+		// The message record comes first.
+		path: "modules/in_app_reports/ReportModals.tsx",
+		props: ["showReportModalForMessage"],
+		methods: ["showReportModalForMessage"],
+		notice: `${DELETED} — Discord can't take a report for it.`,
+	},
 ];
 
 /** Wraps host[key] with the guard, once. `wrappers` holds our own wrappers so none is wrapped again. */
@@ -216,9 +255,9 @@ function guard(
 	target: Target,
 	wrappers: Set<any>,
 	cleanups: Array<() => void>,
-) {
+): boolean {
 	const current = host?.[key];
-	if (typeof current !== "function" || wrappers.has(current)) return;
+	if (typeof current !== "function" || wrappers.has(current)) return false;
 	const isDelete = method === "deleteMessage";
 
 	// Inside a try: a read-only export (a getter) throws on assignment in strict code, and that must
@@ -242,13 +281,16 @@ function guard(
 			}
 			return Reflect.apply(original, this, args);
 		});
-		if (host[key] !== current) wrappers.add(host[key]);
 		cleanups.push(unwrap);
+		// A read-only export is left as it was, with no error: nothing was guarded.
+		if (host[key] === current) return false;
+		wrappers.add(host[key]);
 	} catch (error) {
 		reportError(`${TAG} could not guard ${method}:`, error);
-		return;
+		return false;
 	}
 	if (DEBUG) console.log(`${TAG} guarded ${method}`);
+	return true;
 }
 
 function install(
@@ -263,13 +305,22 @@ function install(
 	const hosts = new Set<any>();
 	for (const host of [module, module?.default])
 		if (host && typeof host === "object") hosts.add(host);
+	let guarded = 0;
 	for (const host of hosts)
 		for (const method of target.methods)
-			guard(host, method, method, target, wrappers, cleanups);
+			if (guard(host, method, method, target, wrappers, cleanups)) guarded++;
 	// A module whose default export is the creator itself (markUnread on some builds).
 	if (target.defaultIs && typeof module?.default === "function") {
-		guard(module, "default", target.defaultIs, target, wrappers, cleanups);
+		if (guard(module, "default", target.defaultIs, target, wrappers, cleanups))
+			guarded++;
 	}
+	// The module was found and nothing on it could be guarded (renamed or read-only exports): these
+	// actions go through unguarded, which used to pass without a word.
+	if (guarded === 0)
+		reportError(
+			`${TAG} no guard installed on ${target.path}:`,
+			new Error("none of its actions could be wrapped"),
+		);
 }
 
 /**

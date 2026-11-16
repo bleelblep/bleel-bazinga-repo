@@ -12,7 +12,16 @@ import { reportError } from "../../../../shared/report";
 import { showToast } from "../../../../shared/toast";
 import { confirmDestructive } from "../../../../shared/ui/confirm";
 import type { EditRecord } from "../lib/edits";
+import { native } from "../lib/bridge";
 import { removeEditRecord } from "../lib/edits";
+import {
+	ignoreGuild,
+	ignoreUser,
+	isIgnoredGuild,
+	isIgnoredUser,
+	unignoreGuild,
+	unignoreUser,
+} from "../lib/ignore";
 import type { SavedMedia } from "../lib/media";
 import { openSavedMedia } from "../lib/media";
 import { jumpToDeletedMessage } from "../lib/navigate";
@@ -42,7 +51,7 @@ function reportRemoval(result: boolean | void, done: string) {
 	);
 }
 
-function copy(text: string) {
+export function copy(text: string) {
 	try {
 		// Valenced's bundled clipboard module first: React Native's own Clipboard left core long ago.
 		// Same order as Diagnostics' copy.
@@ -58,20 +67,44 @@ function copy(text: string) {
 }
 
 let profileSheet: any;
-function openUserProfile(userId: string) {
-	try {
-		if (!profileSheet) {
+function findProfileSheet(): ((props: { userId: string }) => void) | undefined {
+	if (!profileSheet) {
+		try {
 			const mod = (finders as any).lookupModuleWithImportedPath(
 				"modules/user_profile/native/showUserProfileActionSheet.tsx",
 			)?.[0];
 			profileSheet = mod?.default;
+		} catch {
+			profileSheet = undefined;
 		}
-		if (typeof profileSheet === "function")
-			return void profileSheet({ userId });
+	}
+	return typeof profileSheet === "function" ? profileSheet : undefined;
+}
+
+/**
+ * Discord's own profile sheet. Its module only exists once Discord has opened a profile this
+ * session (modules load on first use), so on a fresh start the lookup finds nothing and this used
+ * to stop at "Couldn't open the profile."
+ *
+ * Then native hands Discord its own profile link, aimed at this app (lib/bridge.ts openProfile):
+ * Discord shows the profile over the log, as it does for a tapped profile link. Not
+ * `Linking.openURL`, which asks Android: a patched install has another package name, so Android
+ * has no app for `discord://` and opens discord.com in a browser. Not a `url` event emitted in JS
+ * either: Discord doesn't take its links from there (both tried, 0.3.3 and 0.3.4).
+ */
+export function openUserProfile(userId: string) {
+	try {
+		const sheet = findProfileSheet();
+		if (sheet) return void sheet({ userId });
 	} catch (error) {
 		reportError(`${TAG} could not open profile:`, error);
 	}
-	toast("Couldn't open the profile.");
+	const failed = () => toast("Couldn't open the profile.");
+	if (!/^\d{17,20}$/.test(userId)) return failed();
+	native
+		.openProfile(userId)
+		.then((opened) => opened || failed())
+		.catch(() => failed());
 }
 
 function hide() {
@@ -106,6 +139,114 @@ function Sheet({ title, children }: { title: string; children: any }) {
 	);
 }
 
+/** Who and where a log entry is from, for the Ignore sheet. Both logs' records fit. */
+export interface IgnoreTarget {
+	authorId?: string;
+	authorName?: string;
+	authorBot?: boolean;
+	guildId?: string;
+	guildName?: string;
+}
+
+function IgnoreSheet({ target }: { target: IgnoreTarget }) {
+	const { TableRow } = Design as any;
+	const userId = String(target.authorId ?? "");
+	const userName = target.authorName || "this person";
+	const userIgnored = !!userId && isIgnoredUser(userId);
+	const guildId = String(target.guildId ?? "");
+	const guildName = target.guildName || "this server";
+	const guildIgnored = !!guildId && isIgnoredGuild(guildId);
+	return (
+		<Sheet title="Ignore in Ghost Log">
+			{userId ? (
+				<TableRow
+					label={
+						userIgnored ? `Stop ignoring ${userName}` : `Ignore ${userName}`
+					}
+					subLabel={
+						userIgnored
+							? "Their deleted and edited messages are logged again."
+							: `Nothing from this ${target.authorBot ? "bot" : "person"} is logged, anywhere.`
+					}
+					icon={rowIcon("UserIcon", "ic_profile_24px")}
+					onPress={run(() =>
+						userIgnored
+							? unignoreUser(userId)
+							: ignoreUser({
+									id: userId,
+									name: userName,
+									bot: !!target.authorBot,
+								}),
+					)}
+				/>
+			) : null}
+			{guildId ? (
+				<TableRow
+					label={
+						guildIgnored ? `Stop ignoring ${guildName}` : `Ignore ${guildName}`
+					}
+					subLabel={
+						guildIgnored
+							? "This server is logged again."
+							: "Nothing from this server is logged."
+					}
+					icon={rowIcon("ServerIcon", "GlobeEarthIcon", "ic_globe")}
+					onPress={run(() =>
+						guildIgnored
+							? unignoreGuild(guildId)
+							: ignoreGuild({ id: guildId, name: guildName }),
+					)}
+				/>
+			) : null}
+		</Sheet>
+	);
+}
+
+/** "Ignore this person / this server": opened from a log row's Ignore action. */
+export const openIgnoreSheet = (target: IgnoreTarget) =>
+	open(IgnoreSheet, { target });
+
+/** Asks, then removes one deleted message from the log and says how it went. */
+export function removeDeleted(entry: DeletedMessage) {
+	confirmDestructive({
+		title: "Remove from log?",
+		body: "This deleted message and its saved media are removed for good. It stops showing in chat after a reload.",
+		action: "Remove",
+		onConfirm: () =>
+			void (removeFromLog(entry.id) as Promise<boolean | void>)
+				.catch(() => false)
+				.then((result) => reportRemoval(result, "Removed from log.")),
+	});
+}
+
+/** Asks, then removes one message's edit history and says how it went. */
+export function removeEdit(record: EditRecord) {
+	confirmDestructive({
+		title: "Remove edit history?",
+		body: "This message's earlier versions are removed for good.",
+		action: "Remove",
+		onConfirm: () =>
+			void (removeEditRecord(record.id) as Promise<boolean | void>)
+				.catch(() => false)
+				.then((result) => reportRemoval(result, "Edit history removed.")),
+	});
+}
+
+/** Every version of an edited message, oldest first, for the clipboard. */
+export function editHistoryText(record: EditRecord): string {
+	const texts = [
+		...(Array.isArray(record.versions) ? record.versions : []).map(
+			(version) => version?.content ?? "",
+		),
+		record.current ?? "",
+	];
+	return texts
+		.map((text, index) =>
+			index === texts.length - 1 ? `Now: ${text}` : `${index + 1}: ${text}`,
+		)
+		.join(String.fromCharCode(10, 10));
+}
+
 function DeletedSheet({ entry }: { entry: DeletedMessage }) {
 	const { TableRow } = Design as any;
 	return (
@@ -130,20 +271,15 @@ function DeletedSheet({ entry }: { entry: DeletedMessage }) {
 				/>
 			) : null}
 			<TableRow
+				label="Ignore…"
+				icon={rowIcon("EyeSlashIcon", "DenyIcon", "ic_block")}
+				onPress={() => openIgnoreSheet(entry)}
+			/>
+			<TableRow
 				label="Remove from log"
 				variant="danger"
 				icon={dangerIcon("TrashIcon")}
-				onPress={run(() =>
-					confirmDestructive({
-						title: "Remove from log?",
-						body: "This deleted message and its saved media are removed for good. It stops showing in chat after a reload.",
-						action: "Remove",
-						onConfirm: () =>
-							void (removeFromLog(entry.id) as Promise<boolean | void>)
-								.catch(() => false)
-								.then((result) => reportRemoval(result, "Removed from log.")),
-					}),
-				)}
+				onPress={run(() => removeDeleted(entry))}
 			/>
 		</Sheet>
 	);
@@ -187,22 +323,15 @@ function EditSheet({ record }: { record: EditRecord }) {
 				/>
 			) : null}
 			<TableRow
+				label="Ignore…"
+				icon={rowIcon("EyeSlashIcon", "DenyIcon", "ic_block")}
+				onPress={() => openIgnoreSheet(record)}
+			/>
+			<TableRow
 				label="Remove from log"
 				variant="danger"
 				icon={dangerIcon("TrashIcon")}
-				onPress={run(() =>
-					confirmDestructive({
-						title: "Remove edit history?",
-						body: "This message's earlier versions are removed for good.",
-						action: "Remove",
-						onConfirm: () =>
-							void (removeEditRecord(record.id) as Promise<boolean | void>)
-								.catch(() => false)
-								.then((result) =>
-									reportRemoval(result, "Edit history removed."),
-								),
-					}),
-				)}
+				onPress={run(() => removeEdit(record))}
 			/>
 		</Sheet>
 	);

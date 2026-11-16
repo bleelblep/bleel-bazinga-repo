@@ -15,14 +15,21 @@ export interface GhostLogSettings {
 	ignoreBots: boolean;
 	/** Keep the earlier versions of edited messages in the encrypted edit log. */
 	logEdits: boolean;
-	/** Also keep the history of your own edits. Separate from countOwnMessages (Options > Include my own deleted messages). */
+	/** Also keep the history of your own edits. Written together with countOwnMessages: Logging has one "My own messages" switch for both. */
 	logOwnEdits: boolean;
 	/** Show those earlier versions above the message in chat. */
 	showEditHistory: boolean;
 	/** The main page's message-logger warning was hidden for good (after a confirm). */
 	warningDismissed: boolean;
-	/** Catch notices are Ghost Log's own, tappable to open the message, shown for 6 seconds. */
-	tapToJump: boolean;
-	/** Adds "Remove from Ghost Log" to chat's long-press menu on logged messages. */
-	removeFromChat: boolean;
+	/** Servers nothing is logged from. The name is kept for the list, for a server you have left. */
+	ignoredGuilds: IgnoredItem[];
+	/** People and bots nothing is logged from, in any server or DM. */
+	ignoredUsers: IgnoredItem[];
+}
+
+/** One entry of an ignore list: the id that is matched, and a name to show for it. */
+export interface IgnoredItem {
+	id: string;
+	name: string;
+	bot?: boolean;
 }

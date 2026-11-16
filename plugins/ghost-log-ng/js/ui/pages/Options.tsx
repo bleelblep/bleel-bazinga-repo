@@ -14,7 +14,11 @@ import { useLog } from "../state";
 const SIZES = [100, 500, 1000, 5000];
 const UNLIMITED = "unlimited";
 
-/** Logging: what gets caught, notifications and how many are kept. Look is on Visual style, backup on Backup & encryption. */
+/**
+ * Logging: what gets logged and how much of it is kept. Nothing else: how it looks in chat and
+ * the notice are on In chat, who is left out is on Ignored, copies are on Backup & encryption.
+ * The page used to hold all of the first three (ten switches and a size picker).
+ */
 export default function Options() {
 	const { Page } = components;
 	const { ScrollView } = ReactNative;
@@ -31,6 +35,11 @@ export default function Options() {
 	const editedCount = useEdits().length;
 	const set = (patch: Partial<GhostLogSettings>) => void setSettings(patch);
 
+	// One switch for "my own messages". It is still two keys underneath (deletes and edits are
+	// caught by different code), always written together; index.ts evens out a pair left uneven by
+	// an older version.
+	const own = !!s.countOwnMessages || !!s.logOwnEdits;
+
 	const max = s.maxEntries ?? DEFAULTS.maxEntries;
 	// A size set before this picker existed (or by hand) stays selectable rather than vanishing.
 	const sizes = SIZES.includes(max)
@@ -45,7 +54,7 @@ export default function Options() {
 		void native.setLimits(maxEntries, unlimitedEntries).catch(() => {});
 	};
 
-	// Native trims at once, so a smaller size drops the oldest for good: ask first.
+	// Native trims at once, so a smaller size drops the oldest: ask first.
 	const chooseSize = (value: string) => {
 		if (value === current) return;
 		const size = value === UNLIMITED ? Infinity : Number(value);
@@ -57,7 +66,7 @@ export default function Options() {
 		}
 		confirmDestructive({
 			title: `Keep only ${size}?`,
-			body: `The oldest ${over} logged message${over === 1 ? "" : "s"} will be removed for good.`,
+			body: `The oldest ${over} logged message${over === 1 ? "" : "s"} will be removed.`,
 			action: "Remove",
 			onConfirm: () => applySize(value),
 		});
@@ -67,90 +76,36 @@ export default function Options() {
 		<Page>
 			<ScrollView contentContainerStyle={{ paddingBottom: useBottomPadding() }}>
 				<Stack spacing={24}>
-					<TableRowGroup title="What gets caught" hasIcons>
+					<TableRowGroup title="What gets logged" hasIcons>
 						<TableSwitchRow
-							label="Log deletions"
+							label="Deleted messages"
 							subLabel="Keep messages other people delete."
 							icon={rowIcon("TrashIcon", "ic_trash")}
 							value={!!s.logDeletions}
 							onValueChange={(v) => set({ logDeletions: v })}
 						/>
 						<TableSwitchRow
-							label="Include my own deleted messages"
-							subLabel={
-								s.logDeletions
-									? "Keep messages you delete yourself too. They stay in chat marked as deleted, like anyone else's."
-									: "Turn on Log deletions to use this."
-							}
-							icon={rowIcon("UserIcon", "ic_profile_24px")}
-							disabled={!s.logDeletions}
-							value={!!s.countOwnMessages}
-							onValueChange={(v) => set({ countOwnMessages: v })}
-						/>
-						<TableSwitchRow
-							label="Log edits"
+							label="Edited messages"
 							subLabel="Keep the earlier versions of edited messages."
 							icon={rowIcon("PencilIcon", "ic_edit")}
 							value={!!s.logEdits}
 							onValueChange={(v) => set({ logEdits: v })}
 						/>
 						<TableSwitchRow
-							label="Include my own edits"
-							subLabel={
-								s.logEdits
-									? "Keep the earlier versions of messages you edit, too."
-									: "Turn on Log edits to use this."
-							}
+							label="My own messages"
+							subLabel="Also log messages you delete or edit yourself. Ones you delete stay in chat marked as deleted, like anyone else's."
 							icon={rowIcon("UserIcon", "ic_profile_24px")}
-							disabled={!s.logEdits}
-							value={!!s.logOwnEdits}
-							onValueChange={(v) => set({ logOwnEdits: v })}
+							value={own}
+							onValueChange={(v) =>
+								set({ countOwnMessages: v, logOwnEdits: v })
+							}
 						/>
 						<TableSwitchRow
-							label="Save attachments and embeds"
-							subLabel="Keep images, videos, files and link previews from deleted messages."
+							label="Attachments and link previews"
+							subLabel="Keep images, videos, files, stickers and link previews from deleted messages."
 							icon={rowIcon("ImageIcon", "ic_image")}
 							value={!!s.saveEmbeds}
 							onValueChange={(v) => set({ saveEmbeds: v })}
-						/>
-						<TableSwitchRow
-							label="Ignore bots"
-							subLabel="Don't keep deleted or edited messages from bot accounts."
-							icon={rowIcon("ClydeIcon", "RobotIcon", "UserIcon")}
-							value={!!s.ignoreBots}
-							onValueChange={(v) => set({ ignoreBots: v })}
-						/>
-					</TableRowGroup>
-
-					<TableRowGroup title="Notifications" hasIcons>
-						<TableSwitchRow
-							label="Toast when caught"
-							subLabel="Show a short notice the moment a deletion is caught."
-							icon={rowIcon("BellIcon", "ic_notification")}
-							value={!!s.toastOnCatch}
-							onValueChange={(v) => set({ toastOnCatch: v })}
-						/>
-						<TableSwitchRow
-							label="Tap the notice to jump"
-							subLabel={
-								s.toastOnCatch
-									? "The notice stays for 6 seconds. Tap it to open the deleted message."
-									: "Turn on Toast when caught to use this."
-							}
-							icon={rowIcon("ArrowSmallRightIcon", "ChatIcon")}
-							disabled={!s.toastOnCatch}
-							value={!!s.tapToJump}
-							onValueChange={(v) => set({ tapToJump: v })}
-						/>
-					</TableRowGroup>
-
-					<TableRowGroup title="Chat menu" hasIcons>
-						<TableSwitchRow
-							label="Remove from chat menu"
-							subLabel="Long-press a logged message in chat to remove it from Ghost Log. Nothing is sent to Discord."
-							icon={rowIcon("TrashIcon", "ic_trash")}
-							value={!!s.removeFromChat}
-							onValueChange={(v) => set({ removeFromChat: v })}
 						/>
 					</TableRowGroup>
 

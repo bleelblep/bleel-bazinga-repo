@@ -55,11 +55,11 @@ interface Target {
 	message?: any;
 }
 
-/** Which Ghost Log record this message has, when Remove from chat menu is on. */
+/** Which Ghost Log record this message has. The row only ever shows on a logged message, so it has no setting. */
 function removable(
 	messageId: string | undefined,
 ): "deleted" | "edited" | undefined {
-	if (!messageId || !getSettings().removeFromChat) return undefined;
+	if (!messageId) return undefined;
 	if (isLoggedId(messageId)) return "deleted";
 	if (getEditRecord(messageId)) return "edited";
 	return undefined;

@@ -13,7 +13,7 @@ import { getSettings } from "../settings";
 import { native } from "./bridge";
 import { scheduleBackup } from "./capture";
 import { isDeletedMessage } from "./keep";
-import { epochMs } from "./sanitize";
+import { describeMessage, epochMs, shouldLog } from "./sanitize";
 import { getStores } from "./stores";
 
 const TAG = "[GhostLogNG:edits]";
@@ -35,6 +35,12 @@ export interface EditRecord {
 	guildName?: string;
 	authorAvatar?: string;
 	guildIcon?: string;
+	/** See DeletedMessage (ui/state.ts) for these five. */
+	authorUsername?: string;
+	authorBot?: boolean;
+	authorNick?: string;
+	authorColor?: string;
+	accountId?: string;
 	sentAt?: number;
 	/** Oldest first. The current text is not in here -- see `current`. */
 	versions: EditVersion[];
@@ -54,6 +60,11 @@ export interface EditCapture {
 	guildName?: string;
 	authorAvatar?: string;
 	guildIcon?: string;
+	authorUsername?: string;
+	authorBot?: boolean;
+	authorNick?: string;
+	authorColor?: string;
+	accountId?: string;
 	sentAt?: number;
 	previous: string;
 	current: string;
@@ -297,26 +308,6 @@ export function useEdits(): EditRecord[] {
 	return records;
 }
 
-function describe(message: any, channelId: string) {
-	const s = getStores();
-	const channel = s.ChannelStore?.getChannel?.(channelId);
-	const guild = channel?.guild_id
-		? s.GuildStore?.getGuild?.(channel.guild_id)
-		: undefined;
-
-	return {
-		channelName: channel?.name ? `#${channel.name}` : "Direct message",
-		guildId: channel?.guild_id as string | undefined,
-		guildName: guild?.name as string | undefined,
-		guildIcon: guild?.icon as string | undefined,
-		authorName:
-			message.author?.globalName ??
-			message.author?.global_name ??
-			message.author?.username ??
-			"Unknown",
-	};
-}
-
 /**
  * One edit, caught from MESSAGE_UPDATE before the store applies it -- so the store still holds the
  * text as it was, which is the version worth keeping.
@@ -340,13 +331,9 @@ export function handleEdit(payload: any) {
 	if (before === incoming.content) return;
 	if (!cfg.logEdits) return;
 
-	if (!cfg.logOwnEdits) {
-		const me = s.UserStore?.getCurrentUser?.()?.id;
-		if (me && message.author?.id === me) return;
-	}
-	if (cfg.ignoreBots && message.author?.bot) return;
+	if (!shouldLog(message, channelId, cfg.logOwnEdits, cfg)) return;
 
-	const meta = describe(message, channelId);
+	const meta = describeMessage(message, channelId);
 	const now = Date.now();
 	captureEdit({
 		id: messageId,
@@ -354,6 +341,11 @@ export function handleEdit(payload: any) {
 		guildId: meta.guildId,
 		authorId: String(message.author?.id ?? ""),
 		authorName: meta.authorName,
+		authorUsername: meta.authorUsername,
+		authorBot: meta.authorBot,
+		authorNick: meta.authorNick,
+		authorColor: meta.authorColor,
+		accountId: meta.accountId,
 		channelName: meta.channelName,
 		guildName: meta.guildName,
 		authorAvatar: message.author?.avatar,

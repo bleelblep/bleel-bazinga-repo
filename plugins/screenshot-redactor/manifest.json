@@ -1,0 +1,20 @@
+{
+	"format": 1,
+	"id": "bleelblep.screenshot-redactor",
+	"name": "Screenshot Redactor",
+	"description": "Swaps names, avatars and personal details for placeholders so chats are safe to screenshot.",
+	"author": "bleelblep",
+	"icon": "EyeSlashIcon",
+	"version": "0.27.17",
+	"dependencies": {
+		"valenced.api": {
+			"version": ">=1 <2"
+		},
+		"discord": {
+			"version": "*"
+		}
+	},
+	"dist": {
+		"script": "index.js"
+	}
+}

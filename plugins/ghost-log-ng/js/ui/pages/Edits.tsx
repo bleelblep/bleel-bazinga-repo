@@ -72,6 +72,8 @@ export default function Edits() {
 	const [view, setView] = React.useState<LogView>(() => getLastView("edited"));
 	const [refreshing, setRefreshing] = React.useState(false);
 	const selection = useSelection();
+	// Recent: the one row opened out in place. One at a time, so the list doesn't turn into a wall.
+	const [expandedId, setExpandedId] = React.useState<string | null>(null);
 	const recent = view === "recent";
 
 	const needle = query.trim().toLowerCase();
@@ -119,6 +121,11 @@ export default function Edits() {
 						first={item.first}
 						last={item.last}
 						selection={selection}
+						expanded={expandedId === (item.item as EditRecord).id}
+						onToggle={() => {
+							const id = (item.item as EditRecord).id;
+							setExpandedId((open) => (open === id ? null : id));
+						}}
 					/>
 				) : (
 					<ConversationRow
@@ -235,7 +242,7 @@ export default function Edits() {
 				}}
 				initialNumToRender={14}
 				windowSize={7}
-				extraData={selection.version}
+				extraData={`${selection.version}:${expandedId}`}
 			/>
 			<SelectBar
 				selection={selection}

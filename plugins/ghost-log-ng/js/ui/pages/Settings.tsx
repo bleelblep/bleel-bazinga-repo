@@ -16,6 +16,7 @@ import {
 	BACKUP_ROUTE,
 	DEBUG_ROUTE,
 	EDITS_ROUTE,
+	IGNORED_ROUTE,
 	LICENSE_ROUTE,
 	LOG_ROUTE,
 	MEDIA_ROUTE,
@@ -26,6 +27,24 @@ import { useBottomPadding } from "../safeArea";
 import { useLog, useStorageStatus } from "../state";
 
 const DEBUG: boolean = false;
+
+/** What is being left out, for the Ignored row: "All bots, 2 servers, 1 person or bot". */
+function ignoredSummary(s: GhostLogSettings): string {
+	const servers = Array.isArray(s.ignoredGuilds) ? s.ignoredGuilds.length : 0;
+	const people = Array.isArray(s.ignoredUsers) ? s.ignoredUsers.length : 0;
+	const parts = [
+		s.ignoreBots ? "All bots" : "",
+		servers ? `${servers} server${servers === 1 ? "" : "s"}` : "",
+		people
+			? people === 1
+				? "1 person or bot"
+				: `${people} people and bots`
+			: "",
+	].filter(Boolean);
+	return parts.length
+		? parts.join(", ")
+		: "Bots, people and servers nothing is logged from";
+}
 
 /** "Are you sure?" before the warning goes for good. Not destructive, so the action isn't red. */
 function confirmHideWarning() {
@@ -134,13 +153,13 @@ export default function Settings() {
 						channel you never opened was never on this phone.
 					</Text>
 
-					<TableRowGroup title="Caught" hasIcons>
+					<TableRowGroup title="Logged" hasIcons>
 						<TableRow
 							label="Deleted messages"
 							subLabel={
 								entries.length
-									? `${entries.length} caught`
-									: "Nothing caught yet"
+									? `${entries.length} logged`
+									: "Nothing logged yet"
 							}
 							icon={rowIcon("TrashIcon", "ic_trash")}
 							arrow
@@ -151,7 +170,7 @@ export default function Settings() {
 							subLabel={
 								edited.length
 									? `${edited.length} with earlier versions`
-									: "Nothing caught yet"
+									: "Nothing logged yet"
 							}
 							icon={rowIcon("PencilIcon", "ic_edit")}
 							arrow
@@ -173,21 +192,28 @@ export default function Settings() {
 					<TableRowGroup title="Settings" hasIcons>
 						<TableRow
 							label="Logging"
-							subLabel="What gets caught, notifications, log size"
+							subLabel="What gets logged, log size"
 							icon={rowIcon("SettingsIcon", "ic_settings")}
 							arrow
 							onPress={() => navigation.navigate(OPTIONS_ROUTE)}
 						/>
 						<TableRow
-							label="Visual style"
-							subLabel="How deleted and edited messages look in chat"
+							label="In chat"
+							subLabel="How deleted and edited messages look, notices"
 							icon={rowIcon("PaintPaletteIcon", "PaintbrushThinIcon")}
 							arrow
 							onPress={() => navigation.navigate(VISUALS_ROUTE)}
 						/>
 						<TableRow
+							label="Ignored"
+							subLabel={ignoredSummary(s)}
+							icon={rowIcon("EyeSlashIcon", "DenyIcon", "ic_block")}
+							arrow
+							onPress={() => navigation.navigate(IGNORED_ROUTE)}
+						/>
+						<TableRow
 							label="Backup & encryption"
-							subLabel="Automatic backup, restore, moving to another phone, recovery password"
+							subLabel="Backups, moving to another phone, recovery password"
 							icon={rowIcon("LockIcon", "ic_lock")}
 							arrow
 							onPress={() => navigation.navigate(BACKUP_ROUTE)}

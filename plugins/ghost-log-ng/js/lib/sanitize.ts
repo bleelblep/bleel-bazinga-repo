@@ -14,7 +14,88 @@
  *
  * Nothing here may throw: every input is untrusted data from a live message or an old log entry.
  */
+import type { GhostLogSettings, IgnoredItem } from "../types";
 import { getStores } from "./stores";
+
+/** Longest name kept on an entry. */
+const MAX_NAME = 100;
+
+const name = (value: unknown) =>
+	typeof value === "string" && value ? value.slice(0, MAX_NAME) : undefined;
+
+/**
+ * Channel, server and author details for one message, read from the stores at capture time. The
+ * one place an entry's "who and where" is built: capture.ts and edits.ts each had a copy, so a new
+ * field had to be added twice.
+ *
+ * `authorNick` and `authorColor` are the server nickname and role colour as they were then
+ * (`GuildMemberStore.getMember`); `accountId` is the account that caught it.
+ */
+export function describeMessage(message: any, channelId: string) {
+	const s = getStores();
+	const channel = s.ChannelStore?.getChannel?.(channelId);
+	const guildId = channel?.guild_id as string | undefined;
+	const guild = guildId ? s.GuildStore?.getGuild?.(guildId) : undefined;
+	const author = message?.author;
+	let member: any;
+	try {
+		member =
+			guildId && author?.id
+				? s.GuildMemberStore?.getMember?.(guildId, author.id)
+				: undefined;
+	} catch {
+		member = undefined;
+	}
+	const colour = member?.colorString;
+	return {
+		channelName: channel?.name ? `#${channel.name}` : "Direct message",
+		guildId,
+		guildName: guild?.name as string | undefined,
+		guildIcon: guild?.icon as string | undefined,
+		authorName: (author?.globalName ??
+			author?.global_name ??
+			author?.username ??
+			"Unknown") as string,
+		authorUsername: name(author?.username),
+		authorBot: author?.bot ? true : undefined,
+		authorNick: name(member?.nick),
+		authorColor:
+			typeof colour === "string" && /^#[0-9a-f]{6}$/i.test(colour)
+				? colour
+				: undefined,
+		accountId: name(s.UserStore?.getCurrentUser?.()?.id),
+	};
+}
+
+const listed = (list: IgnoredItem[] | undefined, id: string) =>
+	Array.isArray(list) && list.some((item) => item?.id === id);
+
+/**
+ * Whether a message's deletions and edits are logged at all: not your own (unless `includeOwn`),
+ * not a bot's with Ignore bots on, not from an ignored person, bot or server. The one copy of a
+ * check that was written out in capture.ts, edits.ts and keep.ts; a message that fails it is not
+ * logged, not kept in chat and gets no edit history.
+ */
+export function shouldLog(
+	message: any,
+	channelId: string,
+	includeOwn: boolean,
+	cfg: Pick<GhostLogSettings, "ignoreBots" | "ignoredGuilds" | "ignoredUsers">,
+): boolean {
+	const s = getStores();
+	const authorId = message?.author?.id;
+	if (!includeOwn) {
+		const me = s.UserStore?.getCurrentUser?.()?.id;
+		if (me && authorId === me) return false;
+	}
+	if (cfg.ignoreBots && message?.author?.bot) return false;
+	if (authorId && listed(cfg.ignoredUsers, String(authorId))) return false;
+	if (cfg.ignoredGuilds?.length) {
+		const guildId = s.ChannelStore?.getChannel?.(channelId)?.guild_id;
+		if (guildId && listed(cfg.ignoredGuilds, String(guildId))) return false;
+	}
+	return true;
+}
 
 /** A timestamp as finite epoch milliseconds, or `fallback`. */
 export function epochMs(value: unknown, fallback: number): number {
