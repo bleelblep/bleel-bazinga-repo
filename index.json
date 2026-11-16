@@ -108,13 +108,26 @@
       "author": "bleelblep",
       "icon": "TrashIcon",
       "channels": {
-        "latest": "0.3.1"
+        "latest": "0.4.3"
       },
       "versions": {
         "0.3.1": {
           "url": "https://bleelblep.github.io/bleel-bazinga-repo/pool/bleelblep.ghost-log-ng@0.3.1.zip",
           "sha256": "1cdf5b1d1258691686188e59f46ae2400a10452faecb76a8d76a057a6ae76e94",
           "size": 184427,
+          "dependencies": {
+            "valenced.api": {
+              "version": ">=1 <2"
+            },
+            "discord": {
+              "version": "*"
+            }
+          }
+        },
+        "0.4.3": {
+          "url": "https://bleelblep.github.io/bleel-bazinga-repo/pool/bleelblep.ghost-log-ng@0.4.3.zip",
+          "sha256": "08c356299b1a876c2b2d4830571b64fd87601604405eef60c0503b41d87defcc",
+          "size": 196133,
           "dependencies": {
             "valenced.api": {
               "version": ">=1 <2"
@@ -659,6 +672,30 @@
         }
       }
     },
+    "bleelblep.relationship-notifier": {
+      "name": "Relationship Notifier",
+      "description": "Tells you about lost and new friends, lost servers and group DMs, and friends' new names and avatars.",
+      "author": "bleelblep",
+      "icon": "UserMinusIcon",
+      "channels": {
+        "latest": "2.1.1"
+      },
+      "versions": {
+        "2.1.1": {
+          "url": "https://bleelblep.github.io/bleel-bazinga-repo/pool/bleelblep.relationship-notifier@2.1.1.zip",
+          "sha256": "09cdb7d6becb218ed9bfd20d8dea9ae7a881e35aa1973d5780f3c708a0efe55b",
+          "size": 12157,
+          "dependencies": {
+            "valenced.api": {
+              "version": ">=1 <2"
+            },
+            "discord": {
+              "version": "*"
+            }
+          }
+        }
+      }
+    },
     "bleelblep.review-db": {
       "name": "ReviewDB",
       "description": "Read and write reviews on user profiles and servers, from ReviewDB.",
@@ -813,6 +850,30 @@
           "url": "https://bleelblep.github.io/bleel-bazinga-repo/pool/bleelblep.round-icons@1.3.8.zip",
           "sha256": "57bc793f3439b061ed2928881d80bb1902802abd2be1e9c8260ebf3ff09432c6",
           "size": 9593,
+          "dependencies": {
+            "valenced.api": {
+              "version": ">=1 <2"
+            },
+            "discord": {
+              "version": "*"
+            }
+          }
+        }
+      }
+    },
+    "bleelblep.screenshot-redactor": {
+      "name": "Screenshot Redactor",
+      "description": "Swaps names, avatars and personal details for placeholders so chats are safe to screenshot.",
+      "author": "bleelblep",
+      "icon": "EyeSlashIcon",
+      "channels": {
+        "latest": "0.27.17"
+      },
+      "versions": {
+        "0.27.17": {
+          "url": "https://bleelblep.github.io/bleel-bazinga-repo/pool/bleelblep.screenshot-redactor@0.27.17.zip",
+          "sha256": "d46b0fd2cb6e847603ff15811102e7687903e0661b3e64306703188da7d8a2ee",
+          "size": 18660,
           "dependencies": {
             "valenced.api": {
               "version": ">=1 <2"
